@@ -6,6 +6,8 @@ import type { NoCampo } from "./campo-tree";
 import { achatarArvoreCampos } from "./campo-tree";
 import { CampoField } from "./campo-field";
 import { salvarSecao, type RespostaCampoInput } from "./actions";
+import { Botao } from "@/components/ui/button";
+import { Toast } from "@/components/ui/toast";
 import {
   gerarNarrativoCampo,
   gerarNarrativoSecao,
@@ -215,14 +217,33 @@ export function SecaoWorkspace({
     router.push(`/processos/${processoId}/preenchimento/${destinoSecaoId}`);
   }
 
+  const totalRespondidas = secoesNav.filter((s) => s.respondida).length;
+  const progresso = secoesNav.length > 0 ? Math.round((totalRespondidas / secoesNav.length) * 100) : 0;
+
   return (
     <div className="flex flex-1 min-h-0">
-      <aside className="w-72 shrink-0 border-r border-zinc-200 dark:border-zinc-800 overflow-y-auto">
-        <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
-          <p className="text-xs text-zinc-500">{tipoLaudoNome}</p>
-          <p className="text-sm font-medium">{periciandoNome ?? "Periciando(a) não identificado(a)"}</p>
+      <aside className="w-72 shrink-0 border-r border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 overflow-y-auto">
+        <div className="p-4 border-b border-nevoa-200 dark:border-nevoa-800">
+          <p className="text-xs text-nevoa-500 dark:text-nevoa-400">{tipoLaudoNome}</p>
+          <p className="text-sm font-medium text-nevoa-900 dark:text-nevoa-100">
+            {periciandoNome ?? "Periciando(a) não identificado(a)"}
+          </p>
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-xs text-nevoa-500 dark:text-nevoa-400 mb-1">
+              <span>
+                {totalRespondidas} de {secoesNav.length} seções respondidas
+              </span>
+              <span className="tabular-nums">{progresso}%</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-nevoa-200 dark:bg-nevoa-800 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-petroleo-600 dark:bg-petroleo-400 transition-[width]"
+                style={{ width: `${progresso}%` }}
+              />
+            </div>
+          </div>
         </div>
-        <nav className="p-2">
+        <nav className="p-2 space-y-0.5">
           {secoesNav.map((s) => {
             const ativa = s.id === secaoAtualId;
             return (
@@ -230,16 +251,21 @@ export function SecaoWorkspace({
                 key={s.id}
                 type="button"
                 onClick={() => irPara(s.id)}
-                className={`w-full text-left px-3 py-2 rounded text-sm flex items-center gap-2 ${
+                aria-current={ativa ? "true" : undefined}
+                className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors ${
                   ativa
-                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                    : "hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                    ? "bg-petroleo-100 text-petroleo-700 font-medium dark:bg-petroleo-950/60 dark:text-petroleo-300"
+                    : "text-nevoa-700 hover:bg-nevoa-100 dark:text-nevoa-300 dark:hover:bg-nevoa-800/60"
                 }`}
               >
                 <span
                   aria-hidden
                   className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${
-                    s.respondida ? "bg-emerald-500" : ativa ? "bg-white/50 dark:bg-zinc-900/40" : "bg-zinc-300 dark:bg-zinc-700"
+                    s.respondida
+                      ? "bg-musgo-600 dark:bg-musgo-400"
+                      : ativa
+                        ? "bg-petroleo-600 dark:bg-petroleo-400"
+                        : "bg-nevoa-300 dark:bg-nevoa-700"
                   }`}
                 />
                 <span className={s.estrutural ? "italic" : ""}>{s.titulo}</span>
@@ -250,9 +276,9 @@ export function SecaoWorkspace({
       </aside>
 
       <main className="flex-1 overflow-y-auto p-8 max-w-3xl">
-        <h1 className="text-xl font-semibold mb-1">{secaoAtualTitulo}</h1>
+        <h1 className="font-title text-xl font-semibold text-nevoa-900 dark:text-nevoa-50 mb-1">{secaoAtualTitulo}</h1>
         {estrutural && (
-          <p className="text-sm text-zinc-500 mb-6">
+          <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mb-6">
             Esta seção não tem campos de marcação — o conteúdo dela vem de outra tela do sistema
             (Documentos ou Quesitos). Use o campo abaixo se quiser escrever manualmente um texto
             pra ela desde já.
@@ -275,9 +301,9 @@ export function SecaoWorkspace({
           </div>
         )}
 
-        <div className="border-t border-zinc-200 dark:border-zinc-800 pt-4">
+        <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-4">
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-sm font-medium">Texto narrativo da seção</label>
+            <label className="text-sm font-medium text-nevoa-700 dark:text-nevoa-300">Texto narrativo da seção</label>
             {editadoManualmente && !estrutural && (
               <button
                 type="button"
@@ -285,14 +311,14 @@ export function SecaoWorkspace({
                   setEditadoManualmente(false);
                   setManualOverride(null);
                 }}
-                className="text-xs underline text-zinc-500"
+                className="text-xs text-petroleo-600 hover:underline dark:text-petroleo-400"
               >
                 Recompor automaticamente
               </button>
             )}
           </div>
           {editadoManualmente && !estrutural && (
-            <p className="text-xs text-amber-700 dark:text-amber-500 mb-1.5">
+            <p className="text-xs text-ambar-600 dark:text-ambar-400 mb-1.5">
               Texto editado manualmente — não será mais recomposto sozinho ao mudar uma marcação.
             </p>
           )}
@@ -308,30 +334,29 @@ export function SecaoWorkspace({
                 ? "Escreva manualmente, se necessário"
                 : "Gerado automaticamente a partir das marcações acima — edite à vontade"
             }
-            className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm"
+            className="w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-3 py-2 text-sm text-nevoa-900 dark:text-nevoa-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
           />
-          <p className="text-xs text-zinc-500 mt-1">
+          <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
             Este texto é sempre editável e só entra no laudo final assim como estiver aqui — nada é
             decidido sozinho pelo sistema.
           </p>
         </div>
 
         <div className="flex items-center gap-3 mt-6">
-          <button
-            type="button"
+          <Botao
             onClick={() => salvar()}
-            disabled={salvando || !dirty}
-            className="rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 text-sm disabled:opacity-40"
+            disabled={!dirty && !salvando}
+            carregando={salvando}
+            textoCarregando="Salvando…"
           >
-            {salvando ? "Salvando…" : dirty ? "Salvar seção" : "Salvo"}
-          </button>
-          {mensagem && (
-            <span className={`text-sm ${mensagem.tipo === "erro" ? "text-red-600" : "text-zinc-500"}`}>
-              {mensagem.texto}
-            </span>
-          )}
+            {dirty ? "Salvar seção" : "Salvo"}
+          </Botao>
         </div>
       </main>
+
+      {mensagem && (
+        <Toast tipo={mensagem.tipo} texto={mensagem.texto} onClose={() => setMensagem(null)} />
+      )}
     </div>
   );
 }

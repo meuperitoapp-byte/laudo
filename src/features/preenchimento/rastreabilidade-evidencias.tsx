@@ -38,7 +38,7 @@ export function RastreabilidadeEvidencias({
 
   if (!podeVincular) {
     return (
-      <p className="text-xs text-zinc-400 italic mt-1">
+      <p className="text-xs text-nevoa-400 dark:text-nevoa-600 italic mt-1">
         Salve esta seção com a conclusão confirmada pra poder vincular elementos que a sustentam.
       </p>
     );
@@ -97,13 +97,13 @@ export function RastreabilidadeEvidencias({
   }
 
   return (
-    <div className="mt-2 rounded border border-zinc-200 dark:border-zinc-800 p-3 space-y-2">
-      <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+    <div className="mt-2 rounded-md border border-nevoa-200 dark:border-nevoa-800 p-3 space-y-2">
+      <p className="text-xs font-medium text-nevoa-600 dark:text-nevoa-400">
         Elementos que sustentam esta conclusão
       </p>
 
       {evidencias.length === 0 ? (
-        <p className="text-xs text-zinc-400">Nenhum elemento vinculado ainda.</p>
+        <p className="text-xs text-nevoa-400 dark:text-nevoa-600">Nenhum elemento vinculado ainda.</p>
       ) : (
         <ul className="space-y-1">
           {evidencias.map((ev) => {
@@ -115,7 +115,7 @@ export function RastreabilidadeEvidencias({
               rotulo = achado ? `${achado.secaoTitulo} — ${achado.rotulo}` : "Resposta removida";
             }
             return (
-              <li key={ev.id} className="flex items-center justify-between gap-2 text-xs">
+              <li key={ev.id} className="flex items-center justify-between gap-2 text-xs text-nevoa-700 dark:text-nevoa-300">
                 <span>
                   {ev.documento_id ? "📄" : "🔗"} {rotulo}
                 </span>
@@ -123,7 +123,7 @@ export function RastreabilidadeEvidencias({
                   type="button"
                   onClick={() => desvincular(ev.id)}
                   disabled={isPending}
-                  className="text-red-600 underline disabled:opacity-30 shrink-0"
+                  className="text-vinho-600 hover:underline dark:text-vinho-400 disabled:opacity-30 shrink-0"
                 >
                   remover
                 </button>
@@ -137,14 +137,14 @@ export function RastreabilidadeEvidencias({
         <button
           type="button"
           onClick={() => setAbrindo(abrindo === "achado" ? null : "achado")}
-          className="underline text-zinc-500"
+          className="text-petroleo-600 hover:underline dark:text-petroleo-400"
         >
           Vincular achado clínico
         </button>
         <button
           type="button"
           onClick={() => setAbrindo(abrindo === "documento" ? null : "documento")}
-          className="underline text-zinc-500"
+          className="text-petroleo-600 hover:underline dark:text-petroleo-400"
         >
           Vincular documento
         </button>
@@ -156,11 +156,11 @@ export function RastreabilidadeEvidencias({
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Buscar por seção/campo/resposta..."
-            className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1 text-xs"
+            className="w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-2 py-1 text-xs text-nevoa-900 dark:text-nevoa-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
           />
-          <div className="max-h-40 overflow-y-auto rounded border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
+          <div className="max-h-40 overflow-y-auto rounded-md border border-nevoa-200 dark:border-nevoa-800 divide-y divide-nevoa-100 dark:divide-nevoa-800">
             {achadosFiltrados.length === 0 && (
-              <p className="px-2 py-1.5 text-xs text-zinc-400">Nada encontrado.</p>
+              <p className="px-2 py-1.5 text-xs text-nevoa-400 dark:text-nevoa-600">Nada encontrado.</p>
             )}
             {achadosFiltrados.map((a) => (
               <button
@@ -168,12 +168,12 @@ export function RastreabilidadeEvidencias({
                 type="button"
                 onClick={() => vincular("achado", a.respostaId)}
                 disabled={isPending}
-                className="block w-full text-left px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="block w-full text-left px-2 py-1.5 text-xs hover:bg-nevoa-100 dark:hover:bg-nevoa-800"
               >
-                <span className="font-medium">
+                <span className="font-medium text-nevoa-900 dark:text-nevoa-100">
                   {a.secaoTitulo} — {a.rotulo}
                 </span>
-                <span className="block text-zinc-500 truncate">{a.resumo}</span>
+                <span className="block text-nevoa-500 dark:text-nevoa-400 truncate">{a.resumo}</span>
               </button>
             ))}
           </div>
@@ -181,9 +181,9 @@ export function RastreabilidadeEvidencias({
       )}
 
       {abrindo === "documento" && (
-        <div className="max-h-40 overflow-y-auto rounded border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
+        <div className="max-h-40 overflow-y-auto rounded-md border border-nevoa-200 dark:border-nevoa-800 divide-y divide-nevoa-100 dark:divide-nevoa-800">
           {documentosFiltrados.length === 0 && (
-            <p className="px-2 py-1.5 text-xs text-zinc-400">Nenhum documento disponível.</p>
+            <p className="px-2 py-1.5 text-xs text-nevoa-400 dark:text-nevoa-600">Nenhum documento disponível.</p>
           )}
           {documentosFiltrados.map((d) => (
             <button
@@ -191,7 +191,7 @@ export function RastreabilidadeEvidencias({
               type="button"
               onClick={() => vincular("documento", d.id)}
               disabled={isPending}
-              className="block w-full text-left px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              className="block w-full text-left px-2 py-1.5 text-xs text-nevoa-800 dark:text-nevoa-200 hover:bg-nevoa-100 dark:hover:bg-nevoa-800"
             >
               {d.nomeArquivo}
               {d.categoria ? ` — ${d.categoria}` : ""}
@@ -200,7 +200,7 @@ export function RastreabilidadeEvidencias({
         </div>
       )}
 
-      {erro && <p className="text-xs text-red-600">{erro}</p>}
+      {erro && <p className="text-xs text-vinho-600 dark:text-vinho-400">{erro}</p>}
     </div>
   );
 }

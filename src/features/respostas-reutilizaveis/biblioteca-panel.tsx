@@ -7,11 +7,13 @@ import {
   criarRespostaReutilizavel,
   excluirRespostaReutilizavel,
 } from "./actions";
+import { Botao } from "@/components/ui/button";
 import type { RespostasReutilizaveisRow, TiposLaudoRow } from "@/types/database";
 
 const inputClass =
-  "w-full rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm";
-const labelClass = "block text-xs font-medium text-zinc-500 mb-1";
+  "w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-3 py-2 text-sm text-nevoa-900 dark:text-nevoa-100 " +
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500";
+const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1";
 
 export interface CampoParaBiblioteca {
   id: string;
@@ -112,16 +114,16 @@ export function BibliotecaPanel({
   return (
     <div className="space-y-10 max-w-3xl">
       {respostas.length === 0 ? (
-        <p className="text-sm text-zinc-500">Nenhuma resposta reutilizável salva ainda.</p>
+        <p className="text-sm text-nevoa-500 dark:text-nevoa-400">Nenhuma resposta reutilizável salva ainda.</p>
       ) : (
         gruposOrdenados.map((grupo) => (
           <section key={grupo.chave} className="space-y-4">
-            <h2 className="text-base font-semibold border-b border-zinc-200 dark:border-zinc-800 pb-1">
+            <h2 className="font-title text-base font-semibold text-nevoa-900 dark:text-nevoa-100 border-b border-nevoa-200 dark:border-nevoa-800 pb-1.5">
               {grupo.titulo}
             </h2>
             {agruparPorCampo(grupo.itens, campoInfo).map((sub) => (
               <div key={sub.chave} className="space-y-2 pl-2">
-                <h3 className="text-sm font-medium text-zinc-500">{sub.titulo}</h3>
+                <h3 className="text-sm font-medium text-nevoa-500 dark:text-nevoa-400">{sub.titulo}</h3>
                 <ul className="space-y-2">
                   {sub.itens.map((item) => (
                     <RespostaItem
@@ -230,17 +232,17 @@ function RespostaItem({
 
   if (!editando) {
     return (
-      <li className="rounded border border-zinc-200 dark:border-zinc-800 p-3">
+      <li className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-medium">{item.titulo}</p>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 whitespace-pre-wrap">{item.conteudo}</p>
+            <p className="text-sm font-medium text-nevoa-900 dark:text-nevoa-100">{item.titulo}</p>
+            <p className="text-sm text-nevoa-600 dark:text-nevoa-400 mt-1 whitespace-pre-wrap">{item.conteudo}</p>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setEditando(true)}
-              className="rounded border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-xs"
+              className="rounded-md border border-nevoa-300 dark:border-nevoa-700 text-nevoa-600 dark:text-nevoa-400 hover:bg-nevoa-100 dark:hover:bg-nevoa-800 px-2 py-1 text-xs"
             >
               Editar
             </button>
@@ -248,19 +250,19 @@ function RespostaItem({
               type="button"
               onClick={excluir}
               disabled={isPending}
-              className="rounded border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-xs text-red-600 disabled:opacity-30"
+              className="rounded-md border border-nevoa-300 dark:border-nevoa-700 px-2 py-1 text-xs text-vinho-600 dark:text-vinho-400 hover:bg-vinho-100 dark:hover:bg-vinho-950 disabled:opacity-30"
             >
               Excluir
             </button>
           </div>
         </div>
-        {erro && <p className="text-sm text-red-600 mt-2">{erro}</p>}
+        {erro && <p className="text-sm text-vinho-600 dark:text-vinho-400 mt-2">{erro}</p>}
       </li>
     );
   }
 
   return (
-    <li className="rounded border border-zinc-300 dark:border-zinc-700 p-3 space-y-3">
+    <li className="rounded-lg border border-petroleo-300 dark:border-petroleo-800 bg-white dark:bg-nevoa-900/40 p-3 space-y-3">
       <div>
         <label className={labelClass}>Título</label>
         <input value={titulo} onChange={(e) => setTitulo(e.target.value)} className={inputClass} />
@@ -281,20 +283,19 @@ function RespostaItem({
         onCampoChange={setCampoId}
       />
       <div className="flex items-center gap-3">
+        <Botao onClick={salvar} carregando={isPending} textoCarregando="Salvando…">
+          Salvar
+        </Botao>
         <button
           type="button"
-          onClick={salvar}
-          disabled={isPending}
-          className="rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-1.5 text-sm disabled:opacity-40"
+          onClick={() => setEditando(false)}
+          className="text-sm text-nevoa-500 hover:text-nevoa-800 dark:text-nevoa-400 dark:hover:text-nevoa-100"
         >
-          {isPending ? "Salvando…" : "Salvar"}
-        </button>
-        <button type="button" onClick={() => setEditando(false)} className="text-sm underline text-zinc-500">
           Cancelar
         </button>
-        {erro && <span className="text-sm text-red-600">{erro}</span>}
+        {erro && <span className="text-sm text-vinho-600 dark:text-vinho-400">{erro}</span>}
       </div>
-      <p className="text-xs text-zinc-400">
+      <p className="text-xs text-nevoa-400 dark:text-nevoa-600">
         Grupo atual: {item.tipo_laudo_id ? tipoLaudoNome.get(item.tipo_laudo_id) ?? "Tipo removido" : "Genérico"}
         {" · "}
         {item.campo_id ? campoInfo.get(item.campo_id)?.rotulo ?? "Campo removido" : "Texto livre"}
@@ -335,9 +336,9 @@ function NovaRespostaForm({
     <form
       id="form-nova-resposta-reutilizavel"
       action={handleSubmit}
-      className="border-t border-zinc-200 dark:border-zinc-800 pt-6 space-y-3"
+      className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-3"
     >
-      <h2 className="text-sm font-medium">Nova resposta reutilizável</h2>
+      <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Nova resposta reutilizável</h2>
 
       <div>
         <label htmlFor="titulo" className={labelClass}>
@@ -367,15 +368,11 @@ function NovaRespostaForm({
       <input type="hidden" name="tipo_laudo_id" value={tipoLaudoId} />
       <input type="hidden" name="campo_id" value={campoId} />
 
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {erro && <p className="text-sm text-vinho-600 dark:text-vinho-400">{erro}</p>}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 text-sm disabled:opacity-50"
-      >
-        {isPending ? "Salvando…" : "Salvar resposta"}
-      </button>
+      <Botao type="submit" carregando={isPending} textoCarregando="Salvando…">
+        Salvar resposta
+      </Botao>
     </form>
   );
 }

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { classesBotao } from "@/components/ui/button";
+import { Selo } from "@/components/ui/badge";
 
 const STATUS_ROTULOS: Record<string, string> = {
   em_andamento: "Em andamento",
@@ -8,10 +10,25 @@ const STATUS_ROTULOS: Record<string, string> = {
   arquivado: "Arquivado",
 };
 
+const STATUS_VARIANTE: Record<string, "sucesso" | "atencao" | "neutro"> = {
+  em_andamento: "atencao",
+  finalizado: "sucesso",
+  arquivado: "neutro",
+};
+
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   pericia_judicial: "Perícia Judicial",
   assistencia_tecnica: "Assistência Técnica",
 };
+
+function Campo({ rotulo, children, colSpan }: { rotulo: string; children: React.ReactNode; colSpan?: boolean }) {
+  return (
+    <div className={colSpan ? "col-span-2" : undefined}>
+      <dt className="text-xs font-medium uppercase tracking-wide text-nevoa-500 dark:text-nevoa-500">{rotulo}</dt>
+      <dd className="mt-1 text-sm text-nevoa-900 dark:text-nevoa-100">{children}</dd>
+    </div>
+  );
+}
 
 export default async function ProcessoDetalhePage({
   params,
@@ -55,91 +72,72 @@ export default async function ProcessoDetalhePage({
     "Processo sem identificação";
 
   return (
-    <main className="p-8 space-y-8 max-w-2xl">
+    <main className="p-8 space-y-6 max-w-2xl">
       <div>
-        <Link href="/processos" className="text-sm underline text-zinc-600 dark:text-zinc-400">
+        <Link
+          href="/processos"
+          className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400"
+        >
           ← Voltar para processos
         </Link>
-        <h1 className="text-xl font-semibold mt-2">{titulo}</h1>
+        <div className="flex items-center gap-3 mt-2">
+          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">{titulo}</h1>
+          <Selo variante={STATUS_VARIANTE[processo.status] ?? "neutro"}>
+            {STATUS_ROTULOS[processo.status] ?? processo.status}
+          </Selo>
+        </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-        <dt className="text-zinc-500">Tipo de trabalho</dt>
-        <dd>{TIPO_TRABALHO_ROTULOS[processo.tipo_trabalho] ?? processo.tipo_trabalho}</dd>
+      <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-6">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+          <Campo rotulo="Tipo de trabalho">{TIPO_TRABALHO_ROTULOS[processo.tipo_trabalho] ?? processo.tipo_trabalho}</Campo>
+          <Campo rotulo="Tipo de laudo">{tipoLaudoNome ?? "—"}</Campo>
 
-        <dt className="text-zinc-500">Tipo de laudo</dt>
-        <dd>{tipoLaudoNome ?? "—"}</dd>
+          {processo.tipo_trabalho === "pericia_judicial" && (
+            <>
+              <Campo rotulo="Número do processo">{processo.numero_processo ?? "—"}</Campo>
+              <Campo rotulo="Vara/Comarca">
+                {[processo.vara_numero, processo.comarca_subsecao, processo.uf].filter(Boolean).join(" — ") || "—"}
+              </Campo>
+              <Campo rotulo="Parte autora">{processo.parte_autora ?? "—"}</Campo>
+              <Campo rotulo="Parte ré">{processo.partes_re ?? "—"}</Campo>
+              <Campo rotulo="Periciando(a)">{processo.periciando_nome ?? "—"}</Campo>
+              <Campo rotulo="Objeto da perícia" colSpan>
+                {processo.objeto_pericia ?? "—"}
+              </Campo>
+            </>
+          )}
 
-        <dt className="text-zinc-500">Status</dt>
-        <dd>{STATUS_ROTULOS[processo.status] ?? processo.status}</dd>
-
-        {processo.tipo_trabalho === "pericia_judicial" && (
-          <>
-            <dt className="text-zinc-500">Número do processo</dt>
-            <dd>{processo.numero_processo ?? "—"}</dd>
-
-            <dt className="text-zinc-500">Vara/Comarca</dt>
-            <dd>
-              {[processo.vara_numero, processo.comarca_subsecao, processo.uf]
-                .filter(Boolean)
-                .join(" — ") || "—"}
-            </dd>
-
-            <dt className="text-zinc-500">Parte autora</dt>
-            <dd>{processo.parte_autora ?? "—"}</dd>
-
-            <dt className="text-zinc-500">Parte ré</dt>
-            <dd>{processo.partes_re ?? "—"}</dd>
-
-            <dt className="text-zinc-500">Periciando(a)</dt>
-            <dd>{processo.periciando_nome ?? "—"}</dd>
-
-            <dt className="text-zinc-500">Objeto da perícia</dt>
-            <dd className="col-span-2">{processo.objeto_pericia ?? "—"}</dd>
-          </>
-        )}
-
-        {processo.tipo_trabalho === "assistencia_tecnica" && (
-          <>
-            <dt className="text-zinc-500">Etapas contratadas</dt>
-            <dd>
+          {processo.tipo_trabalho === "assistencia_tecnica" && (
+            <Campo rotulo="Etapas contratadas" colSpan>
               {processo.etapas_contratadas && processo.etapas_contratadas.length > 0
                 ? processo.etapas_contratadas.join(", ")
                 : "—"}
-            </dd>
-          </>
-        )}
-      </dl>
+            </Campo>
+          )}
+        </dl>
+      </div>
 
-      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6 flex flex-wrap gap-3 text-sm">
+      <div className="flex flex-wrap gap-3">
         {primeiraSecaoId ? (
           <Link
             href={`/processos/${processo.id}/preenchimento/${primeiraSecaoId}`}
-            className="rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2"
+            className={classesBotao("primaria")}
           >
             Preencher laudo
           </Link>
         ) : (
-          <span className="rounded border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-zinc-400">
+          <span className="inline-flex items-center rounded-md border border-nevoa-200 dark:border-nevoa-800 px-4 py-2 text-sm text-nevoa-400 dark:text-nevoa-600">
             Preencher laudo (defina o tipo de laudo)
           </span>
         )}
-        <Link
-          href={`/processos/${processo.id}/quesitos`}
-          className="rounded border border-zinc-300 dark:border-zinc-700 px-4 py-2"
-        >
+        <Link href={`/processos/${processo.id}/quesitos`} className={classesBotao("secundaria")}>
           Quesitos
         </Link>
-        <Link
-          href={`/processos/${processo.id}/documentos`}
-          className="rounded border border-zinc-300 dark:border-zinc-700 px-4 py-2"
-        >
+        <Link href={`/processos/${processo.id}/documentos`} className={classesBotao("secundaria")}>
           Documentos
         </Link>
-        <Link
-          href={`/processos/${processo.id}/laudo`}
-          className="rounded border border-zinc-300 dark:border-zinc-700 px-4 py-2"
-        >
+        <Link href={`/processos/${processo.id}/laudo`} className={classesBotao("secundaria")}>
           Laudo final
         </Link>
       </div>

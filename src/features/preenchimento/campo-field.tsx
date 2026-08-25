@@ -11,6 +11,78 @@ import type { DadosRastreabilidade } from "./rastreabilidade-tipos";
 import type { RespostasReutilizaveisRow } from "@/types/database";
 import type { ValorSelecionado, ValorTabelaLinha } from "@/types/json-fields";
 
+/** Chip compacto pra radio — mesma semântica do <input>, só a casca visual muda. Pensado pra listas densas (60+ campos por seção). */
+function ChipRadio({
+  nome,
+  checked,
+  onChange,
+  children,
+}: {
+  nome: string;
+  checked: boolean;
+  onChange: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm cursor-pointer transition-colors ${
+        checked
+          ? "border-petroleo-600 bg-petroleo-100 text-petroleo-700 dark:border-petroleo-400 dark:bg-petroleo-950/50 dark:text-petroleo-300"
+          : "border-nevoa-300 text-nevoa-700 hover:bg-nevoa-50 dark:border-nevoa-700 dark:text-nevoa-300 dark:hover:bg-nevoa-800/60"
+      }`}
+    >
+      <input type="radio" name={nome} checked={checked} onChange={onChange} className="sr-only" />
+      <span
+        aria-hidden="true"
+        className={`flex h-3 w-3 shrink-0 items-center justify-center rounded-full border ${
+          checked ? "border-petroleo-600 dark:border-petroleo-400" : "border-nevoa-400 dark:border-nevoa-600"
+        }`}
+      >
+        {checked && <span className="h-1.5 w-1.5 rounded-full bg-petroleo-600 dark:bg-petroleo-400" />}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+/** Chip compacto pra checkbox — mesmo espírito do ChipRadio acima. */
+function ChipCheckbox({
+  checked,
+  onChange,
+  children,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm cursor-pointer transition-colors ${
+        checked
+          ? "border-petroleo-600 bg-petroleo-100 text-petroleo-700 dark:border-petroleo-400 dark:bg-petroleo-950/50 dark:text-petroleo-300"
+          : "border-nevoa-300 text-nevoa-700 hover:bg-nevoa-50 dark:border-nevoa-700 dark:text-nevoa-300 dark:hover:bg-nevoa-800/60"
+      }`}
+    >
+      <input type="checkbox" checked={checked} onChange={onChange} className="sr-only" />
+      <span
+        aria-hidden="true"
+        className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${
+          checked
+            ? "border-petroleo-600 bg-petroleo-600 dark:border-petroleo-400 dark:bg-petroleo-400"
+            : "border-nevoa-400 dark:border-nevoa-600"
+        }`}
+      >
+        {checked && (
+          <svg viewBox="0 0 12 12" className="h-2.5 w-2.5 text-white dark:text-nevoa-900" fill="none">
+            <path d="M2 6l2.5 2.5L10 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      {children}
+    </label>
+  );
+}
+
 /**
  * Renderiza um campo (e seus sub-campos, recursivamente) de acordo com
  * tipo_campo. Sub-campos condicionais (ex.: detalhamento de "Alterado" no
@@ -79,48 +151,46 @@ export function CampoField({
   return (
     <div className="space-y-2">
       <div>
-        <label className="block text-sm font-medium mb-1.5">
+        <label className="block text-sm font-medium text-nevoa-800 dark:text-nevoa-200 mb-1.5">
           {campo.rotulo}
-          {campo.obrigatorio && <span className="text-red-600"> *</span>}
+          {campo.obrigatorio && <span className="text-vinho-600 dark:text-vinho-400"> *</span>}
         </label>
 
         {campo.tipo_campo === "selecao_unica" && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {(campo.opcoes ?? []).map((opcao) => (
-              <label key={opcao.codigo} className="flex items-center gap-1.5 text-sm">
-                <input
-                  type="radio"
-                  name={campo.id}
-                  checked={resposta.valorSelecionado === opcao.codigo}
-                  onChange={() => setValorSelecionado(opcao.codigo)}
-                />
+              <ChipRadio
+                key={opcao.codigo}
+                nome={campo.id}
+                checked={resposta.valorSelecionado === opcao.codigo}
+                onChange={() => setValorSelecionado(opcao.codigo)}
+              >
                 {opcao.rotulo}
-              </label>
+              </ChipRadio>
             ))}
           </div>
         )}
 
         {campo.tipo_campo === "selecao_multipla" && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {(campo.opcoes ?? []).map((opcao) => {
               const selecionados = Array.isArray(resposta.valorSelecionado)
                 ? (resposta.valorSelecionado as string[])
                 : [];
               const marcado = selecionados.includes(opcao.codigo);
               return (
-                <label key={opcao.codigo} className="flex items-center gap-1.5 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={marcado}
-                    onChange={() => {
-                      const novos = marcado
-                        ? selecionados.filter((c) => c !== opcao.codigo)
-                        : [...selecionados, opcao.codigo];
-                      setValorSelecionado(novos.length > 0 ? novos : null);
-                    }}
-                  />
+                <ChipCheckbox
+                  key={opcao.codigo}
+                  checked={marcado}
+                  onChange={() => {
+                    const novos = marcado
+                      ? selecionados.filter((c) => c !== opcao.codigo)
+                      : [...selecionados, opcao.codigo];
+                    setValorSelecionado(novos.length > 0 ? novos : null);
+                  }}
+                >
                   {opcao.rotulo}
-                </label>
+                </ChipCheckbox>
               );
             })}
           </div>
@@ -132,7 +202,7 @@ export function CampoField({
               value={resposta.textoLivre ?? ""}
               onChange={(e) => patch({ textoLivre: e.target.value || null })}
               rows={2}
-              className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1.5 text-sm"
+              className="w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-2 py-1.5 text-sm text-nevoa-900 dark:text-nevoa-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
             />
             <ReutilizavelControles
               campoId={campo.id}
@@ -157,13 +227,13 @@ export function CampoField({
 
       {campo.tipo_campo !== "texto_livre" && campo.aceita_texto_livre && (
         <div>
-          <label className="block text-xs text-zinc-500 mb-1">Detalhamento (opcional)</label>
+          <label className="block text-xs text-nevoa-500 dark:text-nevoa-400 mb-1">Detalhamento (opcional)</label>
           <textarea
             value={resposta.textoLivre ?? ""}
             onChange={(e) => patch({ textoLivre: e.target.value || null })}
             rows={1}
             placeholder="Individualize/detalhe a resposta acima, se necessário"
-            className="w-full rounded border border-zinc-200 dark:border-zinc-800 bg-transparent px-2 py-1 text-sm text-zinc-700 dark:text-zinc-300"
+            className="w-full rounded-md border border-nevoa-200 dark:border-nevoa-800 bg-transparent px-2 py-1 text-sm text-nevoa-700 dark:text-nevoa-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
           />
           <ReutilizavelControles
             campoId={campo.id}
@@ -176,12 +246,12 @@ export function CampoField({
       )}
 
       {campo.requer_confirmacao_perito && (
-        <label className="flex items-start gap-2 text-sm rounded border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+        <label className="flex items-start gap-2 text-sm rounded-md border border-ambar-400/60 dark:border-ambar-600/40 bg-ambar-100 dark:bg-ambar-950/30 text-nevoa-800 dark:text-nevoa-200 px-3 py-2">
           <input
             type="checkbox"
             checked={resposta.confirmadoPeloPerito}
             onChange={(e) => patch({ confirmadoPeloPerito: e.target.checked })}
-            className="mt-0.5"
+            className="mt-0.5 accent-petroleo-600"
           />
           <span>
             Confirmo esta conclusão médico-pericial. Enquanto não confirmada, a marcação acima é
@@ -207,7 +277,7 @@ export function CampoField({
       )}
 
       {filhosVisiveis.length > 0 && (
-        <div className="ml-5 pl-4 border-l-2 border-zinc-200 dark:border-zinc-800 space-y-4">
+        <div className="ml-5 pl-4 border-l-2 border-nevoa-200 dark:border-nevoa-800 space-y-4">
           {filhosVisiveis.map((filho) => (
             <CampoField
               key={filho.campo.id}

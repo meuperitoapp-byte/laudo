@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { gerarLaudo } from "./actions";
+import { Botao } from "@/components/ui/button";
+import { Toast } from "@/components/ui/toast";
 
 export interface VersaoLaudo {
   id: string;
@@ -22,20 +24,18 @@ export function GerarLaudoPanel({
   versoes: VersaoLaudo[];
 }) {
   const router = useRouter();
-  const [erro, setErro] = useState<string | null>(null);
-  const [mensagem, setMensagem] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function gerar() {
-    setErro(null);
-    setMensagem(null);
+    setToast(null);
     startTransition(async () => {
       const resultado = await gerarLaudo(processoId);
       if ("error" in resultado) {
-        setErro(resultado.error);
+        setToast({ tipo: "erro", texto: resultado.error });
         return;
       }
-      setMensagem(`Versão ${resultado.versao} gerada.`);
+      setToast({ tipo: "ok", texto: `Versão ${resultado.versao} gerada.` });
       router.refresh();
     });
   }
@@ -43,43 +43,46 @@ export function GerarLaudoPanel({
   return (
     <div className="space-y-8">
       <div>
-        <button
-          type="button"
-          onClick={gerar}
-          disabled={!podeGerar || isPending}
-          className="rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 text-sm disabled:opacity-40"
-        >
-          {isPending ? "Gerando…" : "Gerar novo laudo"}
-        </button>
-        {erro && <p className="text-sm text-red-600 mt-2">{erro}</p>}
-        {mensagem && <p className="text-sm text-zinc-500 mt-2">{mensagem}</p>}
+        <Botao onClick={gerar} disabled={!podeGerar} carregando={isPending} textoCarregando="Gerando…">
+          Gerar novo laudo
+        </Botao>
       </div>
 
       <div>
-        <h2 className="text-sm font-medium mb-2">Versões geradas</h2>
+        <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100 mb-2">Versões geradas</h2>
         {versoes.length === 0 ? (
-          <p className="text-sm text-zinc-500">Nenhuma versão gerada ainda.</p>
+          <p className="text-sm text-nevoa-500 dark:text-nevoa-400">Nenhuma versão gerada ainda.</p>
         ) : (
           <ul className="space-y-2">
             {versoes.map((v) => (
               <li
                 key={v.id}
-                className="flex items-center justify-between rounded border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 px-3 py-2 text-sm"
               >
                 <div>
-                  <span className="font-medium">Versão {v.versao}</span>
-                  <span className="text-zinc-500 ml-2">
+                  <span className="font-medium text-nevoa-900 dark:text-nevoa-100">Versão {v.versao}</span>
+                  <span className="text-nevoa-500 dark:text-nevoa-400 ml-2">
                     {new Date(v.criadoEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                   </span>
                 </div>
                 <div className="flex gap-4">
                   {v.urlPdf && (
-                    <a href={v.urlPdf} target="_blank" rel="noopener noreferrer" className="underline">
+                    <a
+                      href={v.urlPdf}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-petroleo-600 hover:underline dark:text-petroleo-400"
+                    >
                       PDF
                     </a>
                   )}
                   {v.urlDocx && (
-                    <a href={v.urlDocx} target="_blank" rel="noopener noreferrer" className="underline">
+                    <a
+                      href={v.urlDocx}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-petroleo-600 hover:underline dark:text-petroleo-400"
+                    >
                       Word
                     </a>
                   )}
@@ -89,6 +92,8 @@ export function GerarLaudoPanel({
           </ul>
         )}
       </div>
+
+      {toast && <Toast tipo={toast.tipo} texto={toast.texto} onClose={() => setToast(null)} />}
     </div>
   );
 }

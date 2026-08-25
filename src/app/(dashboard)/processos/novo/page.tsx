@@ -10,8 +10,8 @@ export default async function NovoProcessoPage() {
     .order("ordem", { ascending: true });
 
   return (
-    <main className="p-8">
-      <h1 className="text-xl font-semibold mb-6">Novo processo</h1>
+    <main className="p-8 max-w-2xl">
+      <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mb-6">Novo processo</h1>
       <NovoProcessoForm tiposLaudo={tiposLaudo ?? []} />
     </main>
   );

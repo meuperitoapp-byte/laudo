@@ -1,26 +1,78 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/*
+ * Sistema de tokens — aprovado antes de aplicar (prévia publicada como
+ * artifact). Petróleo como cor de ação (lê como "documento oficial", não
+ * SaaS genérico); Névoa como família neutra com leve viés quente; Musgo/
+ * Âmbar/Vinho como estados sóbrios (sucesso/atenção/erro), sem neon.
+ *
+ * Dark mode: o projeto já usa `dark:` explícito em cada elemento em vez de
+ * variável CSS que troca sozinha (padrão existente em todo o código) — por
+ * isso cada cor abaixo tem duas variantes (uma pra usar direto, outra pra
+ * usar atrás de `dark:`), em vez de um único token que se redefine.
+ */
 @theme inline {
+  --font-sans: var(--font-inter);
+  /* título de página/seção — ver layout.tsx (Inter Tight) */
+  --font-title: var(--font-inter-tight), var(--font-inter);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* Petróleo — ação primária */
+  --color-petroleo-100: #dcebea;
+  --color-petroleo-200: #b9d6d4;
+  --color-petroleo-400: #4c9ca0; /* dark mode: cor de ação (clara o bastante p/ contraste em fundo escuro) */
+  --color-petroleo-500: #1b535b;
+  --color-petroleo-600: #123b41; /* light mode: cor de ação */
+  --color-petroleo-700: #0b2a2e;
+
+  /* Névoa — neutros (fundo, borda, texto discreto), com Grafite (900) como texto principal */
+  --color-nevoa-25: #fbfaf8;
+  --color-nevoa-50: #f5f3f0;
+  --color-nevoa-100: #edeae4;
+  --color-nevoa-200: #dedad1;
+  --color-nevoa-300: #c7c1b4;
+  --color-nevoa-400: #9b9488;
+  --color-nevoa-500: #79736a;
+  --color-nevoa-600: #5c5850;
+  --color-nevoa-800: #2e2b27;
+  --color-nevoa-850: #201e1b;
+  --color-nevoa-900: #242220; /* grafite — texto principal em light mode */
+  --color-nevoa-950: #17201f; /* fundo de página em dark mode */
+
+  /* Musgo — sucesso */
+  --color-musgo-100: #e1ede3;
+  --color-musgo-400: #6fae83; /* dark mode */
+  --color-musgo-600: #3b6b4a; /* light mode */
+  --color-musgo-950: #1e3327; /* dark mode: fundo de tag/badge */
+
+  /* Âmbar — atenção/pendência */
+  --color-ambar-100: #f3e8d3;
+  --color-ambar-400: #d3a24b;
+  --color-ambar-600: #9b6b1f;
+  --color-ambar-950: #3a2e15;
+
+  /* Vinho — erro/destrutivo */
+  --color-vinho-100: #f3e1e1;
+  --color-vinho-400: #c77e7e;
+  --color-vinho-600: #8c3a3a;
+  --color-vinho-700: #6f2d2d; /* hover do botão de perigo */
+  --color-vinho-950: #3a2323;
+}
+
+:root {
+  --background: var(--color-nevoa-25);
+  --foreground: var(--color-nevoa-900);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: var(--color-nevoa-950);
+    --foreground: var(--color-nevoa-100);
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }

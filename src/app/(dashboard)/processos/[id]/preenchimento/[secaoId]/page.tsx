@@ -39,10 +39,13 @@ export default async function PreenchimentoSecaoPage({
   if (!processo.tipo_laudo_id) {
     return (
       <main className="p-8 max-w-xl space-y-4">
-        <Link href={`/processos/${processoId}`} className="text-sm underline text-zinc-600 dark:text-zinc-400">
+        <Link
+          href={`/processos/${processoId}`}
+          className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400"
+        >
           ← Voltar para o processo
         </Link>
-        <p className="text-sm">
+        <p className="text-sm text-nevoa-700 dark:text-nevoa-300">
           Este processo ainda não tem um tipo de laudo definido. Defina a natureza do processo no
           cadastro antes de preencher o laudo por seção.
         </p>

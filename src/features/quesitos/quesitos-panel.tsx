@@ -3,11 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { atualizarQuesito, criarQuesito, excluirQuesito, moverQuesito } from "./actions";
+import { Botao } from "@/components/ui/button";
+import { Selo } from "@/components/ui/badge";
 import type { QuesitosRow } from "@/types/database";
 
 const inputClass =
-  "w-full rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm";
-const labelClass = "block text-xs font-medium text-zinc-500 mb-1";
+  "w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-3 py-2 text-sm text-nevoa-900 dark:text-nevoa-100 " +
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500";
+const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1";
 
 // Texto padrão pra quando não há elementos médico-periciais objetivos
 // suficientes pra responder objetivamente (CLAUDE.md: a resposta não pode
@@ -25,7 +28,7 @@ export function QuesitosPanel({
   return (
     <div className="space-y-8 max-w-3xl">
       {quesitos.length === 0 ? (
-        <p className="text-sm text-zinc-500">Nenhum quesito cadastrado ainda.</p>
+        <p className="text-sm text-nevoa-500 dark:text-nevoa-400">Nenhum quesito cadastrado ainda.</p>
       ) : (
         <ol className="space-y-4">
           {quesitos.map((quesito, index) => (
@@ -112,9 +115,9 @@ function QuesitoCard({
   }
 
   return (
-    <li className="rounded border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
+    <li className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
-        <span className="text-xs text-zinc-500 mt-1.5">Quesito {numero}</span>
+        <span className="text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mt-1.5">Quesito {numero}</span>
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
@@ -122,7 +125,7 @@ function QuesitoCard({
             disabled={primeiro || isPending}
             title="Mover para cima"
             aria-label="Mover quesito para cima"
-            className="rounded border border-zinc-300 dark:border-zinc-700 w-7 h-7 disabled:opacity-30"
+            className="rounded-md border border-nevoa-300 dark:border-nevoa-700 text-nevoa-600 dark:text-nevoa-400 hover:bg-nevoa-100 dark:hover:bg-nevoa-800 w-7 h-7 disabled:opacity-30"
           >
             ↑
           </button>
@@ -132,7 +135,7 @@ function QuesitoCard({
             disabled={ultimo || isPending}
             title="Mover para baixo"
             aria-label="Mover quesito para baixo"
-            className="rounded border border-zinc-300 dark:border-zinc-700 w-7 h-7 disabled:opacity-30"
+            className="rounded-md border border-nevoa-300 dark:border-nevoa-700 text-nevoa-600 dark:text-nevoa-400 hover:bg-nevoa-100 dark:hover:bg-nevoa-800 w-7 h-7 disabled:opacity-30"
           >
             ↓
           </button>
@@ -142,7 +145,7 @@ function QuesitoCard({
             disabled={isPending}
             title="Excluir quesito"
             aria-label="Excluir quesito"
-            className="rounded border border-zinc-300 dark:border-zinc-700 w-7 h-7 text-red-600 disabled:opacity-30"
+            className="rounded-md border border-nevoa-300 dark:border-nevoa-700 w-7 h-7 text-vinho-600 dark:text-vinho-400 hover:bg-vinho-100 dark:hover:bg-vinho-950 disabled:opacity-30"
           >
             ✕
           </button>
@@ -175,7 +178,7 @@ function QuesitoCard({
           <button
             type="button"
             onClick={() => setResposta(TEXTO_SEM_ELEMENTOS)}
-            className="text-xs underline text-zinc-500"
+            className="text-xs text-petroleo-600 hover:underline dark:text-petroleo-400"
           >
             Sem elementos suficientes
           </button>
@@ -190,18 +193,16 @@ function QuesitoCard({
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          type="button"
+        <Botao
           onClick={salvar}
-          disabled={isPending || !alterado}
-          className="rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-1.5 text-sm disabled:opacity-40"
+          disabled={!alterado && !isPending}
+          carregando={isPending}
+          textoCarregando="Salvando…"
         >
-          {isPending ? "Salvando…" : alterado ? "Salvar" : "Salvo"}
-        </button>
-        {!quesito.resposta?.trim() && !alterado && (
-          <span className="text-xs text-amber-700 dark:text-amber-500">Sem resposta ainda</span>
-        )}
-        {erro && <span className="text-sm text-red-600">{erro}</span>}
+          {alterado ? "Salvar" : "Salvo"}
+        </Botao>
+        {!quesito.resposta?.trim() && !alterado && <Selo variante="atencao">Sem resposta ainda</Selo>}
+        {erro && <span className="text-sm text-vinho-600 dark:text-vinho-400">{erro}</span>}
       </div>
     </li>
   );
@@ -229,9 +230,9 @@ function NovoQuesitoForm({ processoId }: { processoId: string }) {
     <form
       id="form-novo-quesito"
       action={handleSubmit}
-      className="border-t border-zinc-200 dark:border-zinc-800 pt-6 space-y-3"
+      className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-3"
     >
-      <h2 className="text-sm font-medium">Adicionar quesito</h2>
+      <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Adicionar quesito</h2>
       <div>
         <label htmlFor="origem" className={labelClass}>
           Origem
@@ -249,14 +250,10 @@ function NovoQuesitoForm({ processoId }: { processoId: string }) {
         </label>
         <textarea id="pergunta" name="pergunta" rows={3} placeholder="Cole aqui o texto do quesito" className={inputClass} />
       </div>
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 text-sm disabled:opacity-50"
-      >
-        {isPending ? "Adicionando…" : "Adicionar quesito"}
-      </button>
+      {erro && <p className="text-sm text-vinho-600 dark:text-vinho-400">{erro}</p>}
+      <Botao type="submit" carregando={isPending} textoCarregando="Adicionando…">
+        Adicionar quesito
+      </Botao>
     </form>
   );
 }

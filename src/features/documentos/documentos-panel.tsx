@@ -4,12 +4,17 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { atualizarDocumento, excluirDocumento, moverDocumento, uploadDocumento } from "./actions";
 import { CATEGORIAS_SUGERIDAS, TAMANHO_MAXIMO_BYTES } from "./constants";
+import { Botao, classesBotao } from "@/components/ui/button";
+import { Selo } from "@/components/ui/badge";
 import type { DocumentosRow } from "@/types/database";
 import type { TipoDocumento } from "@/types/enums";
 
 const inputClass =
-  "w-full rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm";
-const labelClass = "block text-xs font-medium text-zinc-500 mb-1";
+  "w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-3 py-2 text-sm text-nevoa-900 dark:text-nevoa-100 " +
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500";
+const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1";
+const botaoIconeClass =
+  "rounded-md border border-nevoa-300 dark:border-nevoa-700 text-nevoa-600 dark:text-nevoa-400 hover:bg-nevoa-100 dark:hover:bg-nevoa-800 w-7 h-7 disabled:opacity-30";
 
 const TIPO_ROTULOS: Record<string, string> = {
   documento_processual: "Documento processual",
@@ -42,7 +47,7 @@ export function DocumentosPanel({
   return (
     <div className="space-y-8 max-w-3xl">
       {documentos.length === 0 ? (
-        <p className="text-sm text-zinc-500">Nenhum documento enviado ainda.</p>
+        <p className="text-sm text-nevoa-500 dark:text-nevoa-400">Nenhum documento enviado ainda.</p>
       ) : (
         <ol className="space-y-3">
           {documentos.map((documento, index) => (
@@ -138,7 +143,7 @@ function DocumentoCard({
   }
 
   return (
-    <li className="rounded border border-zinc-200 dark:border-zinc-800 p-3">
+    <li className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-3">
       <div className="flex items-start gap-3">
         <div className="shrink-0">
           {ehImagem && documento.signedUrl ? (
@@ -146,10 +151,10 @@ function DocumentoCard({
             <img
               src={documento.signedUrl}
               alt={documento.nome_arquivo}
-              className="w-16 h-16 object-cover rounded border border-zinc-200 dark:border-zinc-800"
+              className="w-16 h-16 object-cover rounded-md border border-nevoa-200 dark:border-nevoa-800"
             />
           ) : (
-            <div className="w-16 h-16 flex items-center justify-center rounded border border-zinc-200 dark:border-zinc-800 text-2xl">
+            <div className="w-16 h-16 flex items-center justify-center rounded-md border border-nevoa-200 dark:border-nevoa-800 text-2xl">
               {iconePara(documento.mime_type)}
             </div>
           )}
@@ -158,14 +163,14 @@ function DocumentoCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{documento.nome_arquivo}</p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-sm font-medium text-nevoa-900 dark:text-nevoa-100 truncate">{documento.nome_arquivo}</p>
+              <p className="text-xs text-nevoa-500 dark:text-nevoa-400">
                 {TIPO_ROTULOS[documento.tipo] ?? documento.tipo}
                 {documento.categoria && ` · ${documento.categoria}`}
                 {documento.tamanho_bytes ? ` · ${formatarTamanho(documento.tamanho_bytes)}` : ""}
               </p>
               {(documento.origem_profissional || documento.data_documento || documento.paginas) && (
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-nevoa-500 dark:text-nevoa-400">
                   {[
                     documento.origem_profissional,
                     documento.data_documento,
@@ -182,16 +187,12 @@ function DocumentoCard({
                   href={documento.signedUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-xs"
+                  className={classesBotao("secundaria", "px-2! py-1! text-xs!")}
                 >
                   Abrir
                 </a>
               )}
-              <button
-                type="button"
-                onClick={() => setEditando((v) => !v)}
-                className="rounded border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-xs"
-              >
+              <button type="button" onClick={() => setEditando((v) => !v)} className={classesBotao("secundaria", "px-2! py-1! text-xs!")}>
                 {editando ? "Fechar" : "Editar"}
               </button>
               <button
@@ -200,7 +201,7 @@ function DocumentoCard({
                 disabled={primeiro || isPending}
                 title="Mover para cima"
                 aria-label="Mover documento para cima"
-                className="rounded border border-zinc-300 dark:border-zinc-700 w-7 h-7 disabled:opacity-30"
+                className={botaoIconeClass}
               >
                 ↑
               </button>
@@ -210,7 +211,7 @@ function DocumentoCard({
                 disabled={ultimo || isPending}
                 title="Mover para baixo"
                 aria-label="Mover documento para baixo"
-                className="rounded border border-zinc-300 dark:border-zinc-700 w-7 h-7 disabled:opacity-30"
+                className={botaoIconeClass}
               >
                 ↓
               </button>
@@ -220,7 +221,7 @@ function DocumentoCard({
                 disabled={isPending}
                 title="Excluir documento"
                 aria-label="Excluir documento"
-                className="rounded border border-zinc-300 dark:border-zinc-700 w-7 h-7 text-red-600 disabled:opacity-30"
+                className="rounded-md border border-nevoa-300 dark:border-nevoa-700 w-7 h-7 text-vinho-600 dark:text-vinho-400 hover:bg-vinho-100 dark:hover:bg-vinho-950 disabled:opacity-30"
               >
                 ✕
               </button>
@@ -228,15 +229,17 @@ function DocumentoCard({
           </div>
 
           {documento.ilegivel_insuficiente && (
-            <p className="mt-1 text-xs rounded bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-500 px-2 py-1 inline-block">
-              ⚠ Ilegível/insuficiente{documento.observacao ? `: ${documento.observacao}` : " — sem observação justificando"}
-            </p>
+            <div className="mt-1.5">
+              <Selo variante="atencao">
+                Ilegível/insuficiente{documento.observacao ? `: ${documento.observacao}` : " — sem observação justificando"}
+              </Selo>
+            </div>
           )}
         </div>
       </div>
 
       {editando && (
-        <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
+        <div className="mt-3 pt-3 border-t border-nevoa-200 dark:border-nevoa-800 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>Tipo</label>
@@ -272,8 +275,8 @@ function DocumentoCard({
             <input type="date" value={dataDocumento} onChange={(e) => setDataDocumento(e.target.value)} className={inputClass} />
           </div>
 
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={ilegivel} onChange={(e) => setIlegivel(e.target.checked)} />
+          <label className="flex items-center gap-2 text-sm text-nevoa-800 dark:text-nevoa-200">
+            <input type="checkbox" checked={ilegivel} onChange={(e) => setIlegivel(e.target.checked)} className="accent-petroleo-600" />
             Ilegível/insuficiente
           </label>
 
@@ -285,15 +288,10 @@ function DocumentoCard({
           )}
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={salvar}
-              disabled={isPending}
-              className="rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-1.5 text-sm disabled:opacity-40"
-            >
-              {isPending ? "Salvando…" : "Salvar"}
-            </button>
-            {erro && <span className="text-sm text-red-600">{erro}</span>}
+            <Botao onClick={salvar} carregando={isPending} textoCarregando="Salvando…">
+              Salvar
+            </Botao>
+            {erro && <span className="text-sm text-vinho-600 dark:text-vinho-400">{erro}</span>}
           </div>
         </div>
       )}
@@ -335,9 +333,9 @@ function UploadForm({ processoId }: { processoId: string }) {
     <form
       id="form-upload-documento"
       action={handleSubmit}
-      className="border-t border-zinc-200 dark:border-zinc-800 pt-6 space-y-3"
+      className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-3"
     >
-      <h2 className="text-sm font-medium">Enviar documento</h2>
+      <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Enviar documento</h2>
 
       <datalist id="categorias-sugeridas">
         {CATEGORIAS_SUGERIDAS.map((c) => (
@@ -354,7 +352,7 @@ function UploadForm({ processoId }: { processoId: string }) {
 
       <div>
         <label className={labelClass}>Tipo</label>
-        <div className="flex gap-4 text-sm">
+        <div className="flex gap-4 text-sm text-nevoa-800 dark:text-nevoa-200">
           <label className="flex items-center gap-1.5">
             <input
               type="radio"
@@ -362,6 +360,7 @@ function UploadForm({ processoId }: { processoId: string }) {
               value="documento_processual"
               checked={tipo === "documento_processual"}
               onChange={() => setTipo("documento_processual")}
+              className="accent-petroleo-600"
             />
             Documento processual
           </label>
@@ -372,6 +371,7 @@ function UploadForm({ processoId }: { processoId: string }) {
               value="imagem_pericia"
               checked={tipo === "imagem_pericia"}
               onChange={() => setTipo("imagem_pericia")}
+              className="accent-petroleo-600"
             />
             Imagem da perícia
           </label>
@@ -408,12 +408,13 @@ function UploadForm({ processoId }: { processoId: string }) {
         </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex items-center gap-2 text-sm text-nevoa-800 dark:text-nevoa-200">
         <input
           type="checkbox"
           name="ilegivel_insuficiente"
           checked={ilegivel}
           onChange={(e) => setIlegivel(e.target.checked)}
+          className="accent-petroleo-600"
         />
         Ilegível/insuficiente
       </label>
@@ -427,15 +428,11 @@ function UploadForm({ processoId }: { processoId: string }) {
         </div>
       )}
 
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {erro && <p className="text-sm text-vinho-600 dark:text-vinho-400">{erro}</p>}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 text-sm disabled:opacity-50"
-      >
-        {isPending ? "Enviando…" : "Enviar documento"}
-      </button>
+      <Botao type="submit" carregando={isPending} textoCarregando="Enviando…">
+        Enviar documento
+      </Botao>
     </form>
   );
 }

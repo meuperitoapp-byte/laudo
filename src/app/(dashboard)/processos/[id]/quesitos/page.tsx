@@ -32,11 +32,14 @@ export default async function QuesitosPage({
 
   return (
     <main className="p-8">
-      <Link href={`/processos/${processoId}`} className="text-sm underline text-zinc-600 dark:text-zinc-400">
+      <Link
+        href={`/processos/${processoId}`}
+        className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400"
+      >
         ← Voltar para o processo
       </Link>
-      <h1 className="text-xl font-semibold mt-2 mb-1">Quesitos</h1>
-      <p className="text-sm text-zinc-500 mb-6">{titulo}</p>
+      <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mt-2 mb-1">Quesitos</h1>
+      <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mb-6">{titulo}</p>
 
       <QuesitosPanel processoId={processoId} quesitos={quesitos ?? []} />
     </main>

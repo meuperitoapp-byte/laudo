@@ -70,22 +70,22 @@ function TabelaLinhaFixaUmaColuna({
     <div className="overflow-x-auto">
       <table className="w-full text-sm border-collapse">
         <thead>
-          <tr className="border-b border-zinc-300 dark:border-zinc-700 text-left">
-            <th className="py-1.5 pr-3 font-medium text-zinc-600 dark:text-zinc-400">Item</th>
-            <th className="py-1.5 font-medium text-zinc-600 dark:text-zinc-400">
+          <tr className="border-b border-nevoa-300 dark:border-nevoa-700 text-left">
+            <th className="py-1.5 pr-3 font-medium text-nevoa-600 dark:text-nevoa-400">Item</th>
+            <th className="py-1.5 font-medium text-nevoa-600 dark:text-nevoa-400">
               {coluna.rotulo ?? "Valor"}
             </th>
           </tr>
         </thead>
         <tbody>
           {config.linhas.map((linha) => (
-            <tr key={linha.codigo} className="border-b border-zinc-100 dark:border-zinc-800">
+            <tr key={linha.codigo} className="border-b border-nevoa-100 dark:border-nevoa-800">
               <td className="py-1.5 pr-3">{linha.rotulo}</td>
               <td className="py-1.5">
                 <select
                   value={valorDaLinha(linha.codigo)}
                   onChange={(e) => setValorDaLinha(linha.codigo, e.target.value)}
-                  className="rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1"
+                  className="rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-2 py-1 text-nevoa-900 dark:text-nevoa-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
                 >
                   <option value="">— selecione —</option>
                   {(coluna.opcoes ?? []).map((opcao) => (
@@ -130,7 +130,7 @@ function CelulaTabela({
       <select
         value={valor}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1"
+        className="w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-2 py-1 text-nevoa-900 dark:text-nevoa-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
       >
         <option value="">— selecione —</option>
         {(coluna.opcoes ?? []).map((opcao) => (
@@ -146,7 +146,7 @@ function CelulaTabela({
       type="text"
       value={valor}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1"
+      className="w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-2 py-1 text-nevoa-900 dark:text-nevoa-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
     />
   );
 }
@@ -187,9 +187,9 @@ function TabelaMultiColuna({
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="border-b border-zinc-300 dark:border-zinc-700 text-left">
+            <tr className="border-b border-nevoa-300 dark:border-nevoa-700 text-left">
               {config.colunas.map((coluna) => (
-                <th key={coluna.codigo} className="py-1.5 pr-3 font-medium text-zinc-600 dark:text-zinc-400">
+                <th key={coluna.codigo} className="py-1.5 pr-3 font-medium text-nevoa-600 dark:text-nevoa-400">
                   {coluna.rotulo ?? coluna.codigo}
                 </th>
               ))}
@@ -199,7 +199,7 @@ function TabelaMultiColuna({
           <tbody>
             {linhasValor.length === 0 && (
               <tr>
-                <td colSpan={config.colunas.length + 1} className="py-2 text-zinc-500 italic">
+                <td colSpan={config.colunas.length + 1} className="py-2 text-nevoa-500 dark:text-nevoa-400 italic">
                   Nenhuma linha adicionada ainda.
                 </td>
               </tr>
@@ -207,7 +207,7 @@ function TabelaMultiColuna({
             {linhasValor.map((linha) => {
               const celulas = valoresDaLinha(linha);
               return (
-                <tr key={linha.linha} className="border-b border-zinc-100 dark:border-zinc-800 align-top">
+                <tr key={linha.linha} className="border-b border-nevoa-100 dark:border-nevoa-800 align-top">
                   {config.colunas.map((coluna) => (
                     <td key={coluna.codigo} className="py-1.5 pr-3">
                       <CelulaTabela
@@ -223,7 +223,7 @@ function TabelaMultiColuna({
                       onClick={() => removerLinha(linha.linha)}
                       aria-label={`Remover linha`}
                       title="Remover linha"
-                      className="text-zinc-400 hover:text-red-600"
+                      className="text-nevoa-400 hover:text-vinho-600 dark:hover:text-vinho-400"
                     >
                       ✕
                     </button>
@@ -236,7 +236,7 @@ function TabelaMultiColuna({
         <button
           type="button"
           onClick={adicionarLinha}
-          className="mt-2 text-xs underline text-zinc-600 dark:text-zinc-400"
+          className="mt-2 text-xs text-petroleo-600 hover:underline dark:text-petroleo-400"
         >
           + Adicionar linha ({campo.rotulo})
         </button>
@@ -249,10 +249,10 @@ function TabelaMultiColuna({
     <div className="overflow-x-auto">
       <table className="w-full text-sm border-collapse">
         <thead>
-          <tr className="border-b border-zinc-300 dark:border-zinc-700 text-left">
-            <th className="py-1.5 pr-3 font-medium text-zinc-600 dark:text-zinc-400">Item</th>
+          <tr className="border-b border-nevoa-300 dark:border-nevoa-700 text-left">
+            <th className="py-1.5 pr-3 font-medium text-nevoa-600 dark:text-nevoa-400">Item</th>
             {config.colunas.map((coluna) => (
-              <th key={coluna.codigo} className="py-1.5 pr-3 font-medium text-zinc-600 dark:text-zinc-400">
+              <th key={coluna.codigo} className="py-1.5 pr-3 font-medium text-nevoa-600 dark:text-nevoa-400">
                 {coluna.rotulo ?? coluna.codigo}
               </th>
             ))}
@@ -262,7 +262,7 @@ function TabelaMultiColuna({
           {config.linhas.map((linha) => {
             const celulas = valoresDaLinha(linhasValor.find((l) => l.linha === linha.codigo));
             return (
-              <tr key={linha.codigo} className="border-b border-zinc-100 dark:border-zinc-800 align-top">
+              <tr key={linha.codigo} className="border-b border-nevoa-100 dark:border-nevoa-800 align-top">
                 <td className="py-1.5 pr-3">{linha.rotulo}</td>
                 {config.colunas.map((coluna) => (
                   <td key={coluna.codigo} className="py-1.5 pr-3">

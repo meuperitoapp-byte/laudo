@@ -30,8 +30,8 @@ export default async function RespostasReutilizaveisPage() {
 
   return (
     <main className="p-8">
-      <h1 className="text-xl font-semibold mb-1">Respostas reutilizáveis</h1>
-      <p className="text-sm text-zinc-500 mb-6">
+      <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mb-1">Respostas reutilizáveis</h1>
+      <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mb-6">
         Biblioteca pessoal de textos pra reaproveitar entre processos — não depende de nenhum
         processo específico.
       </p>
