@@ -1,0 +1,51 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env*.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# supabase CLI (estado local, não é config do projeto)
+/supabase/.temp/
+
+# Materiais da cliente (PDFs-modelo, contratos, prints do WhatsApp usados pra
+# mapear os laudos) — uso local de referência durante o desenvolvimento, não
+# fazem parte do código do app. O repositório é PÚBLICO; nunca comitar isso.
+/Laudos e documentos/
+/Alinhamento-Dra-Fernanda - plataforma de laudos periciais.docx
