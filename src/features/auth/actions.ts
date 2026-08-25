@@ -40,6 +40,31 @@ export async function sendOtp(formData: FormData): Promise<ActionResult> {
   }
 }
 
+/**
+ * Login por e-mail + senha — alternativa ao link mágico (que depende de o
+ * link ser aberto no MESMO navegador/dispositivo que pediu o envio, por
+ * causa do fluxo PKCE; se a perita abre o e-mail no app do Gmail no celular
+ * enquanto pediu o link no computador, a troca falha e ela cai de volta na
+ * tela de login). Só funciona pra quem já tem senha definida no painel do
+ * Supabase (Authentication → Users) — não há cadastro público, os 2 usuários
+ * são criados manualmente (ver CLAUDE.md).
+ */
+export async function signInWithPassword(formData: FormData): Promise<ActionResult> {
+  const email = (formData.get("email") as string | null)?.trim();
+  const senha = formData.get("senha") as string | null;
+  if (!email || !senha) {
+    return { error: "Informe e-mail e senha." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+  if (error) {
+    return { error: "E-mail ou senha incorretos." };
+  }
+
+  redirect("/processos");
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
