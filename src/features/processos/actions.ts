@@ -42,8 +42,9 @@ export async function createProcesso(formData: FormData): Promise<ActionResult> 
     insert.vara_numero = optionalText(formData, "vara_numero");
     insert.comarca_subsecao = optionalText(formData, "comarca_subsecao");
     insert.uf = optionalText(formData, "uf");
-    insert.parte_autora = optionalText(formData, "parte_autora");
-    insert.partes_re = optionalText(formData, "partes_re");
+    // Polo Ativo/Passivo (várias pessoas cada) são cadastrados depois de criar
+    // o processo — ver processo_partes/PoloPartesPanel. parte_autora/partes_re
+    // seguem existindo na tabela só por compatibilidade com dados antigos.
     insert.periciando_nome = optionalText(formData, "periciando_nome");
     insert.periciando_cpf = optionalText(formData, "periciando_cpf");
     insert.periciando_data_nascimento = optionalText(formData, "periciando_data_nascimento");

@@ -5,6 +5,7 @@ import { montarApresentacao } from "./apresentacao";
 import {
   construirContexto,
   gerarNarrativoSecao,
+  resolverPlaceholders,
   type ContextoNarrativo,
   type RespostaCampoParaNarrativo,
 } from "@/features/preenchimento/narrativo";
@@ -27,6 +28,9 @@ import type {
 
 /** codigo usado nos 3 tipos de laudo mapeados (Curatela/Previdenciário/Trabalhista) pra seção estrutural de quesitos — mesma convenção em todos. */
 const CODIGO_SECAO_QUESITOS = "respostas_quesitos";
+
+/** codigo da seção de encerramento — mesma convenção nos 4 tipos já mapeados (Curatela/Previdenciário/Trabalhista/Erro Médico). */
+const CODIGO_SECAO_ENCERRAMENTO = "encerramento";
 
 /**
  * Compila o conteúdo do laudo de um processo: busca tudo no banco e monta o
@@ -55,7 +59,9 @@ export async function compilarLaudo(processoId: string): Promise<ResultadoCompil
     return { status: "erro", mensagem: "Este processo ainda não tem um tipo de laudo definido." };
   }
 
-  const cabecalho = montarCabecalhoFormal(processo);
+  const { data: partesDb } = await supabase.from("processo_partes").select("*").eq("processo_id", processoId);
+
+  const cabecalho = montarCabecalhoFormal(processo, partesDb ?? []);
   if ("erro" in cabecalho) {
     return { status: "erro", mensagem: cabecalho.erro };
   }
@@ -319,6 +325,22 @@ function compilarBlocosDaSecao(
   // vem direto da tabela `quesitos`, não de campos_secao/respostas_processo.
   if (secao.codigo === CODIGO_SECAO_QUESITOS && quesitos.length > 0) {
     blocos.push({ tipo: "quesitos", itens: quesitos });
+  }
+
+  // Fechamento/assinatura: cidade/data + nome + título têm alinhamento
+  // próprio no documento final (ver BlocoAssinatura) — não entram no
+  // parágrafo de ressalva jurídica acima. "Dra."/"Médica Perita Judicial"
+  // fixos (só existe uma perita usando o sistema, ver CLAUDE.md); nome e CRM
+  // vêm de {{nome_perito}}/{{crm_uf}} (Seção I, com valor padrão pré-preenchido
+  // — ver perito-padrao.ts), com o mesmo fallback "[a preencher]" de sempre
+  // se por algum motivo ainda não tiverem resposta.
+  if (secao.codigo === CODIGO_SECAO_ENCERRAMENTO) {
+    blocos.push({
+      tipo: "assinatura",
+      cidadeData: resolverPlaceholders("{{cidade_uf_assinatura}}, {{data_assinatura}}.", contexto),
+      nome: resolverPlaceholders("Dra. {{nome_perito}}", contexto),
+      tituloCrm: resolverPlaceholders("Médica Perita Judicial, CRM {{crm_uf}}.", contexto),
+    });
   }
 
   return blocos;

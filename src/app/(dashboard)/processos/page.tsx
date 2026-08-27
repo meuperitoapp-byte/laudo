@@ -23,15 +23,22 @@ const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
 export default async function ProcessosPage() {
   const supabase = await createClient();
 
-  const [{ data: processos }, { data: tiposLaudo }] = await Promise.all([
+  const [{ data: processos }, { data: tiposLaudo }, { data: partesDb }] = await Promise.all([
     supabase.from("processos").select("*").order("created_at", { ascending: false }),
     supabase.from("tipos_laudo").select("*"),
+    supabase.from("processo_partes").select("processo_id, polo, nome, ordem").eq("polo", "ativo").order("ordem"),
   ]);
 
   // Junção manual em vez de embed do PostgREST — nosso Database ainda não
   // declara as relações (ver src/types/database.ts), então o embed não seria
   // tipado corretamente.
   const nomePorTipoLaudo = new Map((tiposLaudo ?? []).map((t) => [t.id, t.nome]));
+  const primeiroNomePoloAtivoPorProcesso = new Map<string, string>();
+  for (const parte of partesDb ?? []) {
+    if (!primeiroNomePoloAtivoPorProcesso.has(parte.processo_id)) {
+      primeiroNomePoloAtivoPorProcesso.set(parte.processo_id, parte.nome);
+    }
+  }
 
   return (
     <main className="p-8 max-w-5xl">
@@ -66,7 +73,11 @@ export default async function ProcessosPage() {
                       href={`/processos/${p.id}`}
                       className="font-medium text-petroleo-600 hover:underline dark:text-petroleo-400"
                     >
-                      {p.numero_processo || p.periciando_nome || p.parte_autora || "(sem identificação)"}
+                      {p.numero_processo ||
+                        p.periciando_nome ||
+                        primeiroNomePoloAtivoPorProcesso.get(p.id) ||
+                        p.parte_autora ||
+                        "(sem identificação)"}
                     </Link>
                   </td>
                   <td className="py-2.5 px-4 text-nevoa-700 dark:text-nevoa-300">

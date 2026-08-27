@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { createProcesso } from "@/features/processos/actions";
 import { Botao } from "@/components/ui/button";
+import { ComboboxCatalogo } from "@/components/ui/combobox-catalogo";
 import type { TiposLaudoRow } from "@/types/database";
 import type { EtapaContratada } from "@/types/enums";
 
@@ -115,7 +116,15 @@ function OpcaoCheckbox({ name, value, rotulo }: { name: string; value: string; r
   );
 }
 
-export function NovoProcessoForm({ tiposLaudo }: { tiposLaudo: TiposLaudoRow[] }) {
+export function NovoProcessoForm({
+  tiposLaudo,
+  sugestoesVara,
+  sugestoesComarca,
+}: {
+  tiposLaudo: TiposLaudoRow[];
+  sugestoesVara: string[];
+  sugestoesComarca: string[];
+}) {
   const [tipoTrabalho, setTipoTrabalho] = useState<
     "pericia_judicial" | "assistencia_tecnica" | null
   >(null);
@@ -180,15 +189,17 @@ export function NovoProcessoForm({ tiposLaudo }: { tiposLaudo: TiposLaudoRow[] }
               <label htmlFor="vara_numero" className={labelClass}>
                 Número da vara
               </label>
-              <input
+              <ComboboxCatalogo
                 id="vara_numero"
                 name="vara_numero"
+                sugestoes={sugestoesVara}
+                rotuloNovo="Nova vara"
                 placeholder="ex.: 3ª, ou 3ª Vara Cível, 3ª Vara de Família, 3ª Vara do Trabalho..."
-                className={inputClass}
               />
               <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
                 Se a vara tiver especialização (Cível, Família, do Trabalho...), inclua aqui — é o
-                que vai pro endereçamento formal do laudo final.
+                que vai pro endereçamento formal do laudo final. Comece a digitar pra ver varas já
+                usadas, ou cadastre uma nova na hora.
               </p>
             </div>
           </div>
@@ -198,7 +209,12 @@ export function NovoProcessoForm({ tiposLaudo }: { tiposLaudo: TiposLaudoRow[] }
               <label htmlFor="comarca_subsecao" className={labelClass}>
                 Comarca / Subseção Judiciária
               </label>
-              <input id="comarca_subsecao" name="comarca_subsecao" className={inputClass} />
+              <ComboboxCatalogo
+                id="comarca_subsecao"
+                name="comarca_subsecao"
+                sugestoes={sugestoesComarca}
+                rotuloNovo="Nova comarca"
+              />
             </div>
             <div>
               <label htmlFor="uf" className={labelClass}>
@@ -208,19 +224,11 @@ export function NovoProcessoForm({ tiposLaudo }: { tiposLaudo: TiposLaudoRow[] }
             </div>
           </div>
 
-          <div>
-            <label htmlFor="parte_autora" className={labelClass}>
-              Parte autora / Reclamante
-            </label>
-            <input id="parte_autora" name="parte_autora" className={inputClass} />
-          </div>
-
-          <div>
-            <label htmlFor="partes_re" className={labelClass}>
-              Parte ré / Reclamada(s)
-            </label>
-            <input id="partes_re" name="partes_re" className={inputClass} />
-          </div>
+          <p className="text-xs text-nevoa-500 dark:text-nevoa-400">
+            Polo Ativo e Polo Passivo (autor/réu, reclamante/reclamado, curatelando/curatelado etc.,
+            com quantas pessoas forem necessárias) são cadastrados depois de criar o processo, na
+            própria tela do processo.
+          </p>
 
           <div>
             <label htmlFor="objeto_pericia" className={labelClass}>

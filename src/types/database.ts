@@ -176,6 +176,25 @@ export type ProcessosInsert = ComDefaults<
 export type ProcessosUpdate = Partial<ProcessosRow>
 
 // ============================================================================
+// processo_partes — pessoas de cada polo (ativo/passivo). Ver migration
+// 20260827100000. processos.parte_autora/partes_re ficam como colunas
+// legadas, sem uso a partir desta migration.
+// ============================================================================
+export type ProcessoPartesRow = {
+  id: string
+  processo_id: string
+  polo: 'ativo' | 'passivo'
+  /** Ex.: "Autor(a)", "Réu", "Reclamante", "Curatelando(a)" — texto livre, varia por tipo de processo. */
+  papel: string
+  nome: string
+  ordem: number
+  created_at: string
+  updated_at: string
+}
+export type ProcessoPartesInsert = ComDefaults<ProcessoPartesRow, 'id' | 'created_at' | 'updated_at'>
+export type ProcessoPartesUpdate = Partial<ProcessoPartesRow>
+
+// ============================================================================
 // documentos
 // ============================================================================
 export type DocumentosRow = {
@@ -381,6 +400,12 @@ export interface Database {
         Row: ProcessosRow
         Insert: ProcessosInsert
         Update: ProcessosUpdate
+        Relationships: []
+      }
+      processo_partes: {
+        Row: ProcessoPartesRow
+        Insert: ProcessoPartesInsert
+        Update: ProcessoPartesUpdate
         Relationships: []
       }
       documentos: {

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
+import { PoloPartesPanel } from "@/features/processos/polo-partes-panel";
 
 const STATUS_ROTULOS: Record<string, string> = {
   em_andamento: "Em andamento",
@@ -48,6 +49,15 @@ export default async function ProcessoDetalhePage({
     notFound();
   }
 
+  const { data: partesDb } = await supabase
+    .from("processo_partes")
+    .select("*")
+    .eq("processo_id", id)
+    .order("ordem", { ascending: true });
+  const partes = partesDb ?? [];
+  const nomesPoloAtivo = partes.filter((p) => p.polo === "ativo").map((p) => p.nome);
+  const nomesPoloPassivo = partes.filter((p) => p.polo === "passivo").map((p) => p.nome);
+
   let tipoLaudoNome: string | null = null;
   let primeiraSecaoId: string | null = null;
   if (processo.tipo_laudo_id) {
@@ -68,6 +78,7 @@ export default async function ProcessoDetalhePage({
   const titulo =
     processo.numero_processo ||
     processo.periciando_nome ||
+    nomesPoloAtivo[0] ||
     processo.parte_autora ||
     "Processo sem identificação";
 
@@ -99,8 +110,12 @@ export default async function ProcessoDetalhePage({
               <Campo rotulo="Vara/Comarca">
                 {[processo.vara_numero, processo.comarca_subsecao, processo.uf].filter(Boolean).join(" — ") || "—"}
               </Campo>
-              <Campo rotulo="Parte autora">{processo.parte_autora ?? "—"}</Campo>
-              <Campo rotulo="Parte ré">{processo.partes_re ?? "—"}</Campo>
+              <Campo rotulo="Polo Ativo">
+                {nomesPoloAtivo.length > 0 ? nomesPoloAtivo.join(", ") : (processo.parte_autora ?? "—")}
+              </Campo>
+              <Campo rotulo="Polo Passivo">
+                {nomesPoloPassivo.length > 0 ? nomesPoloPassivo.join(", ") : (processo.partes_re ?? "—")}
+              </Campo>
               <Campo rotulo="Periciando(a)">{processo.periciando_nome ?? "—"}</Campo>
               <Campo rotulo="Objeto da perícia" colSpan>
                 {processo.objeto_pericia ?? "—"}
@@ -117,6 +132,10 @@ export default async function ProcessoDetalhePage({
           )}
         </dl>
       </div>
+
+      {processo.tipo_trabalho === "pericia_judicial" && (
+        <PoloPartesPanel processoId={processo.id} partes={partes} />
+      )}
 
       <div className="flex flex-wrap gap-3">
         {primeiraSecaoId ? (

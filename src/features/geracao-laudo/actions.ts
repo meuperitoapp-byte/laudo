@@ -6,6 +6,7 @@ import { compilarLaudo } from "./compilar";
 import { renderizarDocx } from "./renderizar-docx";
 import { renderizarPdf } from "./renderizar-pdf";
 import { buscarAtivosGlobais } from "./ativos-globais";
+import { baixarImagensPericia } from "./imagens-pericia";
 import type { LaudosGeradosInsert } from "@/types/database";
 import { BUCKET_LAUDOS_GERADOS } from "./constants";
 
@@ -30,10 +31,13 @@ export async function gerarLaudo(processoId: string): Promise<ActionResult> {
     return { error: `Geração bloqueada — seções ainda não revisadas: ${titulos}.` };
   }
 
-  const ativos = await buscarAtivosGlobais();
+  const [ativos, imagensPericia] = await Promise.all([
+    buscarAtivosGlobais(),
+    baixarImagensPericia(resultado.modelo.imagensPericia),
+  ]);
   const [bufferDocx, bufferPdf] = await Promise.all([
-    renderizarDocx(resultado.modelo, ativos),
-    renderizarPdf(resultado.modelo, ativos),
+    renderizarDocx(resultado.modelo, ativos, imagensPericia),
+    renderizarPdf(resultado.modelo, ativos, imagensPericia),
   ]);
 
   const supabase = await createClient();

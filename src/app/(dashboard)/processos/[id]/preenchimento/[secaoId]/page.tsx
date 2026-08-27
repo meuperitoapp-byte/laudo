@@ -11,6 +11,7 @@ import {
 } from "@/features/preenchimento/narrativo";
 import { SecaoWorkspace } from "@/features/preenchimento/secao-workspace";
 import { ESTADO_VAZIO, type EstadoRespostas, type SecaoNavItem } from "@/features/preenchimento/tipos";
+import { VALORES_PADRAO_PERITO } from "@/features/preenchimento/perito-padrao";
 import type {
   AchadoParaVinculo,
   DocumentoParaVinculo,
@@ -202,16 +203,25 @@ export default async function PreenchimentoSecaoPage({
   const camposDaSecaoAtual = camposPorSecaoId.get(secaoAtual.id) ?? [];
   const arvoreCampos = construirArvoreCampos(camposDaSecaoAtual);
 
+  // Pré-preenche campos de identificação da perita (nome/CRM/cidade) quando
+  // ainda não há resposta salva — ver perito-padrao.ts. Continua editável;
+  // só evita ela digitar os mesmos dados fixos em todo processo novo.
   const respostasIniciais: EstadoRespostas = {};
   for (const campo of camposDaSecaoAtual) {
     const r = respostaPorCampoId.get(campo.id);
-    respostasIniciais[campo.id] = r
-      ? {
-          valorSelecionado: r.valor_selecionado,
-          textoLivre: r.texto_livre,
-          confirmadoPeloPerito: r.confirmado_pelo_perito,
-        }
-      : ESTADO_VAZIO;
+    if (r) {
+      respostasIniciais[campo.id] = {
+        valorSelecionado: r.valor_selecionado,
+        textoLivre: r.texto_livre,
+        confirmadoPeloPerito: r.confirmado_pelo_perito,
+      };
+      continue;
+    }
+    const valorPadrao = VALORES_PADRAO_PERITO[campo.codigo];
+    respostasIniciais[campo.id] =
+      campo.tipo_campo === "texto_livre" && valorPadrao
+        ? { ...ESTADO_VAZIO, textoLivre: valorPadrao }
+        : ESTADO_VAZIO;
   }
 
   const respostaSecaoAtual = respostaSecaoPorSecaoId.get(secaoAtual.id);

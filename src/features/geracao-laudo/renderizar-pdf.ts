@@ -5,6 +5,7 @@ import URLResolver from "pdfmake/js/URLResolver";
 import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import type { BlocoConteudo, ModeloLaudo } from "./modelo";
 import type { AtivoImagem, AtivosGlobais } from "./ativos-globais";
+import type { ImagemPericiaEmbutida } from "./imagens-pericia";
 
 /**
  * Renderiza o MESMO ModeloLaudo usado por renderizar-docx.ts como PDF, via
@@ -53,6 +54,13 @@ function blocoParaPdf(bloco: BlocoConteudo): Content[] {
   if (bloco.tipo === "paragrafo") {
     return [{ text: bloco.texto, margin: [0, 0, 0, 10] }];
   }
+  if (bloco.tipo === "assinatura") {
+    return [
+      { text: bloco.cidadeData, alignment: "right", margin: [0, 0, 0, 30] }, // espaço em branco antes do nome
+      { text: bloco.nome, alignment: "center" },
+      { text: bloco.tituloCrm, alignment: "center", margin: [0, 0, 0, 10] },
+    ];
+  }
   if (bloco.tipo === "tabela") {
     return [
       {
@@ -83,7 +91,22 @@ function imagemBase64(imagem: AtivoImagem): string {
   return `data:${imagem.mimeType};base64,${imagem.bytes.toString("base64")}`;
 }
 
-export async function renderizarPdf(modelo: ModeloLaudo, ativos: AtivosGlobais): Promise<Buffer> {
+/** Bloco "Documentos e Imagens da Perícia" — uma imagem por vez, centralizada, com o nome do arquivo como legenda. */
+function blocoImagensPericia(imagens: ImagemPericiaEmbutida[]): Content[] {
+  if (imagens.length === 0) return [];
+  const conteudo: Content[] = [tituloSecao("DOCUMENTOS E IMAGENS DA PERÍCIA")];
+  for (const imagem of imagens) {
+    conteudo.push({ image: imagemBase64(imagem), width: 320, alignment: "center", margin: [0, 10, 0, 2] });
+    conteudo.push({ text: imagem.nomeArquivo, alignment: "center", margin: [0, 0, 0, 10] });
+  }
+  return conteudo;
+}
+
+export async function renderizarPdf(
+  modelo: ModeloLaudo,
+  ativos: AtivosGlobais,
+  imagensPericia: ImagemPericiaEmbutida[] = []
+): Promise<Buffer> {
   const conteudo: Content[] = [];
 
   for (const linha of modelo.cabecalho.linhasEndereco) {
@@ -103,8 +126,14 @@ export async function renderizarPdf(modelo: ModeloLaudo, ativos: AtivosGlobais):
   conteudo.push(tituloSecao("APRESENTAÇÃO"));
   conteudo.push({ text: modelo.apresentacao, margin: [0, 0, 0, 10] });
 
-  // Seções do tipo_laudo (já com o bloco de Quesitos na posição certa — ver compilar.ts)
+  // Seções do tipo_laudo (já com o bloco de Quesitos na posição certa — ver compilar.ts).
+  // Documentos e Imagens da Perícia entram logo antes do Encerramento — depois de todo
+  // o conteúdo analítico, mas antes do parágrafo/assinatura final (que precisa continuar
+  // sendo o último conteúdo do documento).
   for (const secao of modelo.secoes) {
+    if (secao.codigo === "encerramento") {
+      conteudo.push(...blocoImagensPericia(imagensPericia));
+    }
     conteudo.push(tituloSecao(secao.titulo));
     conteudo.push(...secao.blocos.flatMap(blocoParaPdf));
   }
@@ -123,7 +152,7 @@ export async function renderizarPdf(modelo: ModeloLaudo, ativos: AtivosGlobais):
       alignment: "center",
       margin: [0, 40, 0, 0],
     });
-    conteudo.push({ text: "Assinatura do(a) Perito(a)", alignment: "center", italics: true });
+    conteudo.push({ text: "Assinatura da Perita", alignment: "center", italics: true });
   }
 
   const docDefinition: TDocumentDefinitions = {

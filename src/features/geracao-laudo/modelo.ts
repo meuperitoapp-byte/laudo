@@ -48,7 +48,22 @@ export interface BlocoQuesitos {
   itens: QuesitoCompilado[];
 }
 
-export type BlocoConteudo = BlocoParagrafo | BlocoTabela | BlocoQuesitos;
+/**
+ * Bloco de fechamento/assinatura — injetado na seção 'encerramento' (mesmo
+ * codigo em todos os tipos de laudo), separado do parágrafo comum porque tem
+ * alinhamento próprio no documento final (CLAUDE.md/pedido da Dra. Fernanda):
+ * cidade/data alinhada à direita, depois nome e título centralizados. O
+ * parágrafo de ressalva jurídica (texto_automatico_template da seção)
+ * continua sendo um BlocoParagrafo normal, logo antes deste.
+ */
+export interface BlocoAssinatura {
+  tipo: "assinatura";
+  cidadeData: string;
+  nome: string;
+  tituloCrm: string;
+}
+
+export type BlocoConteudo = BlocoParagrafo | BlocoTabela | BlocoQuesitos | BlocoAssinatura;
 
 /** Uma seção do tipo_laudo já compilada — só entra no modelo se tiver algum bloco (ver compilar.ts). */
 export interface SecaoCompilada {

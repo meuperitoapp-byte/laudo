@@ -14,6 +14,7 @@ import {
 } from "docx";
 import type { BlocoConteudo, ModeloLaudo } from "./modelo";
 import type { AtivoImagem, AtivosGlobais } from "./ativos-globais";
+import type { ImagemPericiaEmbutida } from "./imagens-pericia";
 
 /**
  * Renderiza o modelo compilado (mesma fonte usada pelo PDF — ver modelo.ts)
@@ -30,9 +31,17 @@ const TAMANHO_TABELA = 20; // 10pt
 
 type Bloco = Paragraph | Table;
 
-function paragrafo(texto: string, opts: { negrito?: boolean; centralizado?: boolean } = {}): Paragraph {
+function paragrafo(
+  texto: string,
+  opts: { negrito?: boolean; centralizado?: boolean; direita?: boolean } = {}
+): Paragraph {
+  const alinhamento = opts.centralizado
+    ? AlignmentType.CENTER
+    : opts.direita
+      ? AlignmentType.RIGHT
+      : AlignmentType.JUSTIFIED;
   return new Paragraph({
-    alignment: opts.centralizado ? AlignmentType.CENTER : AlignmentType.JUSTIFIED,
+    alignment: alinhamento,
     spacing: { after: 200 },
     children: [new TextRun({ text: texto, bold: opts.negrito, font: FONTE, size: TAMANHO_BASE })],
   });
@@ -73,6 +82,15 @@ function blocoParaDocx(bloco: BlocoConteudo): Bloco[] {
   if (bloco.tipo === "paragrafo") return [paragrafo(bloco.texto)];
   if (bloco.tipo === "tabela") return [tabelaDocx(bloco.colunas, bloco.linhas)];
 
+  if (bloco.tipo === "assinatura") {
+    return [
+      paragrafo(bloco.cidadeData, { direita: true }),
+      new Paragraph({ spacing: { after: 400 }, children: [] }), // espaço em branco
+      paragrafo(bloco.nome, { centralizado: true }),
+      paragrafo(bloco.tituloCrm, { centralizado: true }),
+    ];
+  }
+
   // bloco.tipo === "quesitos"
   return bloco.itens.flatMap((q) => {
     const cabecalhoQuesito = q.origem ? `${q.numero}. (${q.origem}) ${q.pergunta}` : `${q.numero}. ${q.pergunta}`;
@@ -102,7 +120,24 @@ function imagemDocx(imagem: AtivoImagem, larguraAlvo: number): ImageRun {
   });
 }
 
-export async function renderizarDocx(modelo: ModeloLaudo, ativos: AtivosGlobais): Promise<Buffer> {
+/** Bloco "Documentos e Imagens da Perícia" — uma imagem por vez, centralizada, com o nome do arquivo como legenda. */
+function blocoImagensPericia(imagens: ImagemPericiaEmbutida[]): Bloco[] {
+  if (imagens.length === 0) return [];
+  const filhos: Bloco[] = [tituloSecao("DOCUMENTOS E IMAGENS DA PERÍCIA")];
+  for (const imagem of imagens) {
+    filhos.push(
+      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 200 }, children: [imagemDocx(imagem, 380)] })
+    );
+    filhos.push(paragrafo(imagem.nomeArquivo, { centralizado: true }));
+  }
+  return filhos;
+}
+
+export async function renderizarDocx(
+  modelo: ModeloLaudo,
+  ativos: AtivosGlobais,
+  imagensPericia: ImagemPericiaEmbutida[] = []
+): Promise<Buffer> {
   const filhos: Bloco[] = [];
 
   // Cabeçalho formal
@@ -124,8 +159,14 @@ export async function renderizarDocx(modelo: ModeloLaudo, ativos: AtivosGlobais)
   filhos.push(tituloSecao("APRESENTAÇÃO"));
   filhos.push(paragrafo(modelo.apresentacao));
 
-  // Seções do tipo_laudo (já com o bloco de Quesitos na posição certa — ver compilar.ts)
+  // Seções do tipo_laudo (já com o bloco de Quesitos na posição certa — ver compilar.ts).
+  // Documentos e Imagens da Perícia entram logo antes do Encerramento — depois de todo
+  // o conteúdo analítico, mas antes do parágrafo/assinatura final (que precisa continuar
+  // sendo o último conteúdo do documento).
   for (const secao of modelo.secoes) {
+    if (secao.codigo === "encerramento") {
+      filhos.push(...blocoImagensPericia(imagensPericia));
+    }
     filhos.push(tituloSecao(secao.titulo));
     filhos.push(...secao.blocos.flatMap(blocoParaDocx));
   }
@@ -150,7 +191,7 @@ export async function renderizarDocx(modelo: ModeloLaudo, ativos: AtivosGlobais)
     filhos.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: "Assinatura do(a) Perito(a)", font: FONTE, size: TAMANHO_BASE, italics: true })],
+        children: [new TextRun({ text: "Assinatura da Perita", font: FONTE, size: TAMANHO_BASE, italics: true })],
       })
     );
   }
