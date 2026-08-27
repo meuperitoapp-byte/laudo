@@ -1,4 +1,4 @@
-import type { CondicaoVisibilidade, ValorSelecionado } from "@/types/json-fields";
+import type { CondicaoSimples, CondicaoVisibilidade, ValorSelecionado } from "@/types/json-fields";
 
 /**
  * Um valor de resposta "dispara" um dos valores-gatilho? Cobre seleção única
@@ -17,15 +17,30 @@ export function valorSatisfazGatilho(
   return false;
 }
 
+function avaliarCondicaoSimples(
+  condicao: CondicaoSimples,
+  valoresPorCodigo: Map<string, ValorSelecionado | null>
+): boolean {
+  return valorSatisfazGatilho(valoresPorCodigo.get(condicao.campo_codigo), condicao.valores_gatilho);
+}
+
 /**
  * Avalia uma `condicao` (secoes.condicao ou campos_secao.condicao) contra um
  * mapa de respostas atuais (codigo do campo -> valor_selecionado). Sem
  * condicao, é sempre visível.
+ *
+ * Suporta as duas formas de CondicaoVisibilidade: uma condição simples, ou
+ * `{ todas: [...] }` — visível só quando TODAS as condições simples da lista
+ * forem satisfeitas (E lógico). Ver comentário do tipo em
+ * src/types/json-fields.ts.
  */
 export function avaliarCondicao(
   condicao: CondicaoVisibilidade | null,
   valoresPorCodigo: Map<string, ValorSelecionado | null>
 ): boolean {
   if (!condicao) return true;
-  return valorSatisfazGatilho(valoresPorCodigo.get(condicao.campo_codigo), condicao.valores_gatilho);
+  if ("todas" in condicao) {
+    return condicao.todas.every((c) => avaliarCondicaoSimples(c, valoresPorCodigo));
+  }
+  return avaliarCondicaoSimples(condicao, valoresPorCodigo);
 }

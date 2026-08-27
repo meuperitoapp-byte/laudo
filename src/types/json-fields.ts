@@ -10,16 +10,37 @@
 // ----------------------------------------------------------------------------
 
 /**
- * Regra de visibilidade genérica usada tanto por seções condicionais quanto
- * por campos condicionais (incluindo os sub-campos do exame físico por
- * sistema, pendurados via campos_secao.parent_campo_id).
+ * Uma condição simples: a resposta de UM campo decide a visibilidade (visível
+ * quando o valor bate com algum de `valores_gatilho`). Forma original —
+ * continua sendo a mais comum, e é a única forma que os seeds de
+ * Curatela/Previdenciário/Trabalhista usam.
  */
-export interface CondicaoVisibilidade {
+export interface CondicaoSimples {
   /** codigo (campos_secao.codigo) do campo cuja resposta decide a visibilidade */
   campo_codigo: string
   /** valores (codigo da opção escolhida) que tornam o item visível */
   valores_gatilho: string[]
 }
+
+/**
+ * Regra de visibilidade genérica usada tanto por seções condicionais quanto
+ * por campos condicionais (incluindo os sub-campos do exame físico por
+ * sistema, pendurados via campos_secao.parent_campo_id).
+ *
+ * Duas formas, ambas válidas em secoes.condicao e campos_secao.condicao:
+ *  - CondicaoSimples (forma original, ver acima).
+ *  - `{ todas: CondicaoSimples[] }` — combinação por E lógico: só fica
+ *    visível quando TODAS as condições simples da lista forem satisfeitas ao
+ *    mesmo tempo. Adicionado no mapeamento do Erro Médico (Seção XII —
+ *    "Exame Médico-Pericial Direto" só deve aparecer quando o periciando
+ *    está vivo E a perícia não é indireta; uma condição simples só resolve
+ *    "vivo", não as duas ao mesmo tempo). Não há suporte a "qualquer uma"
+ *    (OU entre condições) nem a aninhamento — se isso for necessário num
+ *    tipo futuro, expandir aqui em vez de forçar o `todas` a fazer o papel.
+ *  Não muda a coluna do banco (continua jsonb livre) nem exige migration —
+ *  só o formato interpretado pela aplicação.
+ */
+export type CondicaoVisibilidade = CondicaoSimples | { todas: CondicaoSimples[] }
 
 // ----------------------------------------------------------------------------
 // campos_secao.opcoes (tipo_campo = selecao_unica | selecao_multipla)
