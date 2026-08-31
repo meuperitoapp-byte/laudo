@@ -116,48 +116,37 @@ function FormContato({ config }: { config: ConfiguracoesRow | null }) {
   }
 
   return (
-    <Cartao titulo="Dados de contato dos documentos">
+    <Cartao titulo="Rodapé dos documentos">
       <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
-        Vão numa faixa discreta no rodapé de toda página dos laudos e pareceres gerados. Deixe os
-        campos de Assistência Técnica em branco para usar os mesmos da Perícia Judicial.
+        Linha de texto exibida numa faixa discreta no rodapé de toda página dos laudos e pareceres
+        gerados, junto com a logomarca. É o texto literal — escreva exatamente como deve sair,
+        incluindo pontuação. Em branco = sem linha de texto no rodapé desse tipo de documento.
       </p>
-      <form action={onSubmit} className="space-y-5">
-        <fieldset className="space-y-3">
-          <legend className="text-sm font-medium text-nevoa-700 dark:text-nevoa-300">Perícia Judicial</legend>
-          <div>
-            <label htmlFor="cj_email" className={labelClass}>E-mail</label>
-            <input id="cj_email" name="contato_judicial_email" type="email" defaultValue={config?.contato_judicial_email ?? ""} className={inputClass} />
-          </div>
-          <div>
-            <label htmlFor="cj_tel" className={labelClass}>Telefone</label>
-            <input id="cj_tel" name="contato_judicial_telefone" defaultValue={config?.contato_judicial_telefone ?? ""} className={inputClass} />
-          </div>
-          <div>
-            <label htmlFor="cj_ig" className={labelClass}>Instagram</label>
-            <input id="cj_ig" name="contato_judicial_instagram" placeholder="drafernandanascimento_" defaultValue={config?.contato_judicial_instagram ?? ""} className={inputClass} />
-          </div>
-        </fieldset>
-
-        <fieldset className="space-y-3">
-          <legend className="text-sm font-medium text-nevoa-700 dark:text-nevoa-300">
-            Assistência Técnica <span className="font-normal text-nevoa-400">(opcional)</span>
-          </legend>
-          <div>
-            <label htmlFor="cat_email" className={labelClass}>E-mail</label>
-            <input id="cat_email" name="contato_at_email" type="email" defaultValue={config?.contato_at_email ?? ""} className={inputClass} />
-          </div>
-          <div>
-            <label htmlFor="cat_tel" className={labelClass}>Telefone</label>
-            <input id="cat_tel" name="contato_at_telefone" defaultValue={config?.contato_at_telefone ?? ""} className={inputClass} />
-          </div>
-          <div>
-            <label htmlFor="cat_ig" className={labelClass}>Instagram</label>
-            <input id="cat_ig" name="contato_at_instagram" defaultValue={config?.contato_at_instagram ?? ""} className={inputClass} />
-          </div>
-        </fieldset>
-
+      <form action={onSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="rodape_judicial" className={labelClass}>Rodapé — Perícia Judicial</label>
+          <textarea
+            id="rodape_judicial"
+            name="rodape_judicial_texto"
+            rows={2}
+            defaultValue={config?.rodape_judicial_texto ?? ""}
+            placeholder="Perícia Judicial - Dra. Fernanda Nascimento - Contatos: email periciajudicial.pericons@gmail.com - whatsapp: (85) 99760-8273"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="rodape_at" className={labelClass}>Rodapé — Assistência Técnica</label>
+          <textarea
+            id="rodape_at"
+            name="rodape_at_texto"
+            rows={2}
+            defaultValue={config?.rodape_at_texto ?? ""}
+            placeholder="PERICONS - Perícia e Consultoria em Saúde - pericias.pericons@gmail.com - whatsapp: (85) 99760-8273"
+            className={inputClass}
+          />
+        </div>
         <Botao type="submit" carregando={isPending} textoCarregando="Salvando…">
-          Salvar contato
+          Salvar rodapé
         </Botao>
         <Mensagem m={msg} />
       </form>

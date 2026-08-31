@@ -6,8 +6,6 @@ import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import type { BlocoConteudo, ModeloLaudo } from "./modelo";
 import type { AtivoImagem, AtivosGlobais } from "./ativos-globais";
 import type { ImagemPericiaEmbutida } from "./imagens-pericia";
-import { linhaRodape } from "./contatos";
-
 /** Nº de linhas em branco entre o endereçamento ao Juízo e os dados do processo (pedido da cliente, só no documento final). */
 const LINHAS_ENTRE_ENDERECO_E_PROCESSO = 10;
 /** Título do documento entre os dados do processo e a Apresentação (pedido da cliente). */
@@ -171,7 +169,7 @@ export async function renderizarPdf(
   // linha de contato. Decoração de página (não toca no corpo; o endereçamento
   // formal segue como 1ª coisa visível na pág. 1). Sem logo nem contato, a
   // faixa não é desenhada.
-  const temFaixa = Boolean(ativos.logomarca || modelo.contato);
+  const temFaixa = Boolean(ativos.logomarca || modelo.rodapeTexto);
   const rodapeIdentidade = temFaixa
     ? (): Content => {
         const itens: Content[] = [
@@ -180,9 +178,9 @@ export async function renderizarPdf(
         if (ativos.logomarca) {
           itens.push({ image: imagemBase64(ativos.logomarca), width: 55, alignment: "center", margin: [0, 4, 0, 0] });
         }
-        if (modelo.contato) {
+        if (modelo.rodapeTexto) {
           itens.push({
-            text: linhaRodape(modelo.contato),
+            text: modelo.rodapeTexto,
             alignment: "center",
             fontSize: 7.5,
             color: "#555555",

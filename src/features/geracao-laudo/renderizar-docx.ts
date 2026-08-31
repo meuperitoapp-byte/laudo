@@ -16,7 +16,6 @@ import {
 import type { BlocoConteudo, ModeloLaudo } from "./modelo";
 import type { AtivoImagem, AtivosGlobais } from "./ativos-globais";
 import type { ImagemPericiaEmbutida } from "./imagens-pericia";
-import { linhaRodape } from "./contatos";
 
 /** Nº de linhas em branco entre o endereçamento ao Juízo e os dados do processo (pedido da cliente, só no documento final). */
 const LINHAS_ENTRE_ENDERECO_E_PROCESSO = 10;
@@ -239,15 +238,15 @@ export async function renderizarDocx(
       })
     );
   }
-  if (modelo.contato) {
+  if (modelo.rodapeTexto) {
     filhosRodape.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: linhaRodape(modelo.contato), font: FONTE, size: 15, color: "555555" })], // ~7.5pt
+        children: [new TextRun({ text: modelo.rodapeTexto, font: FONTE, size: 15, color: "555555" })], // ~7.5pt
       })
     );
   }
-  const temFaixa = Boolean(ativos.logomarca || modelo.contato);
+  const temFaixa = Boolean(ativos.logomarca || modelo.rodapeTexto);
 
   const documento = new Document({
     sections: [

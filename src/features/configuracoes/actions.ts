@@ -18,21 +18,17 @@ function sanitizarNomeArquivo(nome: string): string {
 }
 
 /**
- * Salva os dados de contato da faixa de identidade dos documentos (tabela
- * `configuracoes`, linha única id = true). Upsert — a linha pode nem existir
- * ainda na primeira vez.
+ * Salva o texto do rodapé dos documentos (tabela `configuracoes`, linha única
+ * id = true). Upsert — a linha pode nem existir ainda na primeira vez. O texto
+ * é usado literal na geração do laudo, sem transformação.
  */
 export async function salvarContato(formData: FormData): Promise<ActionResult> {
   const supabase = await createClient();
 
   const dados: ConfiguracoesInsert = {
     id: true,
-    contato_judicial_email: textoOuNull(formData.get("contato_judicial_email")),
-    contato_judicial_telefone: textoOuNull(formData.get("contato_judicial_telefone")),
-    contato_judicial_instagram: textoOuNull(formData.get("contato_judicial_instagram")),
-    contato_at_email: textoOuNull(formData.get("contato_at_email")),
-    contato_at_telefone: textoOuNull(formData.get("contato_at_telefone")),
-    contato_at_instagram: textoOuNull(formData.get("contato_at_instagram")),
+    rodape_judicial_texto: textoOuNull(formData.get("rodape_judicial_texto")),
+    rodape_at_texto: textoOuNull(formData.get("rodape_at_texto")),
   };
 
   const { error } = await supabase.from("configuracoes").upsert(dados, { onConflict: "id" });

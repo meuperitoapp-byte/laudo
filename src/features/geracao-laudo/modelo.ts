@@ -1,5 +1,4 @@
 import type { CabecalhoFormal } from "./cabecalho";
-import type { ContatoRodape } from "./contatos";
 import type { SnapshotRespostas } from "@/types/json-fields";
 import type { TipoTrabalhoProcesso } from "@/types/enums";
 
@@ -87,8 +86,8 @@ export interface ModeloLaudo {
   processoId: string;
   /** 'pericia_judicial' | 'assistencia_tecnica'. */
   tipoTrabalho: TipoTrabalhoProcesso;
-  /** Contato da faixa de identidade (rodapé), já resolvido conforme tipoTrabalho. null = sem linha de contato. */
-  contato: ContatoRodape | null;
+  /** Linha exata do rodapé (faixa de identidade), já escolhida conforme tipoTrabalho. null = sem linha de rodapé. */
+  rodapeTexto: string | null;
   tipoLaudoCodigo: string;
   tipoLaudoNome: string;
   geradoEm: string; // ISO 8601

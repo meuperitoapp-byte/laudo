@@ -269,24 +269,15 @@ export type DocumentosUpdate = Partial<DocumentosRow>
 // ============================================================================
 export type ConfiguracoesRow = {
   id: boolean
-  contato_judicial_email: string | null
-  contato_judicial_telefone: string | null
-  contato_judicial_instagram: string | null
-  contato_at_email: string | null
-  contato_at_telefone: string | null
-  contato_at_instagram: string | null
+  /** Linha exata do rodapé dos documentos de Perícia Judicial (texto livre, usado sem transformação). */
+  rodape_judicial_texto: string | null
+  /** Linha exata do rodapé dos documentos de Assistência Técnica. */
+  rodape_at_texto: string | null
   updated_at: string
 }
 export type ConfiguracoesInsert = ComDefaults<
   ConfiguracoesRow,
-  | 'id'
-  | 'contato_judicial_email'
-  | 'contato_judicial_telefone'
-  | 'contato_judicial_instagram'
-  | 'contato_at_email'
-  | 'contato_at_telefone'
-  | 'contato_at_instagram'
-  | 'updated_at'
+  'id' | 'rodape_judicial_texto' | 'rodape_at_texto' | 'updated_at'
 >
 export type ConfiguracoesUpdate = Partial<ConfiguracoesRow>
 

@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { avaliarCondicao } from "@/features/preenchimento/condicoes";
 import { montarCabecalhoFormal } from "./cabecalho";
 import { montarApresentacao } from "./apresentacao";
-import { resolverContato } from "./contatos";
+import { rodapeTexto } from "./contatos";
 import {
   construirContexto,
   gerarNarrativoSecao,
@@ -206,7 +206,7 @@ export async function compilarLaudo(processoId: string): Promise<ResultadoCompil
     modelo: {
       processoId,
       tipoTrabalho: processo.tipo_trabalho,
-      contato: resolverContato(config ?? null, processo.tipo_trabalho),
+      rodapeTexto: rodapeTexto(config ?? null, processo.tipo_trabalho),
       tipoLaudoCodigo: tipoLaudo?.codigo ?? "",
       tipoLaudoNome: tipoLaudo?.nome ?? "",
       geradoEm,
