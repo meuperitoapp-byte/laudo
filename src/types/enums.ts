@@ -21,6 +21,12 @@ export type StatusProcesso = 'em_andamento' | 'finalizado' | 'arquivado'
 /** processos.tipo_vara */
 export type TipoVara = 'federal' | 'estadual' | 'trabalho'
 
+/** processos.justica_gratuita (S/N no formulário) */
+export type JusticaGratuita = 'sim' | 'nao'
+
+/** processos.aceitou_nomeacao (S/N/D — 'destituida' = destituída do cargo) */
+export type AceitouNomeacao = 'sim' | 'nao' | 'destituida'
+
 /** documentos.tipo */
 export type TipoDocumento =
   | 'documento_processual'

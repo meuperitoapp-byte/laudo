@@ -22,6 +22,18 @@ const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   assistencia_tecnica: "Assistência Técnica",
 };
 
+const SIM_NAO_ROTULOS: Record<string, string> = { sim: "Sim", nao: "Não" };
+const ACEITOU_NOMEACAO_ROTULOS: Record<string, string> = {
+  sim: "Sim",
+  nao: "Não",
+  destituida: "Destituída do cargo",
+};
+
+function moedaBRL(valor: number | null): string {
+  if (valor == null) return "—";
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 function Campo({ rotulo, children, colSpan }: { rotulo: string; children: React.ReactNode; colSpan?: boolean }) {
   return (
     <div className={colSpan ? "col-span-2" : undefined}>
@@ -133,6 +145,42 @@ export default async function ProcessoDetalhePage({
         </dl>
       </div>
 
+      <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-6">
+        <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100 mb-4">
+          Situação e financeiro
+        </h2>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+          <Campo rotulo="Situação do processo">{processo.situacao_processo ?? "—"}</Campo>
+          <Campo rotulo="Situação financeira">{processo.situacao_financeira ?? "—"}</Campo>
+          <Campo rotulo="Ação / Objeto" colSpan>
+            {processo.acao_objeto ?? "—"}
+          </Campo>
+          <Campo rotulo="Valor do processo">{moedaBRL(processo.valor_processo)}</Campo>
+          <Campo rotulo="Justiça gratuita">
+            {processo.justica_gratuita ? SIM_NAO_ROTULOS[processo.justica_gratuita] : "—"}
+          </Campo>
+          <Campo rotulo="Honorário apresentado">{moedaBRL(processo.honorario_apresentado)}</Campo>
+          <Campo rotulo="Honorário arbitrado">{moedaBRL(processo.honorario_arbitrado)}</Campo>
+          <Campo rotulo="Aceitou nomeação">
+            {processo.aceitou_nomeacao ? ACEITOU_NOMEACAO_ROTULOS[processo.aceitou_nomeacao] : "—"}
+          </Campo>
+          <Campo rotulo="URL do processo">
+            {processo.url_processo ? (
+              <a
+                href={processo.url_processo}
+                target="_blank"
+                rel="noreferrer"
+                className="text-petroleo-600 hover:underline dark:text-petroleo-400 break-all"
+              >
+                {processo.url_processo}
+              </a>
+            ) : (
+              "—"
+            )}
+          </Campo>
+        </dl>
+      </div>
+
       {processo.tipo_trabalho === "pericia_judicial" && (
         <PoloPartesPanel processoId={processo.id} partes={partes} />
       )}
@@ -150,6 +198,9 @@ export default async function ProcessoDetalhePage({
             Preencher laudo (defina o tipo de laudo)
           </span>
         )}
+        <Link href={`/processos/${processo.id}/editar`} className={classesBotao("secundaria")}>
+          Editar
+        </Link>
         <Link href={`/processos/${processo.id}/quesitos`} className={classesBotao("secundaria")}>
           Quesitos
         </Link>

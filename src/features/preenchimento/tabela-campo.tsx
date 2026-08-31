@@ -7,16 +7,23 @@ import type { ValorSelecionado, ValorTabelaLinha } from "@/types/json-fields";
 /**
  * Renderiza tipo_campo = 'tabela'. Dois formatos, conforme config_tabela:
  *
- *  1. Linhas fixas x UMA coluna fechada (ex.: Curatela — avaliação
+ *  1. Linhas fixas x UMA coluna DE SELEÇÃO (ex.: Curatela — avaliação
  *     funcional, escala 0-3/NA). Formato original, valor por linha em
- *     ValorTabelaLinhaSimples ({linha, valor}) — branch intocado desde a
- *     Etapa 4, pra não arriscar quebrar o que já está validado em Curatela.
- *  2. Qualquer outro caso (2+ colunas fechadas/texto, e/ou linhas
+ *     ValorTabelaLinhaSimples ({linha, valor}). O corpo do branch (render em
+ *     <select>) segue intocado desde a Etapa 4; só o guard de roteamento ficou
+ *     mais estrito — 1 coluna de TEXTO não entra mais aqui, vai pro Formato 2.
+ *  2. Qualquer outro caso (1 coluna de texto, 2+ colunas fechadas/texto, e/ou linhas
  *     dinâmicas — ex.: Trabalhista "Matriz de exposição a riscos" 6x6,
  *     "Matriz de análise do nexo causal" 15x2, Previdenciário "Benefícios
  *     anteriores" com linhas que a perita adiciona) — valor por linha em
  *     ValorTabelaLinhaMultipla ({linha, valores: {coluna_codigo: valor}}).
  */
+/** Coluna que rende um <select> (tem opções): tipo explícito 'selecao_unica'
+ * ou, formato antigo, sem tipo mas com `opcoes`. */
+function colunaEhSelecao(coluna: ColunaTabelaConfig): boolean {
+  return coluna.tipo === "selecao_unica" || (!coluna.tipo && Boolean(coluna.opcoes?.length));
+}
+
 export function TabelaCampo({
   campo,
   valor,
@@ -29,9 +36,14 @@ export function TabelaCampo({
   const config = campo.config_tabela;
   if (!config) return null;
 
-  const linhasFixasUmaColuna = config.colunas.length === 1 && !config.linhas_dinamicas;
+  // Formato 1 (valor por linha em ValorTabelaLinhaSimples) só se aplica quando
+  // a única coluna é fechada/selecionável — ex.: Curatela, escala 0-3/NA. Uma
+  // tabela de 1 coluna de TEXTO cai no Formato 2 (linhas fixas x colunas), que
+  // renderiza <input> de texto — senão o renderer mostrava um <select> vazio.
+  const linhaFixaUmaColunaSelecao =
+    config.colunas.length === 1 && !config.linhas_dinamicas && colunaEhSelecao(config.colunas[0]);
 
-  if (linhasFixasUmaColuna) {
+  if (linhaFixaUmaColunaSelecao) {
     return <TabelaLinhaFixaUmaColuna config={config} valor={valor} onChange={onChange} />;
   }
 
@@ -106,10 +118,6 @@ function TabelaLinhaFixaUmaColuna({
 // ============================================================================
 // Formato 2 — várias colunas e/ou linhas dinâmicas
 // ============================================================================
-
-function colunaEhSelecao(coluna: ColunaTabelaConfig): boolean {
-  return coluna.tipo === "selecao_unica" || (!coluna.tipo && Boolean(coluna.opcoes?.length));
-}
 
 function valoresDaLinha(entrada: ValorTabelaLinha | undefined): Record<string, string> {
   if (entrada && "valores" in entrada) return entrada.valores;

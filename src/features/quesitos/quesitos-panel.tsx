@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { atualizarQuesito, criarQuesito, excluirQuesito, moverQuesito } from "./actions";
 import { Botao } from "@/components/ui/button";
@@ -69,23 +69,60 @@ function QuesitoCard({
   const [erro, setErro] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const alterado = origem !== (quesito.origem ?? "") || pergunta !== quesito.pergunta || resposta !== (quesito.resposta ?? "");
+  // Último conteúdo confirmado como salvo (autosave ou botão). Começa igual ao
+  // que veio do banco; passa a divergir enquanto a perita digita e volta a
+  // bater quando o salvamento conclui.
+  const [salvo, setSalvo] = useState({
+    origem: quesito.origem ?? "",
+    pergunta: quesito.pergunta,
+    resposta: quesito.resposta ?? "",
+  });
+  const alterado = origem !== salvo.origem || pergunta !== salvo.pergunta || resposta !== salvo.resposta;
 
-  function salvar() {
+  const salvar = useCallback(() => {
     setErro(null);
     startTransition(async () => {
+      const alvo = { origem, pergunta, resposta };
       const resultado = await atualizarQuesito({
         quesitoId: quesito.id,
         processoId,
-        origem: origem || null,
-        pergunta,
-        resposta: resposta || null,
+        origem: alvo.origem || null,
+        pergunta: alvo.pergunta,
+        resposta: alvo.resposta || null,
       });
       if ("error" in resultado) {
         setErro(resultado.error);
         return;
       }
+      setSalvo(alvo);
       router.refresh();
+    });
+  }, [origem, pergunta, resposta, quesito.id, processoId, router]);
+
+  // Salvamento automático: ~1,2s depois de parar de digitar (pedido da Dra.
+  // Fernanda — não perder texto numa queda de energia). O botão continua como
+  // reforço manual. Só dispara com pergunta preenchida, que é o único campo
+  // que o servidor exige.
+  useEffect(() => {
+    if (!alterado || isPending || !pergunta.trim()) return;
+    const t = setTimeout(() => salvar(), 1200);
+    return () => clearTimeout(t);
+  }, [alterado, isPending, pergunta, salvar]);
+
+  // Sem edições pendentes nesta aba, adota o conteúdo que veio do servidor
+  // (ex.: a secretária editou este mesmo quesito noutra aba) — ajuste de
+  // estado derivado de prop, feito no render conforme a doc do React
+  // ("You Might Not Need an Effect"), não num efeito.
+  const [quesitoSincronizado, setQuesitoSincronizado] = useState(quesito);
+  if (quesito !== quesitoSincronizado && !alterado && !isPending) {
+    setQuesitoSincronizado(quesito);
+    setOrigem(quesito.origem ?? "");
+    setPergunta(quesito.pergunta);
+    setResposta(quesito.resposta ?? "");
+    setSalvo({
+      origem: quesito.origem ?? "",
+      pergunta: quesito.pergunta,
+      resposta: quesito.resposta ?? "",
     });
   }
 
@@ -192,16 +229,25 @@ function QuesitoCard({
         />
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Botao
           onClick={salvar}
-          disabled={!alterado && !isPending}
+          disabled={!alterado || isPending}
           carregando={isPending}
           textoCarregando="Salvando…"
         >
-          {alterado ? "Salvar" : "Salvo"}
+          Salvar agora
         </Botao>
-        {!quesito.resposta?.trim() && !alterado && <Selo variante="atencao">Sem resposta ainda</Selo>}
+        <span className="text-xs text-nevoa-500 dark:text-nevoa-400">
+          {isPending
+            ? "Salvando…"
+            : alterado
+              ? "Alterações não salvas — salvam sozinhas em instantes"
+              : "Salvo automaticamente"}
+        </span>
+        {!salvo.resposta.trim() && !alterado && !isPending && (
+          <Selo variante="atencao">Sem resposta ainda</Selo>
+        )}
         {erro && <span className="text-sm text-vinho-600 dark:text-vinho-400">{erro}</span>}
       </div>
     </li>

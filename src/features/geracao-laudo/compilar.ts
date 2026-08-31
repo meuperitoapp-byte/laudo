@@ -351,8 +351,16 @@ function compilarTabela(campo: CamposSecaoRow, valor: ValorSelecionado | null): 
   if (!config || !Array.isArray(valor) || valor.length === 0) return null;
   const linhasValor = valor as ValorTabelaLinha[];
 
-  // Formato original: linhas fixas x 1 coluna fechada (Curatela).
-  if (config.colunas.length === 1 && !config.linhas_dinamicas) {
+  // Formato original (valor por linha em ValorTabelaLinhaSimples): linhas fixas
+  // x 1 coluna FECHADA — ex.: Curatela, escala 0-3/NA. Mesma regra da tela de
+  // preenchimento (tabela-campo.tsx): 1 coluna de texto cai no formato
+  // multi-coluna abaixo (valores por célula).
+  const coluna0 = config.colunas[0];
+  const umaColunaSelecao =
+    config.colunas.length === 1 &&
+    !config.linhas_dinamicas &&
+    (coluna0.tipo === "selecao_unica" || (!coluna0.tipo && Boolean(coluna0.opcoes?.length)));
+  if (umaColunaSelecao) {
     const coluna = config.colunas[0];
     const linhas: string[][] = [];
     for (const linhaConfig of config.linhas) {

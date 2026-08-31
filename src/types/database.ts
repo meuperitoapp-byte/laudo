@@ -26,6 +26,8 @@ import type {
   TipoTrabalhoProcesso,
   StatusProcesso,
   TipoVara,
+  JusticaGratuita,
+  AceitouNomeacao,
   TipoDocumento,
   EtapaContratada,
 } from './enums'
@@ -127,7 +129,7 @@ export type CamposSecaoInsert = ComDefaults<
 export type CamposSecaoUpdate = Partial<CamposSecaoRow>
 
 // ============================================================================
-// processos (19 colunas)
+// processos (28 colunas)
 // ============================================================================
 export type ProcessosRow = {
   id: string
@@ -148,6 +150,19 @@ export type ProcessosRow = {
   periciando_data_nascimento: string | null
   objeto_pericia: string | null
   etapas_contratadas: EtapaContratada[] | null
+  /** Ponto do fluxo (texto livre + catálogo). Ver migration 20260829120000. */
+  situacao_processo: string | null
+  /** Situação financeira (texto livre + catálogo). */
+  situacao_financeira: string | null
+  /** numeric(14,2) do Postgres — chega como number pelo supabase-js. */
+  valor_processo: number | null
+  honorario_apresentado: number | null
+  honorario_arbitrado: number | null
+  justica_gratuita: JusticaGratuita | null
+  aceitou_nomeacao: AceitouNomeacao | null
+  url_processo: string | null
+  /** Ação / Objeto da Perícia ou Assistência (texto livre + catálogo). Separado de tipo_laudo_id. */
+  acao_objeto: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -169,6 +184,15 @@ export type ProcessosInsert = ComDefaults<
   | 'periciando_data_nascimento'
   | 'objeto_pericia'
   | 'etapas_contratadas'
+  | 'situacao_processo'
+  | 'situacao_financeira'
+  | 'valor_processo'
+  | 'honorario_apresentado'
+  | 'honorario_arbitrado'
+  | 'justica_gratuita'
+  | 'aceitou_nomeacao'
+  | 'url_processo'
+  | 'acao_objeto'
   | 'created_by'
   | 'created_at'
   | 'updated_at'
