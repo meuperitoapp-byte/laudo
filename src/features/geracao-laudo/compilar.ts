@@ -190,6 +190,7 @@ export async function compilarLaudo(processoId: string): Promise<ResultadoCompil
     status: "ok",
     modelo: {
       processoId,
+      tipoTrabalho: processo.tipo_trabalho,
       tipoLaudoCodigo: tipoLaudo?.codigo ?? "",
       tipoLaudoNome: tipoLaudo?.nome ?? "",
       geradoEm,

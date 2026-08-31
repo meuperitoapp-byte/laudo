@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { createClient } from "@/lib/supabase/server";
 import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
 import { lerDimensoesImagem } from "./dimensoes-imagem";
@@ -53,11 +55,39 @@ async function baixarAtivo(
   return { bytes, mimeType: doc.mime_type, larguraPx: dimensoes.larguraPx, alturaPx: dimensoes.alturaPx };
 }
 
+/**
+ * Fallback de arquivo pra logomarca: enquanto não há tela de upload, basta
+ * colocar `public/branding/logomarca.png` (ou `.jpg`) na raiz do projeto que
+ * ele entra no cabeçalho de toda página do laudo. Um registro em
+ * `documentos` (tipo 'logomarca', processo_id NULL) tem prioridade sobre
+ * este arquivo, quando a tela de Configurações existir.
+ */
+function lerLogomarcaDoArquivo(): AtivoImagem | null {
+  const candidatos: { arquivo: string; mimeType: string }[] = [
+    { arquivo: "logomarca.png", mimeType: "image/png" },
+    { arquivo: "logomarca.jpg", mimeType: "image/jpeg" },
+    { arquivo: "logomarca.jpeg", mimeType: "image/jpeg" },
+  ];
+  for (const { arquivo, mimeType } of candidatos) {
+    const caminho = path.join(process.cwd(), "public", "branding", arquivo);
+    let bytes: Buffer;
+    try {
+      bytes = fs.readFileSync(caminho);
+    } catch {
+      continue;
+    }
+    const dimensoes = lerDimensoesImagem(bytes, mimeType);
+    if (!dimensoes) continue;
+    return { bytes, mimeType, larguraPx: dimensoes.larguraPx, alturaPx: dimensoes.alturaPx };
+  }
+  return null;
+}
+
 export async function buscarAtivosGlobais(): Promise<AtivosGlobais> {
   const supabase = await createClient();
-  const [assinatura, logomarca] = await Promise.all([
+  const [assinatura, logomarcaBanco] = await Promise.all([
     baixarAtivo(supabase, "assinatura_perito"),
     baixarAtivo(supabase, "logomarca"),
   ]);
-  return { assinatura, logomarca };
+  return { assinatura, logomarca: logomarcaBanco ?? lerLogomarcaDoArquivo() };
 }

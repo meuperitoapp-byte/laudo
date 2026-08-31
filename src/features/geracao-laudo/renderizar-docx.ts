@@ -1,6 +1,8 @@
 import {
   AlignmentType,
+  BorderStyle,
   Document,
+  Footer,
   Header,
   HeadingLevel,
   ImageRun,
@@ -15,6 +17,12 @@ import {
 import type { BlocoConteudo, ModeloLaudo } from "./modelo";
 import type { AtivoImagem, AtivosGlobais } from "./ativos-globais";
 import type { ImagemPericiaEmbutida } from "./imagens-pericia";
+import { contatoRodape, linhaRodape } from "./contatos";
+
+/** Nº de linhas em branco entre o endereçamento ao Juízo e os dados do processo (pedido da cliente, só no documento final). */
+const LINHAS_ENTRE_ENDERECO_E_PROCESSO = 10;
+/** Título do documento entre os dados do processo e a Apresentação (pedido da cliente). */
+const TITULO_DOCUMENTO = "LAUDO PERICIAL";
 
 /**
  * Renderiza o modelo compilado (mesma fonte usada pelo PDF — ver modelo.ts)
@@ -52,6 +60,16 @@ function tituloSecao(texto: string): Paragraph {
     heading: HeadingLevel.HEADING_2,
     spacing: { before: 300, after: 150 },
     children: [new TextRun({ text: texto, bold: true, font: FONTE, size: TAMANHO_TITULO })],
+  });
+}
+
+/** Título do documento — "LAUDO PERICIAL", centralizado, maior que os títulos de seção. */
+function tituloDocumento(texto: string): Paragraph {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_1,
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 240, after: 360 },
+    children: [new TextRun({ text: texto, bold: true, font: FONTE, size: 32 })], // 16pt
   });
 }
 
@@ -144,7 +162,10 @@ export async function renderizarDocx(
   for (const linha of modelo.cabecalho.linhasEndereco) {
     filhos.push(paragrafo(linha));
   }
-  filhos.push(paragrafo(""));
+  // Espaço fixo (10 linhas) entre o endereçamento e os dados do processo.
+  for (let i = 0; i < LINHAS_ENTRE_ENDERECO_E_PROCESSO; i++) {
+    filhos.push(new Paragraph({ children: [] }));
+  }
   if (modelo.cabecalho.processoNumero) {
     filhos.push(paragrafo(`Processo nº: ${modelo.cabecalho.processoNumero}`));
   }
@@ -154,6 +175,9 @@ export async function renderizarDocx(
   if (modelo.cabecalho.partesRe) {
     filhos.push(paragrafo(`Parte ré / Reclamada(s): ${modelo.cabecalho.partesRe}`));
   }
+
+  // Título do documento, entre os dados do processo e a Apresentação.
+  filhos.push(tituloDocumento(TITULO_DOCUMENTO));
 
   // Apresentação
   filhos.push(tituloSecao("APRESENTAÇÃO"));
@@ -196,6 +220,24 @@ export async function renderizarDocx(
     );
   }
 
+  // Rodapé de contato — varia conforme Perícia Judicial x Assistência Técnica (ver contatos.ts).
+  const rodapeContato = new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        border: { top: { style: BorderStyle.SINGLE, size: 4, space: 6, color: "999999" } },
+        children: [
+          new TextRun({
+            text: linhaRodape(contatoRodape(modelo.tipoTrabalho)),
+            font: FONTE,
+            size: 16, // 8pt
+            color: "555555",
+          }),
+        ],
+      }),
+    ],
+  });
+
   const documento = new Document({
     sections: [
       {
@@ -213,6 +255,7 @@ export async function renderizarDocx(
               }),
             }
           : undefined,
+        footers: { default: rodapeContato },
         children: filhos,
       },
     ],

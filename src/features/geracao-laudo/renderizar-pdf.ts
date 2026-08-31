@@ -6,6 +6,12 @@ import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import type { BlocoConteudo, ModeloLaudo } from "./modelo";
 import type { AtivoImagem, AtivosGlobais } from "./ativos-globais";
 import type { ImagemPericiaEmbutida } from "./imagens-pericia";
+import { contatoRodape, linhaRodape } from "./contatos";
+
+/** Nº de linhas em branco entre o endereçamento ao Juízo e os dados do processo (pedido da cliente, só no documento final). */
+const LINHAS_ENTRE_ENDERECO_E_PROCESSO = 10;
+/** Título do documento entre os dados do processo e a Apresentação (pedido da cliente). */
+const TITULO_DOCUMENTO = "LAUDO PERICIAL";
 
 /**
  * Renderiza o MESMO ModeloLaudo usado por renderizar-docx.ts como PDF, via
@@ -112,7 +118,10 @@ export async function renderizarPdf(
   for (const linha of modelo.cabecalho.linhasEndereco) {
     conteudo.push({ text: linha });
   }
-  conteudo.push({ text: " ", margin: [0, 0, 0, 8] });
+  // Espaço fixo (10 linhas) entre o endereçamento e os dados do processo.
+  for (let i = 0; i < LINHAS_ENTRE_ENDERECO_E_PROCESSO; i++) {
+    conteudo.push({ text: " " });
+  }
   if (modelo.cabecalho.processoNumero) {
     conteudo.push({ text: `Processo nº: ${modelo.cabecalho.processoNumero}` });
   }
@@ -122,6 +131,9 @@ export async function renderizarPdf(
   if (modelo.cabecalho.partesRe) {
     conteudo.push({ text: `Parte ré / Reclamada(s): ${modelo.cabecalho.partesRe}` });
   }
+
+  // Título do documento, entre os dados do processo e a Apresentação.
+  conteudo.push({ text: TITULO_DOCUMENTO, bold: true, alignment: "center", fontSize: 16, margin: [0, 14, 0, 18] });
 
   conteudo.push(tituloSecao("APRESENTAÇÃO"));
   conteudo.push({ text: modelo.apresentacao, margin: [0, 0, 0, 10] });
@@ -155,9 +167,24 @@ export async function renderizarPdf(
     conteudo.push({ text: "Assinatura da Perita", alignment: "center", italics: true });
   }
 
+  // Rodapé de contato — varia conforme Perícia Judicial x Assistência Técnica (ver contatos.ts).
+  const rodapeContato = (): Content => ({
+    margin: [56, 8, 56, 0],
+    stack: [
+      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 483, y2: 0, lineWidth: 0.5, lineColor: "#999999" }] },
+      {
+        text: linhaRodape(contatoRodape(modelo.tipoTrabalho)),
+        alignment: "center",
+        fontSize: 8,
+        color: "#555555",
+        margin: [0, 4, 0, 0],
+      },
+    ],
+  });
+
   const docDefinition: TDocumentDefinitions = {
     defaultStyle: { font: "Roboto", fontSize: 11, alignment: "justify" },
-    pageMargins: [56, ativos.logomarca ? 110 : 56, 56, 56],
+    pageMargins: [56, ativos.logomarca ? 110 : 56, 56, 72],
     // Logomarca da cliente, se já cadastrada — repete no topo de toda página.
     header: ativos.logomarca
       ? (): Content => ({
@@ -167,6 +194,7 @@ export async function renderizarPdf(
           margin: [0, 20, 0, 0],
         })
       : undefined,
+    footer: rodapeContato,
     content: conteudo,
     styles: {
       tituloSecao: { fontSize: 13, bold: true, margin: [0, 16, 0, 8] },

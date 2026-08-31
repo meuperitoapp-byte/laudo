@@ -1,5 +1,6 @@
 import type { CabecalhoFormal } from "./cabecalho";
 import type { SnapshotRespostas } from "@/types/json-fields";
+import type { TipoTrabalhoProcesso } from "@/types/enums";
 
 /**
  * Modelo intermediário do laudo compilado — a "fonte única" que os
@@ -83,6 +84,8 @@ export interface ImagemPericiaRef {
 
 export interface ModeloLaudo {
   processoId: string;
+  /** 'pericia_judicial' | 'assistencia_tecnica' — escolhe o rodapé de contato no documento final (ver contatos.ts). */
+  tipoTrabalho: TipoTrabalhoProcesso;
   tipoLaudoCodigo: string;
   tipoLaudoNome: string;
   geradoEm: string; // ISO 8601
