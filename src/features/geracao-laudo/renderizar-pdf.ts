@@ -10,6 +10,8 @@ import type { ImagemPericiaEmbutida } from "./imagens-pericia";
 const LINHAS_ENTRE_ENDERECO_E_PROCESSO = 10;
 /** Título do documento entre os dados do processo e a Apresentação (pedido da cliente). */
 const TITULO_DOCUMENTO = "LAUDO PERICIAL";
+/** Linhas em branco antes e depois do título "LAUDO PERICIAL" (pedido da cliente). */
+const LINHAS_ENTORNO_TITULO_DOCUMENTO = 3;
 
 /**
  * Renderiza o MESMO ModeloLaudo usado por renderizar-docx.ts como PDF, via
@@ -130,8 +132,15 @@ export async function renderizarPdf(
     conteudo.push({ text: `Parte ré / Reclamada(s): ${modelo.cabecalho.partesRe}` });
   }
 
-  // Título do documento, entre os dados do processo e a Apresentação.
-  conteudo.push({ text: TITULO_DOCUMENTO, bold: true, alignment: "center", fontSize: 16, margin: [0, 14, 0, 18] });
+  // Título do documento, entre os dados do processo e a Apresentação, com
+  // 3 linhas em branco de folga acima e abaixo.
+  for (let i = 0; i < LINHAS_ENTORNO_TITULO_DOCUMENTO; i++) {
+    conteudo.push({ text: " " });
+  }
+  conteudo.push({ text: TITULO_DOCUMENTO, bold: true, alignment: "center", fontSize: 16 });
+  for (let i = 0; i < LINHAS_ENTORNO_TITULO_DOCUMENTO; i++) {
+    conteudo.push({ text: " " });
+  }
 
   conteudo.push(tituloSecao("APRESENTAÇÃO"));
   conteudo.push({ text: modelo.apresentacao, margin: [0, 0, 0, 10] });
