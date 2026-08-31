@@ -2,6 +2,13 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
+import { ProcessosFiltros } from "@/features/processos/processos-filtros";
+import {
+  SITUACOES_FINANCEIRAS_SEED,
+  SITUACOES_PROCESSO_SEED,
+  mesclarSugestoes,
+} from "@/features/processos/catalogos";
+import type { StatusProcesso, TipoTrabalhoProcesso } from "@/types/enums";
 
 const STATUS_ROTULOS: Record<string, string> = {
   em_andamento: "Em andamento",
@@ -20,18 +27,59 @@ const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   assistencia_tecnica: "Assistência Técnica",
 };
 
-export default async function ProcessosPage() {
+/** Primeiro valor não-vazio de um search param (Next entrega string | string[] | undefined). */
+function param(v: string | string[] | undefined): string {
+  return (Array.isArray(v) ? v[0] : v)?.trim() ?? "";
+}
+
+export default async function ProcessosPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const f = {
+    numero: param(sp.numero),
+    periciando: param(sp.periciando),
+    tipoLaudo: param(sp.tipo_laudo),
+    tipoTrabalho: param(sp.tipo_trabalho),
+    situacao: param(sp.situacao),
+    situacaoFinanceira: param(sp.situacao_financeira),
+    comarca: param(sp.comarca),
+    // status ausente = padrão "em_andamento"; "todos" = sem filtro de status.
+    status: param(sp.status) || "em_andamento",
+    dataInicial: param(sp.data_inicial),
+    dataFinal: param(sp.data_final),
+  };
+
   const supabase = await createClient();
 
-  const [{ data: processos }, { data: tiposLaudo }, { data: partesDb }] = await Promise.all([
-    supabase.from("processos").select("*").order("created_at", { ascending: false }),
-    supabase.from("tipos_laudo").select("*"),
+  let query = supabase.from("processos").select("*").order("created_at", { ascending: false });
+  if (f.status !== "todos") query = query.eq("status", f.status as StatusProcesso);
+  if (f.numero) query = query.ilike("numero_processo", `%${f.numero}%`);
+  if (f.periciando) query = query.ilike("periciando_nome", `%${f.periciando}%`);
+  if (f.tipoLaudo) query = query.eq("tipo_laudo_id", f.tipoLaudo);
+  if (f.tipoTrabalho) query = query.eq("tipo_trabalho", f.tipoTrabalho as TipoTrabalhoProcesso);
+  if (f.situacao) query = query.eq("situacao_processo", f.situacao);
+  if (f.situacaoFinanceira) query = query.eq("situacao_financeira", f.situacaoFinanceira);
+  if (f.comarca) query = query.ilike("comarca_subsecao", `%${f.comarca}%`);
+  if (f.dataInicial) query = query.gte("created_at", f.dataInicial);
+  if (f.dataFinal) query = query.lte("created_at", `${f.dataFinal}T23:59:59.999Z`);
+
+  const [
+    { data: processos },
+    { data: tiposLaudo },
+    { data: partesDb },
+    { data: situacoesDb },
+    { data: financeirasDb },
+  ] = await Promise.all([
+    query,
+    supabase.from("tipos_laudo").select("id, nome").order("ordem", { ascending: true }),
     supabase.from("processo_partes").select("processo_id, polo, nome, ordem").eq("polo", "ativo").order("ordem"),
+    supabase.from("processos").select("valor:situacao_processo").not("situacao_processo", "is", null),
+    supabase.from("processos").select("valor:situacao_financeira").not("situacao_financeira", "is", null),
   ]);
 
-  // Junção manual em vez de embed do PostgREST — nosso Database ainda não
-  // declara as relações (ver src/types/database.ts), então o embed não seria
-  // tipado corretamente.
   const nomePorTipoLaudo = new Map((tiposLaudo ?? []).map((t) => [t.id, t.nome]));
   const primeiroNomePoloAtivoPorProcesso = new Map<string, string>();
   for (const parte of partesDb ?? []) {
@@ -40,19 +88,33 @@ export default async function ProcessosPage() {
     }
   }
 
+  const filtrouAlgo = Object.entries(f).some(
+    ([k, v]) => v && !(k === "status" && v === "em_andamento"),
+  );
+
   return (
     <main className="p-8 max-w-5xl">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Processos</h1>
         <Link href="/processos/novo" className={classesBotao("primaria")}>
           Novo processo
         </Link>
       </div>
 
+      <ProcessosFiltros
+        tiposLaudo={tiposLaudo ?? []}
+        situacoes={mesclarSugestoes(SITUACOES_PROCESSO_SEED, situacoesDb)}
+        situacoesFinanceiras={mesclarSugestoes(SITUACOES_FINANCEIRAS_SEED, financeirasDb)}
+      />
+
       {!processos || processos.length === 0 ? (
-        <p className="text-sm text-nevoa-500 dark:text-nevoa-400">Nenhum processo cadastrado ainda.</p>
+        <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-6">
+          {filtrouAlgo
+            ? "Nenhum processo encontrado com esses filtros."
+            : "Nenhum processo em andamento. Use os filtros acima para ver finalizados/arquivados."}
+        </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-nevoa-200 dark:border-nevoa-800">
+        <div className="mt-6 overflow-x-auto rounded-lg border border-nevoa-200 dark:border-nevoa-800">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="text-left bg-nevoa-50 dark:bg-nevoa-900 border-b border-nevoa-200 dark:border-nevoa-800">
