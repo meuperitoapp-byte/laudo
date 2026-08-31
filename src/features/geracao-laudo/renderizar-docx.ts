@@ -3,7 +3,6 @@ import {
   BorderStyle,
   Document,
   Footer,
-  Header,
   HeadingLevel,
   ImageRun,
   Packer,
@@ -17,7 +16,7 @@ import {
 import type { BlocoConteudo, ModeloLaudo } from "./modelo";
 import type { AtivoImagem, AtivosGlobais } from "./ativos-globais";
 import type { ImagemPericiaEmbutida } from "./imagens-pericia";
-import { contatoRodape, linhaRodape } from "./contatos";
+import { linhaRodape } from "./contatos";
 
 /** Nº de linhas em branco entre o endereçamento ao Juízo e os dados do processo (pedido da cliente, só no documento final). */
 const LINHAS_ENTRE_ENDERECO_E_PROCESSO = 10;
@@ -220,42 +219,41 @@ export async function renderizarDocx(
     );
   }
 
-  // Rodapé de contato — varia conforme Perícia Judicial x Assistência Técnica (ver contatos.ts).
-  const rodapeContato = new Footer({
-    children: [
+  // Faixa de identidade no RODAPÉ de toda página — régua fina + logo pequena +
+  // linha de contato. Decoração de página: não empurra nem substitui o corpo,
+  // então o endereçamento formal continua sendo a 1ª coisa visível na pág. 1.
+  // Some por inteiro se não houver nem logo nem contato configurados.
+  const filhosRodape: Paragraph[] = [
+    new Paragraph({
+      border: { top: { style: BorderStyle.SINGLE, size: 4, space: 6, color: "999999" } },
+      spacing: { after: 0 },
+      children: [],
+    }),
+  ];
+  if (ativos.logomarca) {
+    filhosRodape.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        border: { top: { style: BorderStyle.SINGLE, size: 4, space: 6, color: "999999" } },
-        children: [
-          new TextRun({
-            text: linhaRodape(contatoRodape(modelo.tipoTrabalho)),
-            font: FONTE,
-            size: 16, // 8pt
-            color: "555555",
-          }),
-        ],
-      }),
-    ],
-  });
+        spacing: { before: 40, after: 0 },
+        children: [imagemDocx(ativos.logomarca, 90)],
+      })
+    );
+  }
+  if (modelo.contato) {
+    filhosRodape.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: linhaRodape(modelo.contato), font: FONTE, size: 15, color: "555555" })], // ~7.5pt
+      })
+    );
+  }
+  const temFaixa = Boolean(ativos.logomarca || modelo.contato);
 
   const documento = new Document({
     sections: [
       {
         properties: {},
-        // Logomarca da cliente, se já cadastrada — repete no topo de toda página.
-        headers: ativos.logomarca
-          ? {
-              default: new Header({
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [imagemDocx(ativos.logomarca, 150)],
-                  }),
-                ],
-              }),
-            }
-          : undefined,
-        footers: { default: rodapeContato },
+        footers: temFaixa ? { default: new Footer({ children: filhosRodape }) } : undefined,
         children: filhos,
       },
     ],

@@ -6,7 +6,7 @@ import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import type { BlocoConteudo, ModeloLaudo } from "./modelo";
 import type { AtivoImagem, AtivosGlobais } from "./ativos-globais";
 import type { ImagemPericiaEmbutida } from "./imagens-pericia";
-import { contatoRodape, linhaRodape } from "./contatos";
+import { linhaRodape } from "./contatos";
 
 /** Nº de linhas em branco entre o endereçamento ao Juízo e os dados do processo (pedido da cliente, só no documento final). */
 const LINHAS_ENTRE_ENDERECO_E_PROCESSO = 10;
@@ -167,34 +167,36 @@ export async function renderizarPdf(
     conteudo.push({ text: "Assinatura da Perita", alignment: "center", italics: true });
   }
 
-  // Rodapé de contato — varia conforme Perícia Judicial x Assistência Técnica (ver contatos.ts).
-  const rodapeContato = (): Content => ({
-    margin: [56, 8, 56, 0],
-    stack: [
-      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 483, y2: 0, lineWidth: 0.5, lineColor: "#999999" }] },
-      {
-        text: linhaRodape(contatoRodape(modelo.tipoTrabalho)),
-        alignment: "center",
-        fontSize: 8,
-        color: "#555555",
-        margin: [0, 4, 0, 0],
-      },
-    ],
-  });
+  // Faixa de identidade no RODAPÉ de toda página — régua fina + logo pequena +
+  // linha de contato. Decoração de página (não toca no corpo; o endereçamento
+  // formal segue como 1ª coisa visível na pág. 1). Sem logo nem contato, a
+  // faixa não é desenhada.
+  const temFaixa = Boolean(ativos.logomarca || modelo.contato);
+  const rodapeIdentidade = temFaixa
+    ? (): Content => {
+        const itens: Content[] = [
+          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 483, y2: 0, lineWidth: 0.5, lineColor: "#999999" }] },
+        ];
+        if (ativos.logomarca) {
+          itens.push({ image: imagemBase64(ativos.logomarca), width: 55, alignment: "center", margin: [0, 4, 0, 0] });
+        }
+        if (modelo.contato) {
+          itens.push({
+            text: linhaRodape(modelo.contato),
+            alignment: "center",
+            fontSize: 7.5,
+            color: "#555555",
+            margin: [0, 3, 0, 0],
+          });
+        }
+        return { margin: [56, 6, 56, 0], stack: itens };
+      }
+    : undefined;
 
   const docDefinition: TDocumentDefinitions = {
     defaultStyle: { font: "Roboto", fontSize: 11, alignment: "justify" },
-    pageMargins: [56, ativos.logomarca ? 110 : 56, 56, 72],
-    // Logomarca da cliente, se já cadastrada — repete no topo de toda página.
-    header: ativos.logomarca
-      ? (): Content => ({
-          image: imagemBase64(ativos.logomarca!),
-          width: 100,
-          alignment: "center",
-          margin: [0, 20, 0, 0],
-        })
-      : undefined,
-    footer: rodapeContato,
+    pageMargins: [56, 56, 56, temFaixa ? 78 : 56],
+    footer: rodapeIdentidade,
     content: conteudo,
     styles: {
       tituloSecao: { fontSize: 13, bold: true, margin: [0, 16, 0, 8] },

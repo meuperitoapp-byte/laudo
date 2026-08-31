@@ -86,6 +86,31 @@ export default async function LaudoPage({
         </div>
       )}
 
+      {resultado.status === "campos_obrigatorios" && (
+        <div className="text-sm space-y-3 rounded-lg border border-ambar-400/60 dark:border-ambar-600/40 bg-ambar-100 dark:bg-ambar-950/30 px-4 py-4">
+          <div className="flex items-center gap-2">
+            <Selo variante="atencao">Geração bloqueada</Selo>
+          </div>
+          <p className="text-nevoa-800 dark:text-nevoa-200">
+            Há campos obrigatórios sem preenchimento em seções que entrariam no documento final.
+            Preencha-os para liberar a geração:
+          </p>
+          <ul className="list-disc pl-5 space-y-0.5">
+            {resultado.camposFaltando.map((c) => (
+              <li key={`${c.secaoId}-${c.campoRotulo}`}>
+                <Link
+                  href={`/processos/${processoId}/preenchimento/${c.secaoId}`}
+                  className="text-petroleo-700 hover:underline dark:text-petroleo-400"
+                >
+                  {c.secaoTitulo}
+                </Link>{" "}
+                <span className="text-nevoa-600 dark:text-nevoa-400">→ {c.campoRotulo}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {resultado.status === "ok" && (
         <>
           <GerarLaudoPanel processoId={processoId} podeGerar versoes={versoes} />

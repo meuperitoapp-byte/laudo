@@ -56,11 +56,11 @@ async function baixarAtivo(
 }
 
 /**
- * Fallback de arquivo pra logomarca: enquanto não há tela de upload, basta
- * colocar `public/branding/logomarca.png` (ou `.jpg`) na raiz do projeto que
- * ele entra no cabeçalho de toda página do laudo. Um registro em
- * `documentos` (tipo 'logomarca', processo_id NULL) tem prioridade sobre
- * este arquivo, quando a tela de Configurações existir.
+ * Fallback de arquivo pra logomarca. O caminho normal é o upload pela tela de
+ * Configurações (vira registro em `documentos`, tipo 'logomarca', processo_id
+ * NULL — tem prioridade). Este fallback só entra se NÃO houver esse registro
+ * e existir `public/branding/logomarca.png` (ou `.jpg`) na raiz do projeto —
+ * útil pra ambiente local/testes sem mexer no banco.
  */
 function lerLogomarcaDoArquivo(): AtivoImagem | null {
   const candidatos: { arquivo: string; mimeType: string }[] = [

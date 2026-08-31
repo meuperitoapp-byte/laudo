@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { avaliarCondicao } from "@/features/preenchimento/condicoes";
 import { montarCabecalhoFormal } from "./cabecalho";
 import { montarApresentacao } from "./apresentacao";
+import { resolverContato } from "./contatos";
 import {
   construirContexto,
   gerarNarrativoSecao,
@@ -20,6 +21,7 @@ import type { SnapshotRespostas, ValorSelecionado, ValorTabelaLinha } from "@/ty
 import type {
   BlocoConteudo,
   BlocoTabela,
+  CampoObrigatorioFaltando,
   PendenciaSecao,
   QuesitoCompilado,
   ResultadoCompilacao,
@@ -66,9 +68,10 @@ export async function compilarLaudo(processoId: string): Promise<ResultadoCompil
     return { status: "erro", mensagem: cabecalho.erro };
   }
 
-  const [{ data: tipoLaudo }, { data: secoes }] = await Promise.all([
+  const [{ data: tipoLaudo }, { data: secoes }, { data: config }] = await Promise.all([
     supabase.from("tipos_laudo").select("*").eq("id", processo.tipo_laudo_id).single(),
     supabase.from("secoes").select("*").eq("tipo_laudo_id", processo.tipo_laudo_id).order("ordem"),
+    supabase.from("configuracoes").select("*").maybeSingle(),
   ]);
   if (!secoes || secoes.length === 0) {
     return { status: "erro", mensagem: "O tipo de laudo deste processo não tem seções cadastradas." };
@@ -153,6 +156,18 @@ export async function compilarLaudo(processoId: string): Promise<ResultadoCompil
     return { status: "pendente_revisao", secoesPendentes };
   }
 
+  // Campos `obrigatorio = true` sem resposta, nas seções que VÃO entrar no
+  // documento — trava de "finalização" do PERICONS (ver CampoObrigatorioFaltando).
+  const camposFaltando = coletarObrigatoriosFaltando(
+    secoesCompiladas,
+    camposPorSecaoId,
+    respostaPorCampoId,
+    valoresPorCodigoGlobal
+  );
+  if (camposFaltando.length > 0) {
+    return { status: "campos_obrigatorios", camposFaltando };
+  }
+
   const imagensPericia = documentos
     .filter((d) => d.tipo === "imagem_pericia")
     .map((d) => ({ documentoId: d.id, nomeArquivo: d.nome_arquivo, storagePath: d.storage_path }));
@@ -191,6 +206,7 @@ export async function compilarLaudo(processoId: string): Promise<ResultadoCompil
     modelo: {
       processoId,
       tipoTrabalho: processo.tipo_trabalho,
+      contato: resolverContato(config ?? null, processo.tipo_trabalho),
       tipoLaudoCodigo: tipoLaudo?.codigo ?? "",
       tipoLaudoNome: tipoLaudo?.nome ?? "",
       geradoEm,
@@ -249,6 +265,41 @@ export function montarSecoesEPendencias(
   }
 
   return { secoesCompiladas, secoesPendentes };
+}
+
+/** A resposta de um campo está "vazia" para efeito de campo obrigatório? */
+function respostaVazia(campo: CamposSecaoRow, r: RespostasProcessoRow | undefined): boolean {
+  if (campo.tipo_campo === "texto_livre") return !r?.texto_livre?.trim();
+  const valor = r?.valor_selecionado;
+  if (campo.tipo_campo === "selecao_unica") return typeof valor !== "string" || valor.trim() === "";
+  // selecao_multipla / tabela: array de itens/linhas
+  return !Array.isArray(valor) || valor.length === 0;
+}
+
+/**
+ * Campos `obrigatorio = true` sem resposta, entre as seções que efetivamente
+ * entram no documento (`secoesCompiladas`). Campos condicionais ocultos (a
+ * própria `condicao` do campo não satisfeita) não contam. Extraída à parte de
+ * `compilarLaudo` pela mesma razão de `montarSecoesEPendencias`: dá pra testar
+ * a regra sem Supabase.
+ */
+export function coletarObrigatoriosFaltando(
+  secoesCompiladas: SecaoCompilada[],
+  camposPorSecaoId: Map<string, CamposSecaoRow[]>,
+  respostaPorCampoId: Map<string, RespostasProcessoRow>,
+  valoresPorCodigo: Map<string, ValorSelecionado | null>
+): CampoObrigatorioFaltando[] {
+  const faltando: CampoObrigatorioFaltando[] = [];
+  for (const secao of secoesCompiladas) {
+    for (const campo of camposPorSecaoId.get(secao.secaoId) ?? []) {
+      if (!campo.obrigatorio) continue;
+      if (!avaliarCondicao(campo.condicao, valoresPorCodigo)) continue;
+      if (respostaVazia(campo, respostaPorCampoId.get(campo.id))) {
+        faltando.push({ secaoId: secao.secaoId, secaoTitulo: secao.titulo, campoRotulo: campo.rotulo });
+      }
+    }
+  }
+  return faltando;
 }
 
 /**

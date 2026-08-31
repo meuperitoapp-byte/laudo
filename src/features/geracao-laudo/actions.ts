@@ -30,6 +30,10 @@ export async function gerarLaudo(processoId: string): Promise<ActionResult> {
     const titulos = resultado.secoesPendentes.map((s) => s.titulo).join(", ");
     return { error: `Geração bloqueada — seções ainda não revisadas: ${titulos}.` };
   }
+  if (resultado.status === "campos_obrigatorios") {
+    const itens = resultado.camposFaltando.map((c) => `${c.secaoTitulo} → ${c.campoRotulo}`).join("; ");
+    return { error: `Geração bloqueada — campos obrigatórios não preenchidos: ${itens}.` };
+  }
 
   const [ativos, imagensPericia] = await Promise.all([
     buscarAtivosGlobais(),

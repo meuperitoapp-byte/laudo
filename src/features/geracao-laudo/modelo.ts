@@ -1,4 +1,5 @@
 import type { CabecalhoFormal } from "./cabecalho";
+import type { ContatoRodape } from "./contatos";
 import type { SnapshotRespostas } from "@/types/json-fields";
 import type { TipoTrabalhoProcesso } from "@/types/enums";
 
@@ -84,8 +85,10 @@ export interface ImagemPericiaRef {
 
 export interface ModeloLaudo {
   processoId: string;
-  /** 'pericia_judicial' | 'assistencia_tecnica' — escolhe o rodapé de contato no documento final (ver contatos.ts). */
+  /** 'pericia_judicial' | 'assistencia_tecnica'. */
   tipoTrabalho: TipoTrabalhoProcesso;
+  /** Contato da faixa de identidade (rodapé), já resolvido conforme tipoTrabalho. null = sem linha de contato. */
+  contato: ContatoRodape | null;
   tipoLaudoCodigo: string;
   tipoLaudoNome: string;
   geradoEm: string; // ISO 8601
@@ -111,7 +114,21 @@ export interface PendenciaSecao {
   titulo: string;
 }
 
+/**
+ * Um campo marcado `campos_secao.obrigatorio = true`, numa seção que VAI entrar
+ * no documento final, que ficou sem resposta. Bloqueia a geração — a regra do
+ * PERICONS "não permitir finalização sem fundamentação individualizada" (ex.:
+ * grau do dano estético) se aplica no momento de gerar o laudo, não ao salvar
+ * a seção (não atrapalha o preenchimento incremental).
+ */
+export interface CampoObrigatorioFaltando {
+  secaoId: string;
+  secaoTitulo: string;
+  campoRotulo: string;
+}
+
 export type ResultadoCompilacao =
   | { status: "ok"; modelo: ModeloLaudo; snapshot: SnapshotRespostas }
   | { status: "erro"; mensagem: string }
-  | { status: "pendente_revisao"; secoesPendentes: PendenciaSecao[] };
+  | { status: "pendente_revisao"; secoesPendentes: PendenciaSecao[] }
+  | { status: "campos_obrigatorios"; camposFaltando: CampoObrigatorioFaltando[] };

@@ -34,6 +34,12 @@ export default async function DashboardLayout({
           >
             Respostas reutilizáveis
           </Link>
+          <Link
+            href="/configuracoes"
+            className="text-sm text-nevoa-600 hover:text-nevoa-900 dark:text-nevoa-400 dark:hover:text-nevoa-100"
+          >
+            Configurações
+          </Link>
         </div>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-nevoa-500 dark:text-nevoa-400">{user.email}</span>

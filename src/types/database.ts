@@ -264,6 +264,33 @@ export type DocumentosInsert = ComDefaults<
 export type DocumentosUpdate = Partial<DocumentosRow>
 
 // ============================================================================
+// configuracoes — config global da conta (linha única, id = true).
+// Ver migration 20260901120000_configuracoes.sql.
+// ============================================================================
+export type ConfiguracoesRow = {
+  id: boolean
+  contato_judicial_email: string | null
+  contato_judicial_telefone: string | null
+  contato_judicial_instagram: string | null
+  contato_at_email: string | null
+  contato_at_telefone: string | null
+  contato_at_instagram: string | null
+  updated_at: string
+}
+export type ConfiguracoesInsert = ComDefaults<
+  ConfiguracoesRow,
+  | 'id'
+  | 'contato_judicial_email'
+  | 'contato_judicial_telefone'
+  | 'contato_judicial_instagram'
+  | 'contato_at_email'
+  | 'contato_at_telefone'
+  | 'contato_at_instagram'
+  | 'updated_at'
+>
+export type ConfiguracoesUpdate = Partial<ConfiguracoesRow>
+
+// ============================================================================
 // respostas_processo
 // ============================================================================
 export type RespostasProcessoRow = {
@@ -436,6 +463,12 @@ export interface Database {
         Row: DocumentosRow
         Insert: DocumentosInsert
         Update: DocumentosUpdate
+        Relationships: []
+      }
+      configuracoes: {
+        Row: ConfiguracoesRow
+        Insert: ConfiguracoesInsert
+        Update: ConfiguracoesUpdate
         Relationships: []
       }
       respostas_processo: {
