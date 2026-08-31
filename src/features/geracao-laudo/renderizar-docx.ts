@@ -242,8 +242,8 @@ export async function renderizarDocx(
     filhosRodape.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 40, after: 0 },
-        children: [imagemDocx(ativos.logomarca, 90)],
+        spacing: { before: 20, after: 0 },
+        children: [imagemDocx(ativos.logomarca, 34)],
       })
     );
   }

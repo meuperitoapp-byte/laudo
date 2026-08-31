@@ -185,7 +185,7 @@ export async function renderizarPdf(
           { canvas: [{ type: "line", x1: 0, y1: 0, x2: 483, y2: 0, lineWidth: 0.5, lineColor: "#999999" }] },
         ];
         if (ativos.logomarca) {
-          itens.push({ image: imagemBase64(ativos.logomarca), width: 55, alignment: "center", margin: [0, 4, 0, 0] });
+          itens.push({ image: imagemBase64(ativos.logomarca), width: 26, alignment: "center", margin: [0, 3, 0, 0] });
         }
         if (modelo.rodapeTexto) {
           itens.push({
@@ -193,16 +193,16 @@ export async function renderizarPdf(
             alignment: "center",
             fontSize: 7.5,
             color: "#555555",
-            margin: [0, 3, 0, 0],
+            margin: [0, 2, 0, 0],
           });
         }
-        return { margin: [56, 6, 56, 0], stack: itens };
+        return { margin: [56, 4, 56, 10], stack: itens };
       }
     : undefined;
 
   const docDefinition: TDocumentDefinitions = {
     defaultStyle: { font: "Roboto", fontSize: 11, alignment: "justify" },
-    pageMargins: [56, 56, 56, temFaixa ? 78 : 56],
+    pageMargins: [56, 56, 56, temFaixa ? 58 : 56],
     footer: rodapeIdentidade,
     content: conteudo,
     styles: {
