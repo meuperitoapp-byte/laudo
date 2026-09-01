@@ -426,6 +426,34 @@ export function ProcessoForm({
               />
             ))}
           </div>
+
+          <div className="grid grid-cols-2 gap-4 pt-2">
+            <div>
+              <label htmlFor="cliente_parte_assistida" className={labelClass}>
+                Cliente / parte assistida
+              </label>
+              <input
+                id="cliente_parte_assistida"
+                name="cliente_parte_assistida"
+                className={inputClass}
+                defaultValue={processo?.cliente_parte_assistida ?? ""}
+              />
+            </div>
+            <div>
+              <label htmlFor="advogado_escritorio" className={labelClass}>
+                Advogado(a) / escritório
+              </label>
+              <input
+                id="advogado_escritorio"
+                name="advogado_escritorio"
+                className={inputClass}
+                defaultValue={processo?.advogado_escritorio ?? ""}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+            Vão no cabeçalho do Parecer Técnico gerado. Opcionais.
+          </p>
         </Cartao>
       )}
 

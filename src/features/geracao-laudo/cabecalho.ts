@@ -33,13 +33,54 @@ const CONECTOR_POR_VARA: Record<TipoVara, string> = {
   trabalho: "COMARCA",
 };
 
+/** Título do documento entre os dados de cabeçalho e a Apresentação (pedido da cliente). */
+export const TITULO_LAUDO_JUDICIAL = "LAUDO PERICIAL";
+
+/**
+ * Título do documento no fluxo de Assistência Técnica. Fixo por decisão da
+ * cliente (não varia conforme etapas_contratadas). Se um dia precisar variar
+ * por etapa, é aqui + em montarCabecalhoAssistenciaTecnica.
+ */
+export const TITULO_PARECER_AT = "PARECER TÉCNICO MÉDICO-LEGAL";
+
+/**
+ * Parágrafo de identificação/bio da perita no topo do Parecer Técnico (fluxo
+ * de Assistência Técnica). PLACEHOLDER ESTRUTURAL — a redação oficial ainda
+ * não foi definida pela Dra. Fernanda (mesma situação de apresentacao.ts no
+ * fluxo judicial). Quando chegar, troca só esta constante; o resto do
+ * pipeline (compilar.ts, renderizadores) não muda.
+ */
+export const IDENTIFICACAO_PERITA_AT_PLACEHOLDER =
+  "[IDENTIFICAÇÃO DA PERITA — AGUARDANDO REDAÇÃO OFICIAL]";
+
+/** Endereçamento formal ao Juízo — só Perícia Judicial. */
 export interface CabecalhoFormal {
+  tipo: "judicial";
+  /** Título do documento ("LAUDO PERICIAL") — some do renderizador, vive aqui pra simetria com o de AT. */
+  tituloDocumento: string;
   /** As linhas do endereçamento, prontas pro documento — já sem nenhum dado cru sem formatar. */
   linhasEndereco: string[];
   processoNumero: string | null;
   parteAutora: string | null;
   partesRe: string | null;
 }
+
+/**
+ * Cabeçalho do fluxo de Assistência Técnica (Parecer Técnico). Sem
+ * endereçamento a um juízo — o documento não é uma petição. Leva a logomarca
+ * no topo (o renderizador desenha a partir de AtivosGlobais), o título fixo,
+ * a identificação da perita e o contexto de quem contratou.
+ */
+export interface CabecalhoAssistenciaTecnica {
+  tipo: "assistencia_tecnica";
+  tituloDocumento: string;
+  /** Parágrafo de identificação da perita (placeholder estrutural por enquanto). */
+  identificacaoPerita: string;
+  /** Linhas de contexto do topo (só as que têm valor): Cliente/parte assistida, Advogado(a)/escritório, Processo/caso nº. */
+  linhasContexto: { rotulo: string; valor: string }[];
+}
+
+export type Cabecalho = CabecalhoFormal | CabecalhoAssistenciaTecnica;
 
 export interface ErroCabecalho {
   erro: string;
@@ -84,9 +125,35 @@ export function montarCabecalhoFormal(
   // entram como fallback pra processos cadastrados antes dessa mudança que
   // nunca ganharam nenhuma linha em processo_partes.
   return {
+    tipo: "judicial",
+    tituloDocumento: TITULO_LAUDO_JUDICIAL,
     linhasEndereco,
     processoNumero: processo.numero_processo,
     parteAutora: juntarNomesPolo(partes, "ativo") ?? processo.parte_autora,
     partesRe: juntarNomesPolo(partes, "passivo") ?? processo.partes_re,
+  };
+}
+
+/**
+ * Cabeçalho do documento de Assistência Técnica (Parecer Técnico). Não tem
+ * caso de erro — AT não depende de vara nem de processo judicial formal. As
+ * linhas de contexto só entram quando têm valor.
+ */
+export function montarCabecalhoAssistenciaTecnica(
+  processo: ProcessosRow
+): CabecalhoAssistenciaTecnica {
+  const linhasContexto: { rotulo: string; valor: string }[] = [];
+  const numeroCaso = processo.numero_processo?.trim();
+  const cliente = processo.cliente_parte_assistida?.trim();
+  const advogado = processo.advogado_escritorio?.trim();
+  if (cliente) linhasContexto.push({ rotulo: "Cliente / parte assistida", valor: cliente });
+  if (advogado) linhasContexto.push({ rotulo: "Advogado(a) / escritório", valor: advogado });
+  if (numeroCaso) linhasContexto.push({ rotulo: "Processo / caso nº", valor: numeroCaso });
+
+  return {
+    tipo: "assistencia_tecnica",
+    tituloDocumento: TITULO_PARECER_AT,
+    identificacaoPerita: IDENTIFICACAO_PERITA_AT_PLACEHOLDER,
+    linhasContexto,
   };
 }

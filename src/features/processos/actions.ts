@@ -101,6 +101,8 @@ export async function createProcesso(formData: FormData): Promise<ActionResult> 
   } else {
     const etapas = formData.getAll("etapas_contratadas") as EtapaContratada[];
     insert.etapas_contratadas = etapas.length > 0 ? etapas : null;
+    insert.cliente_parte_assistida = optionalText(formData, "cliente_parte_assistida");
+    insert.advogado_escritorio = optionalText(formData, "advogado_escritorio");
   }
 
   const { data, error } = await supabase
@@ -149,6 +151,8 @@ export async function updateProcesso(
   } else if (tipoTrabalho === "assistencia_tecnica") {
     const etapas = formData.getAll("etapas_contratadas") as EtapaContratada[];
     update.etapas_contratadas = etapas.length > 0 ? etapas : null;
+    update.cliente_parte_assistida = optionalText(formData, "cliente_parte_assistida");
+    update.advogado_escritorio = optionalText(formData, "advogado_escritorio");
   }
 
   const { error } = await supabase.from("processos").update(update).eq("id", processoId);

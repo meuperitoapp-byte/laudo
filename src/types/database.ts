@@ -150,6 +150,10 @@ export type ProcessosRow = {
   periciando_data_nascimento: string | null
   objeto_pericia: string | null
   etapas_contratadas: EtapaContratada[] | null
+  /** Só assistencia_tecnica: quem contratou / parte assistida. Ver migration 20260904120000. */
+  cliente_parte_assistida: string | null
+  /** Só assistencia_tecnica: advogado(a) / escritório da parte assistida. */
+  advogado_escritorio: string | null
   /** Ponto do fluxo (texto livre + catálogo). Ver migration 20260829120000. */
   situacao_processo: string | null
   /** Situação financeira (texto livre + catálogo). */
@@ -184,6 +188,8 @@ export type ProcessosInsert = ComDefaults<
   | 'periciando_data_nascimento'
   | 'objeto_pericia'
   | 'etapas_contratadas'
+  | 'cliente_parte_assistida'
+  | 'advogado_escritorio'
   | 'situacao_processo'
   | 'situacao_financeira'
   | 'valor_processo'

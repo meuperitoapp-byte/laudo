@@ -1,4 +1,4 @@
-import type { CabecalhoFormal } from "./cabecalho";
+import type { CabecalhoAssistenciaTecnica, CabecalhoFormal } from "./cabecalho";
 import type { SnapshotRespostas } from "@/types/json-fields";
 import type { TipoTrabalhoProcesso } from "@/types/enums";
 
@@ -91,7 +91,8 @@ export interface ModeloLaudo {
   tipoLaudoCodigo: string;
   tipoLaudoNome: string;
   geradoEm: string; // ISO 8601
-  cabecalho: CabecalhoFormal;
+  /** Endereçamento ao Juízo (Perícia Judicial) OU cabeçalho de Parecer Técnico (Assistência Técnica) — discriminado por `.tipo`. */
+  cabecalho: CabecalhoFormal | CabecalhoAssistenciaTecnica;
   /** Parágrafo de Apresentação (identificação do perito + metodologia) — ver cabecalho.ts, ainda placeholder até a redação oficial ser definida. */
   apresentacao: string;
   /** Já inclui o bloco de Quesitos, na posição certa — ver BlocoQuesitos acima. */

@@ -19,9 +19,7 @@ import type { ImagemPericiaEmbutida } from "./imagens-pericia";
 
 /** Nº de linhas em branco entre o endereçamento ao Juízo e os dados do processo (pedido da cliente, só no documento final). */
 const LINHAS_ENTRE_ENDERECO_E_PROCESSO = 10;
-/** Título do documento entre os dados do processo e a Apresentação (pedido da cliente). */
-const TITULO_DOCUMENTO = "LAUDO PERICIAL";
-/** Linhas em branco antes e depois do título "LAUDO PERICIAL" (pedido da cliente). */
+/** Linhas em branco antes e depois do título do documento (pedido da cliente). */
 const LINHAS_ENTORNO_TITULO_DOCUMENTO = 3;
 
 /**
@@ -151,6 +149,59 @@ function blocoImagensPericia(imagens: ImagemPericiaEmbutida[]): Bloco[] {
   return filhos;
 }
 
+/** Linhas em branco (Paragraph vazio). */
+function linhasVazias(n: number): Paragraph[] {
+  return Array.from({ length: n }, () => new Paragraph({ children: [] }));
+}
+
+/** Cabeçalho de Perícia Judicial: endereçamento ao Juízo + dados do processo + título. */
+function cabecalhoJudicialDocx(modelo: ModeloLaudo): Bloco[] {
+  const cab = modelo.cabecalho;
+  if (cab.tipo !== "judicial") return [];
+  const out: Bloco[] = cab.linhasEndereco.map((linha) => paragrafo(linha));
+  out.push(...linhasVazias(LINHAS_ENTRE_ENDERECO_E_PROCESSO));
+  if (cab.processoNumero) out.push(paragrafo(`Processo nº: ${cab.processoNumero}`));
+  if (cab.parteAutora) out.push(paragrafo(`Parte autora / Reclamante: ${cab.parteAutora}`));
+  if (cab.partesRe) out.push(paragrafo(`Parte ré / Reclamada(s): ${cab.partesRe}`));
+  out.push(...linhasVazias(LINHAS_ENTORNO_TITULO_DOCUMENTO));
+  out.push(tituloDocumento(cab.tituloDocumento));
+  out.push(...linhasVazias(LINHAS_ENTORNO_TITULO_DOCUMENTO));
+  return out;
+}
+
+/** Cabeçalho de Assistência Técnica (Parecer Técnico): logomarca no topo + título + contexto + identificação da perita. */
+function cabecalhoAtDocx(modelo: ModeloLaudo, ativos: AtivosGlobais): Bloco[] {
+  const cab = modelo.cabecalho;
+  if (cab.tipo !== "assistencia_tecnica") return [];
+  const out: Bloco[] = [];
+  if (ativos.logomarca) {
+    out.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 120 },
+        children: [imagemDocx(ativos.logomarca, 120)],
+      })
+    );
+  }
+  out.push(tituloDocumento(cab.tituloDocumento));
+  out.push(...linhasVazias(1));
+  for (const linha of cab.linhasContexto) {
+    out.push(
+      new Paragraph({
+        spacing: { after: 60 },
+        children: [
+          new TextRun({ text: `${linha.rotulo}: `, bold: true, font: FONTE, size: TAMANHO_BASE }),
+          new TextRun({ text: linha.valor, font: FONTE, size: TAMANHO_BASE }),
+        ],
+      })
+    );
+  }
+  out.push(...linhasVazias(1));
+  out.push(paragrafo(cab.identificacaoPerita));
+  out.push(...linhasVazias(1));
+  return out;
+}
+
 export async function renderizarDocx(
   modelo: ModeloLaudo,
   ativos: AtivosGlobais,
@@ -158,33 +209,13 @@ export async function renderizarDocx(
 ): Promise<Buffer> {
   const filhos: Bloco[] = [];
 
-  // Cabeçalho formal
-  for (const linha of modelo.cabecalho.linhasEndereco) {
-    filhos.push(paragrafo(linha));
-  }
-  // Espaço fixo (10 linhas) entre o endereçamento e os dados do processo.
-  for (let i = 0; i < LINHAS_ENTRE_ENDERECO_E_PROCESSO; i++) {
-    filhos.push(new Paragraph({ children: [] }));
-  }
-  if (modelo.cabecalho.processoNumero) {
-    filhos.push(paragrafo(`Processo nº: ${modelo.cabecalho.processoNumero}`));
-  }
-  if (modelo.cabecalho.parteAutora) {
-    filhos.push(paragrafo(`Parte autora / Reclamante: ${modelo.cabecalho.parteAutora}`));
-  }
-  if (modelo.cabecalho.partesRe) {
-    filhos.push(paragrafo(`Parte ré / Reclamada(s): ${modelo.cabecalho.partesRe}`));
-  }
-
-  // Título do documento, entre os dados do processo e a Apresentação, com
-  // 3 linhas em branco de folga acima e abaixo.
-  for (let i = 0; i < LINHAS_ENTORNO_TITULO_DOCUMENTO; i++) {
-    filhos.push(new Paragraph({ children: [] }));
-  }
-  filhos.push(tituloDocumento(TITULO_DOCUMENTO));
-  for (let i = 0; i < LINHAS_ENTORNO_TITULO_DOCUMENTO; i++) {
-    filhos.push(new Paragraph({ children: [] }));
-  }
+  // Cabeçalho: endereçamento formal (Perícia Judicial) OU cabeçalho de Parecer
+  // Técnico (Assistência Técnica) — discriminado por modelo.cabecalho.tipo.
+  filhos.push(
+    ...(modelo.cabecalho.tipo === "assistencia_tecnica"
+      ? cabecalhoAtDocx(modelo, ativos)
+      : cabecalhoJudicialDocx(modelo))
+  );
 
   // Apresentação
   filhos.push(tituloSecao("APRESENTAÇÃO"));

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { avaliarCondicao } from "@/features/preenchimento/condicoes";
-import { montarCabecalhoFormal } from "./cabecalho";
+import { montarCabecalhoAssistenciaTecnica, montarCabecalhoFormal } from "./cabecalho";
 import { montarApresentacao } from "./apresentacao";
 import { rodapeTexto } from "./contatos";
 import {
@@ -63,7 +63,14 @@ export async function compilarLaudo(processoId: string): Promise<ResultadoCompil
 
   const { data: partesDb } = await supabase.from("processo_partes").select("*").eq("processo_id", processoId);
 
-  const cabecalho = montarCabecalhoFormal(processo, partesDb ?? []);
+  // Assistência Técnica gera um Parecer Técnico (sem endereçamento a juízo);
+  // Perícia Judicial gera o laudo com o endereçamento formal. montarCabecalho*
+  // decide a forma do cabeçalho — só a variante judicial tem caso de erro
+  // (depende de tipo_vara).
+  const cabecalho =
+    processo.tipo_trabalho === "assistencia_tecnica"
+      ? montarCabecalhoAssistenciaTecnica(processo)
+      : montarCabecalhoFormal(processo, partesDb ?? []);
   if ("erro" in cabecalho) {
     return { status: "erro", mensagem: cabecalho.erro };
   }

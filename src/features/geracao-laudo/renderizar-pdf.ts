@@ -8,9 +8,7 @@ import type { AtivoImagem, AtivosGlobais } from "./ativos-globais";
 import type { ImagemPericiaEmbutida } from "./imagens-pericia";
 /** Nº de linhas em branco entre o endereçamento ao Juízo e os dados do processo (pedido da cliente, só no documento final). */
 const LINHAS_ENTRE_ENDERECO_E_PROCESSO = 10;
-/** Título do documento entre os dados do processo e a Apresentação (pedido da cliente). */
-const TITULO_DOCUMENTO = "LAUDO PERICIAL";
-/** Linhas em branco antes e depois do título "LAUDO PERICIAL" (pedido da cliente). */
+/** Linhas em branco antes e depois do título do documento (pedido da cliente). */
 const LINHAS_ENTORNO_TITULO_DOCUMENTO = 3;
 
 /**
@@ -108,6 +106,45 @@ function blocoImagensPericia(imagens: ImagemPericiaEmbutida[]): Content[] {
   return conteudo;
 }
 
+/** Linha em branco (pdfmake não desenha string vazia — precisa de um espaço). */
+function linhasVaziasPdf(n: number): Content[] {
+  return Array.from({ length: n }, () => ({ text: " " }) as Content);
+}
+
+/** Cabeçalho de Perícia Judicial: endereçamento ao Juízo + dados do processo + título. */
+function cabecalhoJudicialPdf(modelo: ModeloLaudo): Content[] {
+  const cab = modelo.cabecalho;
+  if (cab.tipo !== "judicial") return [];
+  const out: Content[] = cab.linhasEndereco.map((linha) => ({ text: linha }) as Content);
+  out.push(...linhasVaziasPdf(LINHAS_ENTRE_ENDERECO_E_PROCESSO));
+  if (cab.processoNumero) out.push({ text: `Processo nº: ${cab.processoNumero}` });
+  if (cab.parteAutora) out.push({ text: `Parte autora / Reclamante: ${cab.parteAutora}` });
+  if (cab.partesRe) out.push({ text: `Parte ré / Reclamada(s): ${cab.partesRe}` });
+  out.push(...linhasVaziasPdf(LINHAS_ENTORNO_TITULO_DOCUMENTO));
+  out.push({ text: cab.tituloDocumento, bold: true, alignment: "center", fontSize: 16 });
+  out.push(...linhasVaziasPdf(LINHAS_ENTORNO_TITULO_DOCUMENTO));
+  return out;
+}
+
+/** Cabeçalho de Assistência Técnica (Parecer Técnico): logomarca no topo + título + contexto + identificação da perita. */
+function cabecalhoAtPdf(modelo: ModeloLaudo, ativos: AtivosGlobais): Content[] {
+  const cab = modelo.cabecalho;
+  if (cab.tipo !== "assistencia_tecnica") return [];
+  const out: Content[] = [];
+  if (ativos.logomarca) {
+    out.push({ image: imagemBase64(ativos.logomarca), width: 90, alignment: "center", margin: [0, 0, 0, 10] });
+  }
+  out.push({ text: cab.tituloDocumento, bold: true, alignment: "center", fontSize: 16 });
+  out.push(...linhasVaziasPdf(1));
+  for (const linha of cab.linhasContexto) {
+    out.push({ text: [{ text: `${linha.rotulo}: `, bold: true }, { text: linha.valor }], margin: [0, 0, 0, 3] });
+  }
+  out.push(...linhasVaziasPdf(1));
+  out.push({ text: cab.identificacaoPerita, margin: [0, 0, 0, 10] });
+  out.push(...linhasVaziasPdf(1));
+  return out;
+}
+
 export async function renderizarPdf(
   modelo: ModeloLaudo,
   ativos: AtivosGlobais,
@@ -115,32 +152,13 @@ export async function renderizarPdf(
 ): Promise<Buffer> {
   const conteudo: Content[] = [];
 
-  for (const linha of modelo.cabecalho.linhasEndereco) {
-    conteudo.push({ text: linha });
-  }
-  // Espaço fixo (10 linhas) entre o endereçamento e os dados do processo.
-  for (let i = 0; i < LINHAS_ENTRE_ENDERECO_E_PROCESSO; i++) {
-    conteudo.push({ text: " " });
-  }
-  if (modelo.cabecalho.processoNumero) {
-    conteudo.push({ text: `Processo nº: ${modelo.cabecalho.processoNumero}` });
-  }
-  if (modelo.cabecalho.parteAutora) {
-    conteudo.push({ text: `Parte autora / Reclamante: ${modelo.cabecalho.parteAutora}` });
-  }
-  if (modelo.cabecalho.partesRe) {
-    conteudo.push({ text: `Parte ré / Reclamada(s): ${modelo.cabecalho.partesRe}` });
-  }
-
-  // Título do documento, entre os dados do processo e a Apresentação, com
-  // 3 linhas em branco de folga acima e abaixo.
-  for (let i = 0; i < LINHAS_ENTORNO_TITULO_DOCUMENTO; i++) {
-    conteudo.push({ text: " " });
-  }
-  conteudo.push({ text: TITULO_DOCUMENTO, bold: true, alignment: "center", fontSize: 16 });
-  for (let i = 0; i < LINHAS_ENTORNO_TITULO_DOCUMENTO; i++) {
-    conteudo.push({ text: " " });
-  }
+  // Cabeçalho: endereçamento formal (Perícia Judicial) OU cabeçalho de Parecer
+  // Técnico (Assistência Técnica) — discriminado por modelo.cabecalho.tipo.
+  conteudo.push(
+    ...(modelo.cabecalho.tipo === "assistencia_tecnica"
+      ? cabecalhoAtPdf(modelo, ativos)
+      : cabecalhoJudicialPdf(modelo))
+  );
 
   conteudo.push(tituloSecao("APRESENTAÇÃO"));
   conteudo.push({ text: modelo.apresentacao, margin: [0, 0, 0, 10] });
