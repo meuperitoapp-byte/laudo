@@ -186,6 +186,7 @@ export function ProcessoForm({
     "pericia_judicial" | "assistencia_tecnica" | null
   >(editando ? processo!.tipo_trabalho : null);
   const [error, setError] = useState<string | null>(null);
+  const [tipoLaudoId, setTipoLaudoId] = useState(processo?.tipo_laudo_id ?? "");
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(formData: FormData) {
@@ -203,6 +204,14 @@ export function ProcessoForm({
 
   const mostraJudicial = tipoTrabalho === "pericia_judicial";
   const mostraAssistencia = tipoTrabalho === "assistencia_tecnica";
+
+  // O cabeçalho formal do laudo (cabecalho.ts) não sabe o tipo de laudo — só usa
+  // processo.tipo_vara + vara_numero (texto livre). Para Criminal isso é
+  // arriscado: se a perita não escrever "Vara Criminal", o endereçamento penal
+  // sai genérico. Avisos condicionais no formulário reduzem o esquecimento sem
+  // preencher nada por conta própria (o sistema não decide, o perito decide).
+  const laudoSelecionado = tiposLaudo.find((tl) => tl.id === tipoLaudoId) ?? null;
+  const laudoEhCriminal = laudoSelecionado?.codigo === "criminal";
 
   return (
     <form action={handleSubmit} className="space-y-6">
@@ -306,6 +315,13 @@ export function ProcessoForm({
                 que vai pro endereçamento formal do laudo final. Comece a digitar pra ver varas já
                 usadas, ou cadastre uma nova na hora.
               </p>
+              {laudoEhCriminal && (
+                <p className="text-xs mt-2 rounded-md border border-ambar-400/60 dark:border-ambar-600/40 bg-ambar-100 dark:bg-ambar-950/30 text-nevoa-800 dark:text-nevoa-200 px-3 py-2">
+                  <strong>Laudo Criminal:</strong> selecione <strong>Estadual</strong> em “Vara” e
+                  escreva algo como <strong>“2ª Vara Criminal”</strong> aqui — é esse texto que vai
+                  pro endereçamento penal do laudo final.
+                </p>
+              )}
             </div>
           </div>
 
@@ -418,7 +434,8 @@ export function ProcessoForm({
           <select
             name="tipo_laudo_id"
             className={inputClass}
-            defaultValue={processo?.tipo_laudo_id ?? ""}
+            value={tipoLaudoId}
+            onChange={(e) => setTipoLaudoId(e.target.value)}
             required
           >
             <option value="" disabled>
@@ -433,6 +450,12 @@ export function ProcessoForm({
           {tiposLaudo.length === 0 && (
             <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">
               Nenhum tipo de laudo ativo cadastrado ainda.
+            </p>
+          )}
+          {laudoEhCriminal && mostraJudicial && (
+            <p className="text-xs mt-2 rounded-md border border-ambar-400/60 dark:border-ambar-600/40 bg-ambar-100 dark:bg-ambar-950/30 text-nevoa-800 dark:text-nevoa-200 px-3 py-2">
+              Confira o bloco <strong>Dados do processo</strong> acima: para Criminal, a Vara deve
+              ser <strong>Estadual</strong> e o número precisa mencionar <strong>“Vara Criminal”</strong>.
             </p>
           )}
           <div className="pt-2">
