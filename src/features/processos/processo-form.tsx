@@ -164,6 +164,7 @@ function CampoMoeda({
 export function ProcessoForm({
   modo,
   processo,
+  tipoTrabalhoInicial,
   tiposLaudo,
   sugestoesVara,
   sugestoesComarca,
@@ -173,6 +174,8 @@ export function ProcessoForm({
 }: {
   modo: "criar" | "editar";
   processo?: ProcessosRow | null;
+  /** Quando o tipo de trabalho já foi escolhido na página anterior (?tipo= em /processos/novo). */
+  tipoTrabalhoInicial?: "pericia_judicial" | "assistencia_tecnica";
   tiposLaudo: TiposLaudoRow[];
   sugestoesVara: string[];
   sugestoesComarca: string[];
@@ -184,7 +187,12 @@ export function ProcessoForm({
 
   const [tipoTrabalho, setTipoTrabalho] = useState<
     "pericia_judicial" | "assistencia_tecnica" | null
-  >(editando ? processo!.tipo_trabalho : null);
+  >(editando ? processo!.tipo_trabalho : (tipoTrabalhoInicial ?? null));
+
+  // O tipo de trabalho foi definido fora deste formulário (edição, ou a
+  // primeira página do cadastro): o cartão de escolha some e a numeração dos
+  // cartões seguintes acompanha (sem o "1.").
+  const tipoForaDoForm = editando || (!editando && tipoTrabalhoInicial != null);
   const [error, setError] = useState<string | null>(null);
   const [tipoLaudoId, setTipoLaudoId] = useState(processo?.tipo_laudo_id ?? "");
   const [isPending, startTransition] = useTransition();
@@ -215,7 +223,9 @@ export function ProcessoForm({
 
   return (
     <form action={handleSubmit} className="space-y-6">
-      {editando && <input type="hidden" name="tipo_trabalho" value={processo!.tipo_trabalho} />}
+      {tipoForaDoForm && tipoTrabalho && (
+        <input type="hidden" name="tipo_trabalho" value={tipoTrabalho} />
+      )}
 
       {editando ? (
         <Cartao titulo="Situação do processo">
@@ -245,7 +255,7 @@ export function ProcessoForm({
             />
           </div>
         </Cartao>
-      ) : (
+      ) : tipoForaDoForm ? null : (
         <Cartao titulo="1. Tipo de trabalho">
           <div className="grid grid-cols-2 gap-3">
             <OpcaoRadio
@@ -268,7 +278,7 @@ export function ProcessoForm({
       )}
 
       {mostraJudicial && (
-        <Cartao titulo={editando ? "Dados do processo" : "2. Dados do processo"}>
+        <Cartao titulo={tipoForaDoForm ? "Dados do processo" : "1. Dados do processo"}>
           <div>
             <label htmlFor="numero_processo" className={labelClass}>
               Número do processo
@@ -414,7 +424,7 @@ export function ProcessoForm({
       )}
 
       {mostraAssistencia && (
-        <Cartao titulo={editando ? "Etapas contratadas" : "2. Etapas contratadas"}>
+        <Cartao titulo={tipoForaDoForm ? "Etapas contratadas" : "1. Etapas contratadas"}>
           <div className="grid grid-cols-2 gap-3">
             {ETAPAS_CONTRATADAS.map((etapa) => (
               <OpcaoCheckbox
@@ -458,7 +468,7 @@ export function ProcessoForm({
       )}
 
       {tipoTrabalho && (
-        <Cartao titulo={editando ? "Natureza do processo (tipo de laudo)" : "3. Natureza do processo (tipo de laudo)"}>
+        <Cartao titulo={tipoForaDoForm ? "Natureza do processo (tipo de laudo)" : "2. Natureza do processo (tipo de laudo)"}>
           <select
             name="tipo_laudo_id"
             className={inputClass}
