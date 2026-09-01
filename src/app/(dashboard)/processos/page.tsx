@@ -92,11 +92,19 @@ export default async function ProcessosPage({
     ([k, v]) => v && !(k === "status" && v === "em_andamento"),
   );
 
+  // Com o filtro de tipo de trabalho ativo (o usuário chegou aqui pela tela de
+  // escolha), "Novo processo" já leva o tipo pro formulário; sem filtro, cai na
+  // tela de escolha.
+  const hrefNovo =
+    f.tipoTrabalho === "pericia_judicial" || f.tipoTrabalho === "assistencia_tecnica"
+      ? `/processos/novo?tipo=${f.tipoTrabalho}`
+      : "/processos/novo";
+
   return (
     <main className="p-8 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Processos</h1>
-        <Link href="/processos/novo" className={classesBotao("primaria")}>
+        <Link href={hrefNovo} className={classesBotao("primaria")}>
           Novo processo
         </Link>
       </div>
