@@ -2,20 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
-import { Selo } from "@/components/ui/badge";
 import { PoloPartesPanel } from "@/features/processos/polo-partes-panel";
-
-const STATUS_ROTULOS: Record<string, string> = {
-  em_andamento: "Em andamento",
-  finalizado: "Finalizado",
-  arquivado: "Arquivado",
-};
-
-const STATUS_VARIANTE: Record<string, "sucesso" | "atencao" | "neutro"> = {
-  em_andamento: "atencao",
-  finalizado: "sucesso",
-  arquivado: "neutro",
-};
 
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   pericia_judicial: "Perícia Judicial",
@@ -140,9 +127,6 @@ export default async function ProcessoDetalhePage({
         </Link>
         <div className="flex items-center gap-3 mt-2">
           <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">{titulo}</h1>
-          <Selo variante={STATUS_VARIANTE[processo.status] ?? "neutro"}>
-            {STATUS_ROTULOS[processo.status] ?? processo.status}
-          </Selo>
         </div>
       </div>
 

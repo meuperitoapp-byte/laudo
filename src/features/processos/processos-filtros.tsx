@@ -2,26 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { SITUACOES_PROCESSO_ORDENADA } from "@/features/processos/catalogos";
 
 const campoClass =
   "w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-white dark:bg-nevoa-900/40 px-3 py-2 text-sm " +
   "text-nevoa-900 dark:text-nevoa-100 placeholder:text-nevoa-400 " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500";
 
-const STATUS_OPCOES = [
-  { valor: "em_andamento", rotulo: "Em andamento" },
-  { valor: "finalizado", rotulo: "Finalizado" },
-  { valor: "arquivado", rotulo: "Arquivado" },
-  { valor: "todos", rotulo: "Todos" },
-];
-
 export function ProcessosFiltros({
   tiposLaudo,
-  situacoes,
   situacoesFinanceiras,
 }: {
   tiposLaudo: { id: string; nome: string }[];
-  situacoes: string[];
   situacoesFinanceiras: string[];
 }) {
   const router = useRouter();
@@ -63,10 +55,13 @@ export function ProcessosFiltros({
     return () => clearTimeout(t);
   }, [texto, aplicar]);
 
-  const statusAtual = get("status") || "em_andamento";
+  // "situacao" faz o papel dos dois filtros antigos (Andamento + Situação):
+  // vazio = visão padrão (esconde "Finalizado"); um valor da lista = exatamente
+  // aquela etapa; "todos" = sem filtro nenhum de situação.
+  const situacaoAtual = get("situacao") || "";
   const algumFiltro =
-    statusAtual !== "em_andamento" ||
-    ["numero", "periciando", "comarca", "tipo_laudo", "tipo_trabalho", "situacao", "situacao_financeira", "data_inicial", "data_final"].some(
+    situacaoAtual !== "" ||
+    ["numero", "periciando", "comarca", "tipo_laudo", "tipo_trabalho", "situacao_financeira", "data_inicial", "data_final"].some(
       (k) => get(k),
     );
 
@@ -121,16 +116,17 @@ export function ProcessosFiltros({
         </select>
 
         <select
-          value={get("situacao")}
+          value={situacaoAtual}
           onChange={(e) => aplicar({ situacao: e.target.value })}
           className={campoClass}
         >
-          <option value="">Situação do processo (todas)</option>
-          {situacoes.map((s) => (
+          <option value="">Em andamento (esconde Finalizado)</option>
+          {SITUACOES_PROCESSO_ORDENADA.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>
           ))}
+          <option value="todos">Todos</option>
         </select>
 
         <select
@@ -142,18 +138,6 @@ export function ProcessosFiltros({
           {situacoesFinanceiras.map((s) => (
             <option key={s} value={s}>
               {s}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={statusAtual}
-          onChange={(e) => aplicar({ status: e.target.value === "em_andamento" ? "" : e.target.value })}
-          className={campoClass}
-        >
-          {STATUS_OPCOES.map((o) => (
-            <option key={o.valor} value={o.valor}>
-              {o.rotulo}
             </option>
           ))}
         </select>

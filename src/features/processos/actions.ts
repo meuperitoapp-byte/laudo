@@ -8,7 +8,6 @@ import type {
   AceitouNomeacao,
   EtapaContratada,
   JusticaGratuita,
-  StatusProcesso,
   TipoTrabalhoProcesso,
   TipoVara,
 } from "@/types/enums";
@@ -40,7 +39,6 @@ function optionalEnum<T extends string>(
 
 const JUSTICA_GRATUITA_VALORES: readonly JusticaGratuita[] = ["sim", "nao"];
 const ACEITOU_NOMEACAO_VALORES: readonly AceitouNomeacao[] = ["sim", "nao", "destituida"];
-const STATUS_VALORES: readonly StatusProcesso[] = ["em_andamento", "finalizado", "arquivado"];
 
 /**
  * Campos genéricos (situação, acompanhamento, financeiro) — válidos para os
@@ -135,7 +133,10 @@ export async function updateProcesso(
 
   const update: ProcessosUpdate = {
     tipo_laudo_id: optionalText(formData, "tipo_laudo_id"),
-    status: optionalEnum(formData, "status", STATUS_VALORES) ?? "em_andamento",
+    // "status" (em_andamento/finalizado/arquivado) não é mais editado pela UI —
+    // foi substituído por situacao_processo (ver catalogos.ts). A coluna fica
+    // como está (default 'em_andamento'), sem sobrescrever, só pra não perder
+    // o histórico de quem já tinha um valor diferente.
     ...camposGenericos(formData),
   };
 

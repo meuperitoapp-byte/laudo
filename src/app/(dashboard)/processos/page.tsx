@@ -1,26 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
-import { Selo } from "@/components/ui/badge";
 import { ProcessosFiltros } from "@/features/processos/processos-filtros";
-import {
-  SITUACOES_FINANCEIRAS_SEED,
-  SITUACOES_PROCESSO_SEED,
-  mesclarSugestoes,
-} from "@/features/processos/catalogos";
-import type { StatusProcesso, TipoTrabalhoProcesso } from "@/types/enums";
-
-const STATUS_ROTULOS: Record<string, string> = {
-  em_andamento: "Em andamento",
-  finalizado: "Finalizado",
-  arquivado: "Arquivado",
-};
-
-const STATUS_VARIANTE: Record<string, "sucesso" | "atencao" | "neutro"> = {
-  em_andamento: "atencao",
-  finalizado: "sucesso",
-  arquivado: "neutro",
-};
+import { SITUACOES_FINANCEIRAS_SEED, mesclarSugestoes } from "@/features/processos/catalogos";
+import type { TipoTrabalhoProcesso } from "@/types/enums";
 
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   pericia_judicial: "Perícia Judicial",
@@ -43,11 +26,11 @@ export default async function ProcessosPage({
     periciando: param(sp.periciando),
     tipoLaudo: param(sp.tipo_laudo),
     tipoTrabalho: param(sp.tipo_trabalho),
+    // situacao ausente = padrão (esconde "Finalizado"); "todos" = sem filtro
+    // de situação; qualquer outro valor = etapa exata do pipeline.
     situacao: param(sp.situacao),
     situacaoFinanceira: param(sp.situacao_financeira),
     comarca: param(sp.comarca),
-    // status ausente = padrão "em_andamento"; "todos" = sem filtro de status.
-    status: param(sp.status) || "em_andamento",
     dataInicial: param(sp.data_inicial),
     dataFinal: param(sp.data_final),
   };
@@ -55,30 +38,29 @@ export default async function ProcessosPage({
   const supabase = await createClient();
 
   let query = supabase.from("processos").select("*").order("created_at", { ascending: false });
-  if (f.status !== "todos") query = query.eq("status", f.status as StatusProcesso);
+  if (f.situacao === "") {
+    // Processos novos ainda sem situacao_processo definida continuam
+    // aparecendo na visão padrão — só "Finalizado" some.
+    query = query.or("situacao_processo.is.null,situacao_processo.neq.Finalizado");
+  } else if (f.situacao !== "todos") {
+    query = query.eq("situacao_processo", f.situacao);
+  }
   if (f.numero) query = query.ilike("numero_processo", `%${f.numero}%`);
   if (f.periciando) query = query.ilike("periciando_nome", `%${f.periciando}%`);
   if (f.tipoLaudo) query = query.eq("tipo_laudo_id", f.tipoLaudo);
   if (f.tipoTrabalho) query = query.eq("tipo_trabalho", f.tipoTrabalho as TipoTrabalhoProcesso);
-  if (f.situacao) query = query.eq("situacao_processo", f.situacao);
   if (f.situacaoFinanceira) query = query.eq("situacao_financeira", f.situacaoFinanceira);
   if (f.comarca) query = query.ilike("comarca_subsecao", `%${f.comarca}%`);
   if (f.dataInicial) query = query.gte("created_at", f.dataInicial);
   if (f.dataFinal) query = query.lte("created_at", `${f.dataFinal}T23:59:59.999Z`);
 
-  const [
-    { data: processos },
-    { data: tiposLaudo },
-    { data: partesDb },
-    { data: situacoesDb },
-    { data: financeirasDb },
-  ] = await Promise.all([
-    query,
-    supabase.from("tipos_laudo").select("id, nome").order("ordem", { ascending: true }),
-    supabase.from("processo_partes").select("processo_id, polo, nome, ordem").eq("polo", "ativo").order("ordem"),
-    supabase.from("processos").select("valor:situacao_processo").not("situacao_processo", "is", null),
-    supabase.from("processos").select("valor:situacao_financeira").not("situacao_financeira", "is", null),
-  ]);
+  const [{ data: processos }, { data: tiposLaudo }, { data: partesDb }, { data: financeirasDb }] =
+    await Promise.all([
+      query,
+      supabase.from("tipos_laudo").select("id, nome").order("ordem", { ascending: true }),
+      supabase.from("processo_partes").select("processo_id, polo, nome, ordem").eq("polo", "ativo").order("ordem"),
+      supabase.from("processos").select("valor:situacao_financeira").not("situacao_financeira", "is", null),
+    ]);
 
   const nomePorTipoLaudo = new Map((tiposLaudo ?? []).map((t) => [t.id, t.nome]));
   const primeiroNomePoloAtivoPorProcesso = new Map<string, string>();
@@ -88,9 +70,7 @@ export default async function ProcessosPage({
     }
   }
 
-  const filtrouAlgo = Object.entries(f).some(
-    ([k, v]) => v && !(k === "status" && v === "em_andamento"),
-  );
+  const filtrouAlgo = Object.values(f).some((v) => v);
 
   // Com o filtro de tipo de trabalho ativo (o usuário chegou aqui pela tela de
   // escolha), "Novo processo" já leva o tipo pro formulário; sem filtro, cai na
@@ -111,7 +91,6 @@ export default async function ProcessosPage({
 
       <ProcessosFiltros
         tiposLaudo={tiposLaudo ?? []}
-        situacoes={mesclarSugestoes(SITUACOES_PROCESSO_SEED, situacoesDb)}
         situacoesFinanceiras={mesclarSugestoes(SITUACOES_FINANCEIRAS_SEED, financeirasDb)}
       />
 
@@ -119,7 +98,7 @@ export default async function ProcessosPage({
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-6">
           {filtrouAlgo
             ? "Nenhum processo encontrado com esses filtros."
-            : "Nenhum processo em andamento. Use os filtros acima para ver finalizados/arquivados."}
+            : "Nenhum processo em andamento. Use os filtros acima para ver os finalizados."}
         </p>
       ) : (
         <div className="mt-6 overflow-x-auto rounded-lg border border-nevoa-200 dark:border-nevoa-800">
@@ -129,7 +108,7 @@ export default async function ProcessosPage({
                 <th className="py-2.5 px-4 font-medium text-nevoa-600 dark:text-nevoa-400">Processo / Periciando(a)</th>
                 <th className="py-2.5 px-4 font-medium text-nevoa-600 dark:text-nevoa-400">Tipo de trabalho</th>
                 <th className="py-2.5 px-4 font-medium text-nevoa-600 dark:text-nevoa-400">Tipo de laudo</th>
-                <th className="py-2.5 px-4 font-medium text-nevoa-600 dark:text-nevoa-400">Status</th>
+                <th className="py-2.5 px-4 font-medium text-nevoa-600 dark:text-nevoa-400">Situação</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-nevoa-900/40">
@@ -156,10 +135,8 @@ export default async function ProcessosPage({
                   <td className="py-2.5 px-4 text-nevoa-700 dark:text-nevoa-300">
                     {p.tipo_laudo_id ? (nomePorTipoLaudo.get(p.tipo_laudo_id) ?? "—") : "—"}
                   </td>
-                  <td className="py-2.5 px-4">
-                    <Selo variante={STATUS_VARIANTE[p.status] ?? "neutro"}>
-                      {STATUS_ROTULOS[p.status] ?? p.status}
-                    </Selo>
+                  <td className="py-2.5 px-4 text-nevoa-700 dark:text-nevoa-300">
+                    {p.situacao_processo || "—"}
                   </td>
                 </tr>
               ))}

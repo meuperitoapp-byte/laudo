@@ -4,7 +4,6 @@ import { ProcessoForm } from "@/features/processos/processo-form";
 import { EscolhaTipoTrabalho } from "@/features/processos/escolha-tipo-trabalho";
 import {
   SITUACOES_FINANCEIRAS_SEED,
-  SITUACOES_PROCESSO_SEED,
   VARA_ESPECIALIZACAO_SEED,
   mesclarSugestoes,
 } from "@/features/processos/catalogos";
@@ -37,14 +36,12 @@ export default async function NovoProcessoPage({
     { data: tiposLaudo },
     { data: varasDb },
     { data: comarcasDb },
-    { data: situacoesDb },
     { data: financeirasDb },
     { data: acoesDb },
   ] = await Promise.all([
     supabase.from("tipos_laudo").select("*").eq("ativo", true).order("ordem", { ascending: true }),
     supabase.from("processos").select("valor:vara_numero").not("vara_numero", "is", null),
     supabase.from("processos").select("valor:comarca_subsecao").not("comarca_subsecao", "is", null),
-    supabase.from("processos").select("valor:situacao_processo").not("situacao_processo", "is", null),
     supabase.from("processos").select("valor:situacao_financeira").not("situacao_financeira", "is", null),
     supabase.from("processos").select("valor:acao_objeto").not("acao_objeto", "is", null),
   ]);
@@ -70,7 +67,6 @@ export default async function NovoProcessoPage({
         tiposLaudo={tiposLaudo ?? []}
         sugestoesVara={mesclarSugestoes(VARA_ESPECIALIZACAO_SEED, varasDb)}
         sugestoesComarca={mesclarSugestoes([], comarcasDb)}
-        sugestoesSituacao={mesclarSugestoes(SITUACOES_PROCESSO_SEED, situacoesDb)}
         sugestoesFinanceira={mesclarSugestoes(SITUACOES_FINANCEIRAS_SEED, financeirasDb)}
         sugestoesAcaoObjeto={mesclarSugestoes([], acoesDb)}
       />

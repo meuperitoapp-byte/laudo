@@ -12,20 +12,30 @@
  * nasça na lista.
  */
 
-/** Situação do Processo — em que ponto do fluxo o processo está. */
-export const SITUACOES_PROCESSO_SEED = [
+/**
+ * Situação do Processo — pipeline único e ORDENADO (substitui os campos
+ * separados "Andamento" (status em_andamento/finalizado/arquivado) e a antiga
+ * lista livre de "Situação do Processo" — a Dra. Fernanda confirmou que eram a
+ * mesma coisa). Lista fechada (não é mais texto livre) porque o filtro padrão
+ * da lista de Processos ("esconder os Finalizado") depende de comparação
+ * exata. A ordem AQUI é a ordem de exibição no formulário — não usar
+ * mesclarSugestoes (ordena alfabético) em cima desta constante.
+ */
+export const SITUACOES_PROCESSO_ORDENADA = [
   "Sem processo",
-  "Aguardando Análise de Viabilidade",
-  "Aguardando Agendamento",
-  "Aguardando Confecção de Proposta de Honorários",
-  "Aguardando Conferência de Esclarecimentos",
-  "Aguardando Conferência de Laudo",
-  "Aguardando Deferimento de Honorários",
-  "Aguardando Montagem de Laudo",
-  "Aguardando Perícia",
+  "Aceite",
+  "Proposta de honorários",
+  "Agendamento de perícia",
+  "Comunicação de ausência do periciando",
+  "Novo agendamento",
+  "Elaboração de laudo",
+  "Laudo protocolado",
+  "Manifestação/complementação/esclarecimentos/novos quesitos",
+  "Pagamento",
+  "Finalizado",
 ] as const;
 
-/** Situação Financeira do Processo. */
+/** Situação Financeira do Processo — só Perícia Judicial (a Assistência Técnica usa SITUACOES_FINANCEIRAS_AT_SEED). */
 export const SITUACOES_FINANCEIRAS_SEED = [
   "Aguardando",
   "Aguardando Pagamento de Honorários",
@@ -37,6 +47,9 @@ export const SITUACOES_FINANCEIRAS_SEED = [
   "Aguardando entrega de laudo pericial",
   "Pago",
 ] as const;
+
+/** Situação Financeira — Assistência Técnica: lista fechada e simples (confirmado pela Dra. Fernanda). */
+export const SITUACOES_FINANCEIRAS_AT = ["Pago", "Não pago", "Em parcelamento"] as const;
 
 /**
  * Especialização da vara (Cível, do Trabalho, de Família e Sucessões,

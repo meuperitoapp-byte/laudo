@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { createProcesso, updateProcesso } from "@/features/processos/actions";
 import { Botao } from "@/components/ui/button";
 import { ComboboxCatalogo } from "@/components/ui/combobox-catalogo";
+import { SITUACOES_FINANCEIRAS_AT, SITUACOES_PROCESSO_ORDENADA } from "@/features/processos/catalogos";
 import type { ProcessosRow, TiposLaudoRow } from "@/types/database";
 import type { EtapaContratada } from "@/types/enums";
 
@@ -173,7 +174,6 @@ export function ProcessoForm({
   tiposLaudo,
   sugestoesVara,
   sugestoesComarca,
-  sugestoesSituacao,
   sugestoesFinanceira,
   sugestoesAcaoObjeto,
 }: {
@@ -184,7 +184,7 @@ export function ProcessoForm({
   tiposLaudo: TiposLaudoRow[];
   sugestoesVara: string[];
   sugestoesComarca: string[];
-  sugestoesSituacao: string[];
+  /** Judicial apenas — a Assistência Técnica usa uma lista fechada (Pago/Não pago/Em parcelamento). */
   sugestoesFinanceira: string[];
   sugestoesAcaoObjeto: string[];
 }) {
@@ -234,30 +234,28 @@ export function ProcessoForm({
 
       {editando ? (
         <Cartao titulo="Situação do processo">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="status" className={labelClass}>
-                Andamento
-              </label>
-              <select id="status" name="status" className={inputClass} defaultValue={processo!.status}>
-                <option value="em_andamento">Em andamento</option>
-                <option value="finalizado">Finalizado</option>
-                <option value="arquivado">Arquivado</option>
-              </select>
-            </div>
-          </div>
           <div>
             <label htmlFor="situacao_processo" className={labelClass}>
               Situação do Processo
             </label>
-            <ComboboxCatalogo
+            <select
               id="situacao_processo"
               name="situacao_processo"
-              sugestoes={sugestoesSituacao}
-              valorInicial={processo!.situacao_processo ?? ""}
-              rotuloNovo="Nova situação do processo"
-              placeholder="ex.: Aguardando Perícia, Aguardando Montagem de Laudo..."
-            />
+              className={inputClass}
+              defaultValue={processo!.situacao_processo ?? ""}
+            >
+              <option value="">Selecione...</option>
+              {SITUACOES_PROCESSO_ORDENADA.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+              Junta &ldquo;Andamento&rdquo; e &ldquo;Situação&rdquo; num campo só. A lista de
+              Processos esconde por padrão os que estão em &ldquo;Finalizado&rdquo; (mas
+              continuam contabilizados — dá pra ver usando o filtro).
+            </p>
           </div>
         </Cartao>
       ) : tipoForaDoForm ? null : (
@@ -539,57 +537,83 @@ export function ProcessoForm({
         <Cartao titulo="Financeiro">
           <div>
             <label htmlFor="situacao_financeira" className={labelClass}>
-              Situação Financeira do Processo
+              Situação Financeira {mostraJudicial ? "do Processo" : ""}
             </label>
-            <ComboboxCatalogo
-              id="situacao_financeira"
-              name="situacao_financeira"
-              sugestoes={sugestoesFinanceira}
-              valorInicial={processo?.situacao_financeira ?? ""}
-              rotuloNovo="Nova situação financeira de processo"
-              placeholder="ex.: Aguardando Pagamento de Honorários, Pago..."
-            />
+            {mostraJudicial ? (
+              <ComboboxCatalogo
+                id="situacao_financeira"
+                name="situacao_financeira"
+                sugestoes={sugestoesFinanceira}
+                valorInicial={processo?.situacao_financeira ?? ""}
+                rotuloNovo="Nova situação financeira de processo"
+                placeholder="ex.: Aguardando Pagamento de Honorários, Pago..."
+              />
+            ) : (
+              <select
+                id="situacao_financeira"
+                name="situacao_financeira"
+                className={inputClass}
+                defaultValue={processo?.situacao_financeira ?? ""}
+              >
+                <option value="">Selecione...</option>
+                {SITUACOES_FINANCEIRAS_AT.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          {/* Valor: judicial detalha processo + honorários; Assistência Técnica só o valor do serviço contratado. */}
+          {mostraJudicial ? (
+            <div className="grid grid-cols-3 gap-4">
+              <CampoMoeda
+                id="valor_processo"
+                name="valor_processo"
+                rotulo="Valor Processo"
+                defaultValue={processo?.valor_processo}
+              />
+              <CampoMoeda
+                id="honorario_apresentado"
+                name="honorario_apresentado"
+                rotulo="Honorário Apre."
+                defaultValue={processo?.honorario_apresentado}
+              />
+              <CampoMoeda
+                id="honorario_arbitrado"
+                name="honorario_arbitrado"
+                rotulo="Honorário Arb."
+                defaultValue={processo?.honorario_arbitrado}
+              />
+            </div>
+          ) : (
             <CampoMoeda
               id="valor_processo"
               name="valor_processo"
-              rotulo="Valor Processo"
+              rotulo="Valor do Serviço de Assistência Técnica"
               defaultValue={processo?.valor_processo}
             />
-            <CampoMoeda
-              id="honorario_apresentado"
-              name="honorario_apresentado"
-              rotulo="Honorário Apre."
-              defaultValue={processo?.honorario_apresentado}
-            />
-            <CampoMoeda
-              id="honorario_arbitrado"
-              name="honorario_arbitrado"
-              rotulo="Honorário Arb."
-              defaultValue={processo?.honorario_arbitrado}
-            />
-          </div>
+          )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="justica_gratuita" className={labelClass}>
-                Justiça Gratuita
-              </label>
-              <select
-                id="justica_gratuita"
-                name="justica_gratuita"
-                className={inputClass}
-                defaultValue={processo?.justica_gratuita ?? ""}
-              >
-                <option value="">Selecione...</option>
-                <option value="sim">Sim</option>
-                <option value="nao">Não</option>
-              </select>
-            </div>
-            {/* Aceitou Nomeação só existe no fluxo judicial (nomeação pelo juízo). */}
-            {mostraJudicial && (
+          {/* Justiça Gratuita e Aceitou Nomeação só existem no fluxo judicial. */}
+          {mostraJudicial && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="justica_gratuita" className={labelClass}>
+                  Justiça Gratuita
+                </label>
+                <select
+                  id="justica_gratuita"
+                  name="justica_gratuita"
+                  className={inputClass}
+                  defaultValue={processo?.justica_gratuita ?? ""}
+                >
+                  <option value="">Selecione...</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </div>
               <div>
                 <label htmlFor="aceitou_nomeacao" className={labelClass}>
                   Aceitou Nomeação
@@ -606,8 +630,8 @@ export function ProcessoForm({
                   <option value="destituida">Destituída do cargo</option>
                 </select>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div>
             <label htmlFor="url_processo" className={labelClass}>
