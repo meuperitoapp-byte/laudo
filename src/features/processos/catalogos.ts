@@ -14,6 +14,7 @@
 
 /** Situação do Processo — em que ponto do fluxo o processo está. */
 export const SITUACOES_PROCESSO_SEED = [
+  "Sem processo",
   "Aguardando Análise de Viabilidade",
   "Aguardando Agendamento",
   "Aguardando Confecção de Proposta de Honorários",

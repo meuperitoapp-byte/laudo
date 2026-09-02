@@ -22,6 +22,36 @@ const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   assistencia_tecnica: "Assistência Técnica",
 };
 
+/** Etapas contratadas da Assistência Técnica — rótulo e sigla (a sigla prefixa o título do processo de AT). */
+const ETAPA_CONTRATADA_ROTULOS: Record<string, string> = {
+  analise_viabilidade: "Análise de viabilidade",
+  estrategia_pericial: "Estratégia pericial",
+  analise_contestacao: "Análise da contestação",
+  dados_replica: "Dados para réplica",
+  quesitos: "Quesitos",
+  parecer_tecnico: "Parecer técnico",
+  relatorio_tecnico: "Relatório técnico",
+  atestados: "Atestados",
+  declaracao: "Declaração",
+  manifestacao_laudo_pericial: "Manifestação ao laudo pericial",
+  quesitos_suplementares: "Quesitos suplementares",
+  participacao_pericia: "Participação da perícia",
+};
+const ETAPA_CONTRATADA_SIGLAS: Record<string, string> = {
+  analise_viabilidade: "AV",
+  estrategia_pericial: "EP",
+  analise_contestacao: "AC",
+  dados_replica: "DR",
+  quesitos: "Q",
+  parecer_tecnico: "PT",
+  relatorio_tecnico: "RT",
+  atestados: "ATE",
+  declaracao: "DECL",
+  manifestacao_laudo_pericial: "ML",
+  quesitos_suplementares: "QS",
+  participacao_pericia: "PP",
+};
+
 const SIM_NAO_ROTULOS: Record<string, string> = { sim: "Sim", nao: "Não" };
 const ACEITOU_NOMEACAO_ROTULOS: Record<string, string> = {
   sim: "Sim",
@@ -87,12 +117,17 @@ export default async function ProcessoDetalhePage({
     primeiraSecaoId = primeiraSecao?.id ?? null;
   }
 
+  // Título: no judicial, o nº do processo (ou nome). Na AT ainda pode não haver
+  // processo — usa a sigla da 1ª etapa contratada + nome do periciado
+  // (ex.: "AV - João da Silva").
+  const primeiraEtapa = processo.etapas_contratadas?.[0];
+  const siglaEtapa = primeiraEtapa ? ETAPA_CONTRATADA_SIGLAS[primeiraEtapa] : null;
+  const nomePericiado = processo.periciando_nome || nomesPoloAtivo[0] || processo.parte_autora;
   const titulo =
-    processo.numero_processo ||
-    processo.periciando_nome ||
-    nomesPoloAtivo[0] ||
-    processo.parte_autora ||
-    "Processo sem identificação";
+    processo.tipo_trabalho === "assistencia_tecnica"
+      ? [siglaEtapa && nomePericiado ? `${siglaEtapa} -` : null, nomePericiado].filter(Boolean).join(" ") ||
+        "Processo sem identificação"
+      : processo.numero_processo || nomePericiado || "Processo sem identificação";
 
   return (
     <main className="p-8 space-y-6 max-w-2xl">
@@ -136,11 +171,18 @@ export default async function ProcessoDetalhePage({
           )}
 
           {processo.tipo_trabalho === "assistencia_tecnica" && (
-            <Campo rotulo="Etapas contratadas" colSpan>
-              {processo.etapas_contratadas && processo.etapas_contratadas.length > 0
-                ? processo.etapas_contratadas.join(", ")
-                : "—"}
-            </Campo>
+            <>
+              <Campo rotulo="Contratante">{processo.cliente_parte_assistida ?? "—"}</Campo>
+              <Campo rotulo="Advogado">{processo.advogado_escritorio ?? "—"}</Campo>
+              <Campo rotulo="Periciado(a)">{processo.periciando_nome ?? "—"}</Campo>
+              <Campo rotulo="Etapas contratadas" colSpan>
+                {processo.etapas_contratadas && processo.etapas_contratadas.length > 0
+                  ? processo.etapas_contratadas
+                      .map((e) => ETAPA_CONTRATADA_ROTULOS[e] ?? e)
+                      .join(", ")
+                  : "—"}
+              </Campo>
+            </>
           )}
         </dl>
       </div>
@@ -161,9 +203,11 @@ export default async function ProcessoDetalhePage({
           </Campo>
           <Campo rotulo="Honorário apresentado">{moedaBRL(processo.honorario_apresentado)}</Campo>
           <Campo rotulo="Honorário arbitrado">{moedaBRL(processo.honorario_arbitrado)}</Campo>
-          <Campo rotulo="Aceitou nomeação">
-            {processo.aceitou_nomeacao ? ACEITOU_NOMEACAO_ROTULOS[processo.aceitou_nomeacao] : "—"}
-          </Campo>
+          {processo.tipo_trabalho === "pericia_judicial" && (
+            <Campo rotulo="Aceitou nomeação">
+              {processo.aceitou_nomeacao ? ACEITOU_NOMEACAO_ROTULOS[processo.aceitou_nomeacao] : "—"}
+            </Campo>
+          )}
           <Campo rotulo="URL do processo">
             {processo.url_processo ? (
               <a
@@ -199,7 +243,7 @@ export default async function ProcessoDetalhePage({
           </span>
         )}
         <Link href={`/processos/${processo.id}/editar`} className={classesBotao("secundaria")}>
-          Editar
+          Editar dados do processo
         </Link>
         <Link href={`/processos/${processo.id}/quesitos`} className={classesBotao("secundaria")}>
           Quesitos

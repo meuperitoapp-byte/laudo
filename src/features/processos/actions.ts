@@ -103,6 +103,7 @@ export async function createProcesso(formData: FormData): Promise<ActionResult> 
     insert.etapas_contratadas = etapas.length > 0 ? etapas : null;
     insert.cliente_parte_assistida = optionalText(formData, "cliente_parte_assistida");
     insert.advogado_escritorio = optionalText(formData, "advogado_escritorio");
+    insert.periciando_nome = optionalText(formData, "periciando_nome");
   }
 
   const { data, error } = await supabase
@@ -153,6 +154,7 @@ export async function updateProcesso(
     update.etapas_contratadas = etapas.length > 0 ? etapas : null;
     update.cliente_parte_assistida = optionalText(formData, "cliente_parte_assistida");
     update.advogado_escritorio = optionalText(formData, "advogado_escritorio");
+    update.periciando_nome = optionalText(formData, "periciando_nome");
   }
 
   const { error } = await supabase.from("processos").update(update).eq("id", processoId);

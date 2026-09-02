@@ -146,8 +146,8 @@ export function montarCabecalhoAssistenciaTecnica(
   const numeroCaso = processo.numero_processo?.trim();
   const cliente = processo.cliente_parte_assistida?.trim();
   const advogado = processo.advogado_escritorio?.trim();
-  if (cliente) linhasContexto.push({ rotulo: "Cliente / parte assistida", valor: cliente });
-  if (advogado) linhasContexto.push({ rotulo: "Advogado(a) / escritório", valor: advogado });
+  if (cliente) linhasContexto.push({ rotulo: "Contratante", valor: cliente });
+  if (advogado) linhasContexto.push({ rotulo: "Advogado", valor: advogado });
   if (numeroCaso) linhasContexto.push({ rotulo: "Processo / caso nº", valor: numeroCaso });
 
   return {

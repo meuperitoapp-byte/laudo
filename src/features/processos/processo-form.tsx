@@ -9,12 +9,17 @@ import type { EtapaContratada } from "@/types/enums";
 
 const ETAPAS_CONTRATADAS: { codigo: EtapaContratada; rotulo: string }[] = [
   { codigo: "analise_viabilidade", rotulo: "Análise de viabilidade" },
-  { codigo: "parecer_tecnico", rotulo: "Parecer técnico" },
-  { codigo: "assistencia_tecnica_fase_1", rotulo: "Assistência técnica — fase 1" },
-  { codigo: "assistencia_tecnica_fase_2", rotulo: "Assistência técnica — fase 2" },
+  { codigo: "estrategia_pericial", rotulo: "Estratégia pericial" },
+  { codigo: "analise_contestacao", rotulo: "Análise da contestação" },
+  { codigo: "dados_replica", rotulo: "Dados para réplica" },
   { codigo: "quesitos", rotulo: "Quesitos" },
-  { codigo: "declaracao", rotulo: "Declaração" },
+  { codigo: "parecer_tecnico", rotulo: "Parecer técnico" },
+  { codigo: "relatorio_tecnico", rotulo: "Relatório técnico" },
   { codigo: "atestados", rotulo: "Atestados" },
+  { codigo: "declaracao", rotulo: "Declaração" },
+  { codigo: "manifestacao_laudo_pericial", rotulo: "Manifestação ao laudo pericial" },
+  { codigo: "quesitos_suplementares", rotulo: "Quesitos suplementares" },
+  { codigo: "participacao_pericia", rotulo: "Participação da perícia" },
 ];
 
 const inputClass =
@@ -424,7 +429,50 @@ export function ProcessoForm({
       )}
 
       {mostraAssistencia && (
-        <Cartao titulo={tipoForaDoForm ? "Etapas contratadas" : "1. Etapas contratadas"}>
+        <Cartao titulo={tipoForaDoForm ? "Identificação" : "1. Identificação"}>
+          <div>
+            <label htmlFor="cliente_parte_assistida" className={labelClass}>
+              Contratante
+            </label>
+            <input
+              id="cliente_parte_assistida"
+              name="cliente_parte_assistida"
+              className={inputClass}
+              defaultValue={processo?.cliente_parte_assistida ?? ""}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="periciando_nome" className={labelClass}>
+                Periciado(a)
+              </label>
+              <input
+                id="periciando_nome"
+                name="periciando_nome"
+                className={inputClass}
+                defaultValue={processo?.periciando_nome ?? ""}
+              />
+            </div>
+            <div>
+              <label htmlFor="advogado_escritorio" className={labelClass}>
+                Advogado
+              </label>
+              <input
+                id="advogado_escritorio"
+                name="advogado_escritorio"
+                className={inputClass}
+                defaultValue={processo?.advogado_escritorio ?? ""}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+            Contratante e advogado vão no cabeçalho do Parecer Técnico gerado.
+          </p>
+        </Cartao>
+      )}
+
+      {mostraAssistencia && (
+        <Cartao titulo={tipoForaDoForm ? "Etapas contratadas" : "2. Etapas contratadas"}>
           <div className="grid grid-cols-2 gap-3">
             {ETAPAS_CONTRATADAS.map((etapa) => (
               <OpcaoCheckbox
@@ -436,34 +484,6 @@ export function ProcessoForm({
               />
             ))}
           </div>
-
-          <div className="grid grid-cols-2 gap-4 pt-2">
-            <div>
-              <label htmlFor="cliente_parte_assistida" className={labelClass}>
-                Cliente / parte assistida
-              </label>
-              <input
-                id="cliente_parte_assistida"
-                name="cliente_parte_assistida"
-                className={inputClass}
-                defaultValue={processo?.cliente_parte_assistida ?? ""}
-              />
-            </div>
-            <div>
-              <label htmlFor="advogado_escritorio" className={labelClass}>
-                Advogado(a) / escritório
-              </label>
-              <input
-                id="advogado_escritorio"
-                name="advogado_escritorio"
-                className={inputClass}
-                defaultValue={processo?.advogado_escritorio ?? ""}
-              />
-            </div>
-          </div>
-          <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
-            Vão no cabeçalho do Parecer Técnico gerado. Opcionais.
-          </p>
         </Cartao>
       )}
 
@@ -568,22 +588,25 @@ export function ProcessoForm({
                 <option value="nao">Não</option>
               </select>
             </div>
-            <div>
-              <label htmlFor="aceitou_nomeacao" className={labelClass}>
-                Aceitou Nomeação
-              </label>
-              <select
-                id="aceitou_nomeacao"
-                name="aceitou_nomeacao"
-                className={inputClass}
-                defaultValue={processo?.aceitou_nomeacao ?? ""}
-              >
-                <option value="">Selecione...</option>
-                <option value="sim">Sim</option>
-                <option value="nao">Não</option>
-                <option value="destituida">Destituída do cargo</option>
-              </select>
-            </div>
+            {/* Aceitou Nomeação só existe no fluxo judicial (nomeação pelo juízo). */}
+            {mostraJudicial && (
+              <div>
+                <label htmlFor="aceitou_nomeacao" className={labelClass}>
+                  Aceitou Nomeação
+                </label>
+                <select
+                  id="aceitou_nomeacao"
+                  name="aceitou_nomeacao"
+                  className={inputClass}
+                  defaultValue={processo?.aceitou_nomeacao ?? ""}
+                >
+                  <option value="">Selecione...</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                  <option value="destituida">Destituída do cargo</option>
+                </select>
+              </div>
+            )}
           </div>
 
           <div>

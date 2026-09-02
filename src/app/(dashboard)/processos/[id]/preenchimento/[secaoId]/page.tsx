@@ -228,6 +228,11 @@ export default async function PreenchimentoSecaoPage({
 
   return (
     <SecaoWorkspace
+      // Remonta o workspace a cada seção: a navegação entre seções é "soft"
+      // (router.push), então sem key o React reaproveita a mesma instância e os
+      // useState (respostas, snapshot do salvo) não reinicializam — só a 1ª
+      // seção ficava editável.
+      key={secaoAtual.id}
       processoId={processoId}
       tipoLaudoNome={tipoLaudo?.nome ?? ""}
       periciandoNome={processo.periciando_nome}

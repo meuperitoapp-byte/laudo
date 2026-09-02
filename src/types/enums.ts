@@ -41,9 +41,14 @@ export type TipoDocumento =
  */
 export type EtapaContratada =
   | 'analise_viabilidade'
-  | 'parecer_tecnico'
-  | 'assistencia_tecnica_fase_1'
-  | 'assistencia_tecnica_fase_2'
+  | 'estrategia_pericial'
+  | 'analise_contestacao'
+  | 'dados_replica'
   | 'quesitos'
-  | 'declaracao'
+  | 'parecer_tecnico'
+  | 'relatorio_tecnico'
   | 'atestados'
+  | 'declaracao'
+  | 'manifestacao_laudo_pericial'
+  | 'quesitos_suplementares'
+  | 'participacao_pericia'

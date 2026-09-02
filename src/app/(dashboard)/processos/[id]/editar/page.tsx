@@ -48,7 +48,9 @@ export default async function EditarProcessoPage({
         >
           ← Voltar para o processo
         </Link>
-        <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mt-2">Editar processo</h1>
+        <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mt-2">
+          Editar dados do processo
+        </h1>
       </div>
       <ProcessoForm
         modo="editar"
