@@ -55,6 +55,18 @@ export default async function PosLaudoIndexPage({
     .eq("processo_id", processoId)
     .order("numero_ciclo", { ascending: true });
 
+  const idsCiclos = (ciclos ?? []).map((c) => c.id);
+  const pontosPorCiclo: Record<string, number> = {};
+  if (idsCiclos.length > 0) {
+    const { data: pontos } = await supabase
+      .from("pos_laudo_pontos")
+      .select("ciclo_id")
+      .in("ciclo_id", idsCiclos);
+    for (const p of pontos ?? []) {
+      pontosPorCiclo[p.ciclo_id] = (pontosPorCiclo[p.ciclo_id] ?? 0) + 1;
+    }
+  }
+
   const titulo =
     processo.numero_processo ||
     processo.periciando_nome ||
@@ -122,6 +134,10 @@ export default async function PosLaudoIndexPage({
                   <div>
                     <dt className="inline font-medium">Natureza: </dt>
                     <dd className="inline">{naturezas.length > 0 ? naturezas.join(", ") : "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-medium">Pontos: </dt>
+                    <dd className="inline">{pontosPorCiclo[c.id] ?? 0}</dd>
                   </div>
                 </dl>
               </li>

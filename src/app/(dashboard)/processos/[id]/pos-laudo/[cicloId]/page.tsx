@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { RegistroDemandaForm } from "@/features/pos-laudo/registro-demanda-form";
+import { MatrizPontos, type EvidenciaVinculo } from "@/features/pos-laudo/matriz-pontos";
 import { CICLO_STATUS_ROTULOS, FLUXO_ROTULOS } from "@/features/pos-laudo/rotulos";
 import type { PosLaudoCicloStatus, PosLaudoFluxo } from "@/types/enums";
 
@@ -23,15 +24,42 @@ export default async function PosLaudoCicloPage({
     notFound();
   }
 
-  const { data: documentos } = await supabase
-    .from("documentos")
-    .select("id, nome_arquivo")
-    .eq("processo_id", processoId)
-    .eq("tipo", "documento_processual")
-    .order("ordem", { ascending: true });
+  const [{ data: documentos }, { data: pontos }] = await Promise.all([
+    supabase
+      .from("documentos")
+      .select("id, nome_arquivo")
+      .eq("processo_id", processoId)
+      .eq("tipo", "documento_processual")
+      .order("ordem", { ascending: true }),
+    supabase
+      .from("pos_laudo_pontos")
+      .select("*")
+      .eq("ciclo_id", cicloId)
+      .order("ordem", { ascending: true }),
+  ]);
+
+  const pontosLista = pontos ?? [];
+  let evidenciasPorPonto: Record<string, EvidenciaVinculo[]> = {};
+  if (pontosLista.length > 0) {
+    const { data: evidencias } = await supabase
+      .from("pos_laudo_ponto_evidencias")
+      .select("id, ponto_id, documento_id, observacao")
+      .in(
+        "ponto_id",
+        pontosLista.map((p) => p.id),
+      );
+    evidenciasPorPonto = (evidencias ?? []).reduce<Record<string, EvidenciaVinculo[]>>((acc, e) => {
+      (acc[e.ponto_id] ??= []).push({
+        id: e.id,
+        documento_id: e.documento_id,
+        observacao: e.observacao,
+      });
+      return acc;
+    }, {});
+  }
 
   return (
-    <main className="p-8 max-w-2xl space-y-6">
+    <main className="p-8 max-w-2xl space-y-8">
       <Link
         href={`/processos/${processoId}/pos-laudo`}
         className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400"
@@ -48,8 +76,8 @@ export default async function PosLaudoCicloPage({
           {CICLO_STATUS_ROTULOS[ciclo.status as PosLaudoCicloStatus] ?? ciclo.status}
         </p>
         <p className="text-xs text-nevoa-400 dark:text-nevoa-600">
-          O fluxo vem do tipo de trabalho do processo e não muda. As próximas etapas do ciclo
-          (triagem, matriz, documentos, geração) entram nas fatias seguintes.
+          O fluxo vem do tipo de trabalho do processo e não muda. As etapas de resposta (matriz de
+          enfrentamento, documentos supervenientes, quesitos, geração) entram nas fatias seguintes.
         </p>
       </div>
 
@@ -63,6 +91,16 @@ export default async function PosLaudoCicloPage({
           natureza: ciclo.natureza as string[] | null,
           documento_intimacao_id: ciclo.documento_intimacao_id,
         }}
+        documentos={documentos ?? []}
+      />
+
+      <MatrizPontos
+        processoId={processoId}
+        cicloId={ciclo.id}
+        podeModificarConclusao={ciclo.pode_modificar_conclusao}
+        rascunhoComplementacao={ciclo.rascunho_complementacao}
+        pontos={pontosLista}
+        evidenciasPorPonto={evidenciasPorPonto}
         documentos={documentos ?? []}
       />
     </main>
