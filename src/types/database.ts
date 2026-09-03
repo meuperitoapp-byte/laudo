@@ -30,13 +30,27 @@ import type {
   AceitouNomeacao,
   TipoDocumento,
   EtapaContratada,
+  PosLaudoFluxo,
+  PosLaudoCicloStatus,
+  PosLaudoOrigem,
+  PosLaudoClassificacaoGlobal,
+  PosLaudoPotencialConclusao,
+  PosLaudoClassificacaoTriagem,
+  PosLaudoRepercussaoPonto,
+  PosLaudoDocumentoPapel,
+  PosLaudoDocumentoRelevancia,
+  PosLaudoQuesitoTipo,
+  PosLaudoQuesitoStatus,
+  PosLaudoConclusaoOrigem,
+  PosLaudoConclusaoEscopo,
+  LaudoGeradoTipo,
 } from './enums'
 import type {
   CondicaoVisibilidade,
   OpcaoCampo,
   ConfigTabela,
   ValorSelecionado,
-  SnapshotRespostas,
+  SnapshotLaudoGerado,
 } from './json-fields'
 
 /** Torna as chaves em K opcionais em T — modela colunas com DEFAULT no banco para o tipo Insert. */
@@ -397,7 +411,7 @@ export type QuesitosInsert = ComDefaults<
 export type QuesitosUpdate = Partial<QuesitosRow>
 
 // ============================================================================
-// laudos_gerados
+// laudos_gerados  (estendida em 20260905120000_pos_laudo_schema.sql)
 // ============================================================================
 export type LaudosGeradosRow = {
   id: string
@@ -405,9 +419,18 @@ export type LaudosGeradosRow = {
   versao: number
   storage_path_pdf: string | null
   storage_path_docx: string | null
-  snapshot_respostas: SnapshotRespostas | null
+  snapshot_respostas: SnapshotLaudoGerado | null
   gerado_por: string | null
   created_at: string
+  // --- colunas do Pós-Laudo (todas nullable ou com default no banco) ---
+  tipo: LaudoGeradoTipo                 // default 'laudo'
+  pos_laudo_ciclo_id: string | null
+  titulo: string | null
+  substitui_conclusao: boolean          // default false
+  protocolado: boolean                  // default false
+  protocolo_id: string | null
+  protocolado_em: string | null
+  paginas: number | null
 }
 export type LaudosGeradosInsert = ComDefaults<
   LaudosGeradosRow,
@@ -417,8 +440,244 @@ export type LaudosGeradosInsert = ComDefaults<
   | 'snapshot_respostas'
   | 'gerado_por'
   | 'created_at'
+  | 'tipo'
+  | 'pos_laudo_ciclo_id'
+  | 'titulo'
+  | 'substitui_conclusao'
+  | 'protocolado'
+  | 'protocolo_id'
+  | 'protocolado_em'
+  | 'paginas'
 >
 export type LaudosGeradosUpdate = Partial<LaudosGeradosRow>
+
+// ============================================================================
+// pos_laudo_ciclos  (20260905120000_pos_laudo_schema.sql)
+// ============================================================================
+export type PosLaudoCiclosRow = {
+  id: string
+  processo_id: string
+  numero_ciclo: number
+  fluxo: PosLaudoFluxo
+  status: PosLaudoCicloStatus
+  data_intimacao: string | null
+  prazo: string | null
+  origem: PosLaudoOrigem | null
+  natureza: string[]                    // códigos PosLaudoNatureza (validado na aplicação)
+  documento_intimacao_id: string | null
+  laudo_base_id: string | null
+  classificacao_global: PosLaudoClassificacaoGlobal | null
+  pode_modificar_conclusao: PosLaudoPotencialConclusao | null
+  rascunho_complementacao: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  encerrado_em: string | null
+}
+export type PosLaudoCiclosInsert = ComDefaults<
+  PosLaudoCiclosRow,
+  | 'id'
+  | 'status'
+  | 'data_intimacao'
+  | 'prazo'
+  | 'origem'
+  | 'natureza'
+  | 'documento_intimacao_id'
+  | 'laudo_base_id'
+  | 'classificacao_global'
+  | 'pode_modificar_conclusao'
+  | 'rascunho_complementacao'
+  | 'created_by'
+  | 'created_at'
+  | 'updated_at'
+  | 'encerrado_em'
+>
+export type PosLaudoCiclosUpdate = Partial<PosLaudoCiclosRow>
+
+// ============================================================================
+// pos_laudo_pontos
+// ============================================================================
+export type PosLaudoPontosRow = {
+  id: string
+  ciclo_id: string
+  ordem: number
+  origem_ponto: string | null
+  tema: string | null
+  sintese_alegacao: string | null
+  ja_abordado_no_laudo: boolean | null
+  referencia_laudo: string | null
+  classificacao_triagem: PosLaudoClassificacaoTriagem | null
+  potencial_alterar_conclusao: PosLaudoPotencialConclusao | null
+  fundamentacao_adicional: string | null
+  resposta_tecnica: string | null
+  repercussao: PosLaudoRepercussaoPonto | null
+  categoria_problema: string | null
+  created_at: string
+  updated_at: string
+}
+export type PosLaudoPontosInsert = ComDefaults<
+  PosLaudoPontosRow,
+  | 'id'
+  | 'origem_ponto'
+  | 'tema'
+  | 'sintese_alegacao'
+  | 'ja_abordado_no_laudo'
+  | 'referencia_laudo'
+  | 'classificacao_triagem'
+  | 'potencial_alterar_conclusao'
+  | 'fundamentacao_adicional'
+  | 'resposta_tecnica'
+  | 'repercussao'
+  | 'categoria_problema'
+  | 'created_at'
+  | 'updated_at'
+>
+export type PosLaudoPontosUpdate = Partial<PosLaudoPontosRow>
+
+// ============================================================================
+// pos_laudo_ponto_evidencias
+// ============================================================================
+export type PosLaudoPontoEvidenciasRow = {
+  id: string
+  ponto_id: string
+  documento_id: string | null
+  resposta_processo_id: string | null
+  observacao: string | null
+  created_at: string
+}
+export type PosLaudoPontoEvidenciasInsert = ComDefaults<
+  PosLaudoPontoEvidenciasRow,
+  'id' | 'documento_id' | 'resposta_processo_id' | 'observacao' | 'created_at'
+>
+export type PosLaudoPontoEvidenciasUpdate = Partial<PosLaudoPontoEvidenciasRow>
+
+// ============================================================================
+// pos_laudo_documentos
+// ============================================================================
+export type PosLaudoDocumentosRow = {
+  id: string
+  ciclo_id: string
+  documento_id: string
+  papel: PosLaudoDocumentoPapel
+  apresentante: string | null
+  data_juntada: string | null
+  paginas: string | null
+  existencia_previa: boolean | null
+  disponivel_ao_perito_antes: boolean | null
+  relevancia: PosLaudoDocumentoRelevancia | null
+  impacto: string | null
+  ja_enfrentado: boolean
+  observacao_tecnica: string | null
+  created_at: string
+  updated_at: string
+}
+export type PosLaudoDocumentosInsert = ComDefaults<
+  PosLaudoDocumentosRow,
+  | 'id'
+  | 'papel'
+  | 'apresentante'
+  | 'data_juntada'
+  | 'paginas'
+  | 'existencia_previa'
+  | 'disponivel_ao_perito_antes'
+  | 'relevancia'
+  | 'impacto'
+  | 'ja_enfrentado'
+  | 'observacao_tecnica'
+  | 'created_at'
+  | 'updated_at'
+>
+export type PosLaudoDocumentosUpdate = Partial<PosLaudoDocumentosRow>
+
+// ============================================================================
+// pos_laudo_retificacao_itens
+// ============================================================================
+export type PosLaudoRetificacaoItensRow = {
+  id: string
+  ciclo_id: string
+  documento_alvo_id: string | null
+  ordem: number
+  pagina: string | null
+  item_secao: string | null
+  onde_se_le: string
+  leia_se: string
+  natureza_erro: string | null
+  created_at: string
+  updated_at: string
+}
+export type PosLaudoRetificacaoItensInsert = ComDefaults<
+  PosLaudoRetificacaoItensRow,
+  | 'id'
+  | 'documento_alvo_id'
+  | 'pagina'
+  | 'item_secao'
+  | 'natureza_erro'
+  | 'created_at'
+  | 'updated_at'
+>
+export type PosLaudoRetificacaoItensUpdate = Partial<PosLaudoRetificacaoItensRow>
+
+// ============================================================================
+// pos_laudo_quesitos
+// ============================================================================
+export type PosLaudoQuesitosRow = {
+  id: string
+  ciclo_id: string
+  ponto_id: string | null
+  tipo: PosLaudoQuesitoTipo
+  origem: string | null
+  numero: number | null
+  pergunta: string
+  resposta: string | null
+  objetivo_estrategico_interno: string | null
+  status: PosLaudoQuesitoStatus
+  created_at: string
+  updated_at: string
+}
+export type PosLaudoQuesitosInsert = ComDefaults<
+  PosLaudoQuesitosRow,
+  | 'id'
+  | 'ponto_id'
+  | 'origem'
+  | 'numero'
+  | 'resposta'
+  | 'objetivo_estrategico_interno'
+  | 'status'
+  | 'created_at'
+  | 'updated_at'
+>
+export type PosLaudoQuesitosUpdate = Partial<PosLaudoQuesitosRow>
+
+// ============================================================================
+// pos_laudo_conclusoes_vigentes
+// ============================================================================
+export type PosLaudoConclusoesVigentesRow = {
+  id: string
+  processo_id: string
+  origem_tipo: PosLaudoConclusaoOrigem
+  origem_laudo_gerado_id: string | null
+  ciclo_id: string | null
+  texto: string
+  escopo: PosLaudoConclusaoEscopo
+  vigente_desde: string
+  substituida_em: string | null
+  substituida_por_id: string | null
+  created_by: string | null
+  created_at: string
+}
+export type PosLaudoConclusoesVigentesInsert = ComDefaults<
+  PosLaudoConclusoesVigentesRow,
+  | 'id'
+  | 'origem_laudo_gerado_id'
+  | 'ciclo_id'
+  | 'escopo'
+  | 'vigente_desde'
+  | 'substituida_em'
+  | 'substituida_por_id'
+  | 'created_by'
+  | 'created_at'
+>
+export type PosLaudoConclusoesVigentesUpdate = Partial<PosLaudoConclusoesVigentesRow>
 
 // ============================================================================
 // Database — shape esperado por createClient<Database>()
@@ -502,6 +761,48 @@ export interface Database {
         Row: LaudosGeradosRow
         Insert: LaudosGeradosInsert
         Update: LaudosGeradosUpdate
+        Relationships: []
+      }
+      pos_laudo_ciclos: {
+        Row: PosLaudoCiclosRow
+        Insert: PosLaudoCiclosInsert
+        Update: PosLaudoCiclosUpdate
+        Relationships: []
+      }
+      pos_laudo_pontos: {
+        Row: PosLaudoPontosRow
+        Insert: PosLaudoPontosInsert
+        Update: PosLaudoPontosUpdate
+        Relationships: []
+      }
+      pos_laudo_ponto_evidencias: {
+        Row: PosLaudoPontoEvidenciasRow
+        Insert: PosLaudoPontoEvidenciasInsert
+        Update: PosLaudoPontoEvidenciasUpdate
+        Relationships: []
+      }
+      pos_laudo_documentos: {
+        Row: PosLaudoDocumentosRow
+        Insert: PosLaudoDocumentosInsert
+        Update: PosLaudoDocumentosUpdate
+        Relationships: []
+      }
+      pos_laudo_retificacao_itens: {
+        Row: PosLaudoRetificacaoItensRow
+        Insert: PosLaudoRetificacaoItensInsert
+        Update: PosLaudoRetificacaoItensUpdate
+        Relationships: []
+      }
+      pos_laudo_quesitos: {
+        Row: PosLaudoQuesitosRow
+        Insert: PosLaudoQuesitosInsert
+        Update: PosLaudoQuesitosUpdate
+        Relationships: []
+      }
+      pos_laudo_conclusoes_vigentes: {
+        Row: PosLaudoConclusoesVigentesRow
+        Insert: PosLaudoConclusoesVigentesInsert
+        Update: PosLaudoConclusoesVigentesUpdate
         Relationships: []
       }
     }

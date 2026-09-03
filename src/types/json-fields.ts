@@ -189,3 +189,77 @@ export interface SnapshotRespostas {
   secoes: SnapshotSecao[]
   quesitos: SnapshotQuesito[]
 }
+
+// ----------------------------------------------------------------------------
+// laudos_gerados.snapshot_respostas — arm do Pós-Laudo
+// (migration 20260905120000_pos_laudo_schema.sql; plano §1.3)
+// ----------------------------------------------------------------------------
+// Depois que laudos_gerados passou a carregar também Esclarecimentos /
+// Retificação / Complementação (e as saídas AT), o snapshot ganhou uma
+// segunda forma. A discriminação é por `laudos_gerados.tipo` (a COLUNA):
+//   row.tipo === 'laudo'  -> snapshot_respostas é SnapshotRespostas
+//   row.tipo !== 'laudo'  -> snapshot_respostas é SnapshotPosLaudo
+// Dentro do Pós-Laudo, o campo `tipo` do próprio snapshot distingue as 7
+// naturezas de documento. Não é tipo "solto": a forma do snapshot fica
+// amarrada a `tipo` e o tsc obriga a narrow antes de ler `secoes`/`pontos`.
+//
+// Linhas geradas ANTES desta migration não têm `tipo` na coluna nem
+// discriminante no jsonb — um leitor futuro trata ausência de tipo como 'laudo'.
+
+/** Um ponto da matriz de enfrentamento, congelado no snapshot de um documento de pós-laudo. */
+export interface SnapshotPosLaudoPonto {
+  ordem: number
+  tema: string | null
+  origem_ponto: string | null
+  sintese_alegacao: string | null
+  classificacao_triagem: string | null
+  resposta_tecnica: string | null
+  repercussao: string | null
+}
+
+/** Um quesito do ciclo, congelado. O objetivo estratégico interno (só AT) NUNCA entra no snapshot externo. */
+export interface SnapshotPosLaudoQuesito {
+  numero: number | null
+  tipo: 'suplementar' | 'esclarecimento'
+  origem: string | null
+  pergunta: string
+  resposta: string | null
+}
+
+/** Um item "onde se lê / leia-se" de uma Retificação, congelado. */
+export interface SnapshotPosLaudoRetificacaoItem {
+  ordem: number
+  pagina: string | null
+  item_secao: string | null
+  onde_se_le: string
+  leia_se: string
+}
+
+/**
+ * laudos_gerados.snapshot_respostas quando `laudos_gerados.tipo` != 'laudo'.
+ * Congela o conteúdo compilado de um documento de pós-laudo no momento da
+ * geração (matriz de pontos + quesitos do ciclo + repercussão + conclusão),
+ * para que editar o ciclo depois não altere um documento já entregue.
+ */
+export interface SnapshotPosLaudo {
+  tipo: 'esclarecimentos' | 'retificacao' | 'complementacao' | 'parecer_at' | 'manifestacao_at' | 'impugnacao_at' | 'parecer_divergente_at'
+  gerado_em: string // ISO 8601
+  ciclo_id: string
+  numero_ciclo: number
+  fluxo: 'judicial' | 'assistencia_tecnica'
+  pontos: SnapshotPosLaudoPonto[]
+  quesitos_ciclo: SnapshotPosLaudoQuesito[]
+  retificacao_itens: SnapshotPosLaudoRetificacaoItem[]
+  /** Repercussão sobre o laudo original, nível de ciclo. */
+  repercussao_ciclo: string | null
+  /** Classificação global do laudo — só fluxo AT. */
+  classificacao_global: string | null
+  /** Texto da conclusão vigente registrada por este documento (quando altera/substitui). */
+  conclusao_vigente_texto: string | null
+}
+
+/**
+ * Forma de laudos_gerados.snapshot_respostas — união das duas naturezas.
+ * Narrow por `laudos_gerados.tipo` (ver acima).
+ */
+export type SnapshotLaudoGerado = SnapshotRespostas | SnapshotPosLaudo
