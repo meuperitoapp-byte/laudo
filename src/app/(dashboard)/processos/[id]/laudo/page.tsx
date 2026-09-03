@@ -36,9 +36,13 @@ export default async function LaudoPage({
   const versoes: VersaoLaudo[] = lista.map((v) => ({
     id: v.id,
     versao: v.versao,
+    tipo: v.tipo,
     criadoEm: v.created_at,
     urlPdf: v.storage_path_pdf ? (urlPorCaminho.get(v.storage_path_pdf) ?? null) : null,
     urlDocx: v.storage_path_docx ? (urlPorCaminho.get(v.storage_path_docx) ?? null) : null,
+    protocolado: v.protocolado,
+    protocoladoEm: v.protocolado_em,
+    protocoloId: v.protocolo_id,
   }));
 
   return (

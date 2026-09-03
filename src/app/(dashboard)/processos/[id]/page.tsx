@@ -84,6 +84,19 @@ export default async function ProcessoDetalhePage({
     .eq("processo_id", id)
     .order("ordem", { ascending: true });
   const partes = partesDb ?? [];
+
+  // Gate do Módulo Pós-Laudo: a aba só abre quando existe um laudo (tipo =
+  // 'laudo') marcado como protocolado — ver marcarLaudoProtocolado / migration
+  // 20260905120000.
+  const { data: laudoProtocolado } = await supabase
+    .from("laudos_gerados")
+    .select("id")
+    .eq("processo_id", id)
+    .eq("tipo", "laudo")
+    .eq("protocolado", true)
+    .limit(1)
+    .maybeSingle();
+  const temLaudoProtocolado = Boolean(laudoProtocolado);
   const nomesPoloAtivo = partes.filter((p) => p.polo === "ativo").map((p) => p.nome);
   const nomesPoloPassivo = partes.filter((p) => p.polo === "passivo").map((p) => p.nome);
 
@@ -238,6 +251,18 @@ export default async function ProcessoDetalhePage({
         <Link href={`/processos/${processo.id}/laudo`} className={classesBotao("secundaria")}>
           Laudo final
         </Link>
+        {temLaudoProtocolado ? (
+          <Link href={`/processos/${processo.id}/pos-laudo`} className={classesBotao("secundaria")}>
+            Pós-laudo
+          </Link>
+        ) : (
+          <span
+            className="inline-flex items-center rounded-md border border-nevoa-200 dark:border-nevoa-800 px-4 py-2 text-sm text-nevoa-400 dark:text-nevoa-600"
+            title="Disponível após marcar o laudo como protocolado, na tela Laudo final."
+          >
+            Pós-laudo (marque o laudo como protocolado)
+          </span>
+        )}
       </div>
     </main>
   );

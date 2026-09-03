@@ -83,6 +83,7 @@ export async function gerarLaudo(processoId: string): Promise<ActionResult> {
   const insert: LaudosGeradosInsert = {
     processo_id: processoId,
     versao,
+    tipo: "laudo", // explícito, não depende do default da coluna (ver migration 20260905120000)
     storage_path_pdf: caminhoPdf,
     storage_path_docx: caminhoDocx,
     snapshot_respostas: resultado.snapshot,
@@ -97,4 +98,53 @@ export async function gerarLaudo(processoId: string): Promise<ActionResult> {
 
   revalidatePath(`/processos/${processoId}/laudo`);
   return { success: true, versao };
+}
+
+/**
+ * Marca uma versão do laudo (tipo = 'laudo') como PROTOCOLADA nos autos.
+ * É a pré-condição do Módulo Pós-Laudo — a aba "Pós-laudo" só aparece quando
+ * existe um laudo protocolado, e o ciclo se ancora nele (laudo_base_id).
+ *
+ * A partir daqui o conteúdo dessa versão fica congelado pelo trigger
+ * trg_laudos_gerados_congela (arquivo, snapshot, tipo, versao, titulo,
+ * paginas, ...): NÃO há como desfazer, nem a marcação, nem o conteúdo. Só
+ * protocolo_id / protocolado_em seguem corrigíveis. Por isso a UI exige
+ * confirmação explícita num diálogo antes de chamar esta ação.
+ *
+ * Só age em linha tipo = 'laudo' ainda não protocolada; se 0 linhas baterem,
+ * devolve erro (id inexistente, já protocolada, ou não é o laudo principal).
+ */
+export async function marcarLaudoProtocolado(
+  laudoGeradoId: string,
+  processoId: string,
+  protocoloId: string | null,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("laudos_gerados")
+    .update({
+      protocolado: true,
+      protocolado_em: new Date().toISOString(),
+      protocolo_id: protocoloId,
+    })
+    .eq("id", laudoGeradoId)
+    .eq("processo_id", processoId)
+    .eq("tipo", "laudo")
+    .eq("protocolado", false)
+    .select("id");
+
+  if (error) {
+    return { error: error.message };
+  }
+  if (!data || data.length === 0) {
+    return {
+      error:
+        "Não foi possível marcar como protocolado — a versão não existe, já está protocolada, ou não é o laudo principal.",
+    };
+  }
+
+  revalidatePath(`/processos/${processoId}/laudo`);
+  revalidatePath(`/processos/${processoId}`);
+  return { success: true };
 }
