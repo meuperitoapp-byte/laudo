@@ -23,8 +23,10 @@ O que já existe:
   o Registro da Demanda em branco, redireciona pra ele em vez de criar outro.
 - **`/processos/[id]/pos-laudo/[cicloId]`** — só a etapa **"Registro da demanda"**:
   data da intimação, prazo, origem, natureza (multi), documento da intimação (escolhe um
-  já anexado ao processo; opcional, com selo "Pendente" quando vazio). Autosave.
-  `salvarRegistroDemanda` **não** mexe no `status` do ciclo.
+  já anexado ao processo; opcional, com selo "Pendente" quando vazio). **Salvamento por
+  botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload`) — mesma
+  gramática do motor de preenchimento (`secao-workspace.tsx`), não o autosave debounced
+  do quesitos-panel. `salvarRegistroDemanda` **não** mexe no `status` do ciclo.
 
 Inerte, esperando as próximas fatias: triagem / matriz de pontos, documentos
 supervenientes, quesitos do ciclo, geração de documento, conclusão vigente,

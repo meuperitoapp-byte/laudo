@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { salvarRegistroDemanda } from "./actions";
+import { Botao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
+import { Toast } from "@/components/ui/toast";
 import { NATUREZA_ORDENADA, NATUREZA_ROTULOS, ORIGEM_ROTULOS } from "./rotulos";
 import type { PosLaudoOrigem } from "@/types/enums";
 
@@ -23,6 +25,23 @@ export interface CicloRegistro {
   documento_intimacao_id: string | null;
 }
 
+/** Serializa os campos do registro pra comparar "o que está na tela" x "o que está salvo". */
+function snapshot(v: {
+  dataIntimacao: string;
+  prazo: string;
+  origem: string;
+  natureza: string[];
+  documentoIntimacaoId: string;
+}): string {
+  return JSON.stringify([
+    v.dataIntimacao,
+    v.prazo,
+    v.origem,
+    [...v.natureza].sort(),
+    v.documentoIntimacaoId,
+  ]);
+}
+
 export function RegistroDemandaForm({
   processoId,
   ciclo,
@@ -34,91 +53,80 @@ export function RegistroDemandaForm({
 }) {
   const router = useRouter();
 
-  const [dataIntimacao, setDataIntimacao] = useState(ciclo.data_intimacao ?? "");
-  const [prazo, setPrazo] = useState(ciclo.prazo ?? "");
-  const [origem, setOrigem] = useState(ciclo.origem ?? "");
-  const [natureza, setNatureza] = useState<string[]>(ciclo.natureza ?? []);
-  const [documentoIntimacaoId, setDocumentoIntimacaoId] = useState(ciclo.documento_intimacao_id ?? "");
-
-  const [erro, setErro] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  // Último conteúdo confirmado como salvo — começa igual ao banco, diverge
-  // enquanto edita, volta a bater quando salva.
-  const [salvo, setSalvo] = useState({
-    dataIntimacao: ciclo.data_intimacao ?? "",
-    prazo: ciclo.prazo ?? "",
-    origem: ciclo.origem ?? "",
-    natureza: (ciclo.natureza ?? []).join("|"),
-    documentoIntimacaoId: ciclo.documento_intimacao_id ?? "",
-  });
-  const naturezaChave = [...natureza].sort().join("|");
-  const alterado =
-    dataIntimacao !== salvo.dataIntimacao ||
-    prazo !== salvo.prazo ||
-    origem !== salvo.origem ||
-    naturezaChave !== salvo.natureza ||
-    documentoIntimacaoId !== salvo.documentoIntimacaoId;
-
-  const salvar = useCallback(() => {
-    setErro(null);
-    startTransition(async () => {
-      const alvo = {
-        dataIntimacao: dataIntimacao || null,
-        prazo: prazo || null,
-        origem: origem || null,
-        natureza,
-        documentoIntimacaoId: documentoIntimacaoId || null,
-      };
-      const r = await salvarRegistroDemanda({ cicloId: ciclo.id, processoId, ...alvo });
-      if ("error" in r) {
-        setErro(r.error);
-        return;
-      }
-      setSalvo({
-        dataIntimacao: dataIntimacao,
-        prazo: prazo,
-        origem: origem,
-        natureza: [...natureza].sort().join("|"),
-        documentoIntimacaoId: documentoIntimacaoId,
-      });
-      router.refresh();
-    });
-  }, [dataIntimacao, prazo, origem, natureza, documentoIntimacaoId, ciclo.id, processoId, router]);
-
-  // Autosave ~1,2s depois de parar de mexer (Dra. Fernanda: não perder dado
-  // numa queda de energia). Nenhum campo é obrigatório aqui, então pode
-  // disparar livre.
-  useEffect(() => {
-    if (!alterado || isPending) return;
-    const t = setTimeout(() => salvar(), 1200);
-    return () => clearTimeout(t);
-  }, [alterado, isPending, salvar]);
-
-  // Sem edições pendentes nesta aba, adota o que veio do servidor (ex.: a
-  // secretária editou o mesmo ciclo noutra aba) — ajuste de estado derivado de
-  // prop feito no render, não num efeito (doc do React).
-  const [cicloSincronizado, setCicloSincronizado] = useState(ciclo);
-  if (ciclo !== cicloSincronizado && !alterado && !isPending) {
-    setCicloSincronizado(ciclo);
-    setDataIntimacao(ciclo.data_intimacao ?? "");
-    setPrazo(ciclo.prazo ?? "");
-    setOrigem(ciclo.origem ?? "");
-    setNatureza(ciclo.natureza ?? []);
-    setDocumentoIntimacaoId(ciclo.documento_intimacao_id ?? "");
-    setSalvo({
+  const doBanco = useMemo(
+    () => ({
       dataIntimacao: ciclo.data_intimacao ?? "",
       prazo: ciclo.prazo ?? "",
       origem: ciclo.origem ?? "",
-      natureza: (ciclo.natureza ?? []).join("|"),
+      natureza: ciclo.natureza ?? [],
       documentoIntimacaoId: ciclo.documento_intimacao_id ?? "",
-    });
+    }),
+    [ciclo],
+  );
+
+  const [dataIntimacao, setDataIntimacao] = useState(doBanco.dataIntimacao);
+  const [prazo, setPrazo] = useState(doBanco.prazo);
+  const [origem, setOrigem] = useState(doBanco.origem);
+  const [natureza, setNatureza] = useState<string[]>(doBanco.natureza);
+  const [documentoIntimacaoId, setDocumentoIntimacaoId] = useState(doBanco.documentoIntimacaoId);
+
+  const [salvoSnapshot, setSalvoSnapshot] = useState(() => snapshot(doBanco));
+  const [salvando, setSalvando] = useState(false);
+  const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+
+  const atual = { dataIntimacao, prazo, origem, natureza, documentoIntimacaoId };
+  const dirty = snapshot(atual) !== salvoSnapshot;
+
+  // Sem edições pendentes, adota o que veio do servidor (ex.: a secretária
+  // editou o mesmo ciclo noutra aba) — ajuste de estado derivado de prop feito
+  // no render, não num efeito (doc do React), igual ao secao-workspace.
+  const [cicloSincronizado, setCicloSincronizado] = useState(ciclo);
+  if (ciclo !== cicloSincronizado && !dirty && !salvando) {
+    setCicloSincronizado(ciclo);
+    setDataIntimacao(doBanco.dataIntimacao);
+    setPrazo(doBanco.prazo);
+    setOrigem(doBanco.origem);
+    setNatureza(doBanco.natureza);
+    setDocumentoIntimacaoId(doBanco.documentoIntimacaoId);
+    setSalvoSnapshot(snapshot(doBanco));
   }
 
+  // Avisa antes de fechar/atualizar a aba com alterações não salvas —
+  // mesmo guard do motor de preenchimento.
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
   function toggleNatureza(codigo: string) {
-    setNatureza((atual) =>
-      atual.includes(codigo) ? atual.filter((c) => c !== codigo) : [...atual, codigo],
-    );
+    setNatureza((n) => (n.includes(codigo) ? n.filter((c) => c !== codigo) : [...n, codigo]));
+  }
+
+  async function salvar() {
+    setSalvando(true);
+    setMensagem(null);
+    const r = await salvarRegistroDemanda({
+      cicloId: ciclo.id,
+      processoId,
+      dataIntimacao: dataIntimacao || null,
+      prazo: prazo || null,
+      origem: origem || null,
+      natureza,
+      documentoIntimacaoId: documentoIntimacaoId || null,
+    });
+    setSalvando(false);
+    if ("error" in r) {
+      setMensagem({ tipo: "erro", texto: r.error });
+      return;
+    }
+    setSalvoSnapshot(snapshot(atual));
+    setMensagem({ tipo: "ok", texto: "Registro salvo." });
+    router.refresh();
   }
 
   return (
@@ -177,7 +185,10 @@ export function RegistroDemandaForm({
         <legend className={labelClass}>Natureza (pode marcar mais de uma)</legend>
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-1">
           {NATUREZA_ORDENADA.map((codigo) => (
-            <label key={codigo} className="flex items-center gap-2 text-sm text-nevoa-800 dark:text-nevoa-200">
+            <label
+              key={codigo}
+              className="flex items-center gap-2 text-sm text-nevoa-800 dark:text-nevoa-200"
+            >
               <input
                 type="checkbox"
                 checked={natureza.includes(codigo)}
@@ -222,14 +233,20 @@ export function RegistroDemandaForm({
         </p>
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-nevoa-500 dark:text-nevoa-400">
-        {isPending
-          ? "Salvando…"
-          : alterado
-            ? "Alterações não salvas — salvam sozinhas em instantes"
-            : "Salvo automaticamente"}
-        {erro && <span className="text-vinho-600 dark:text-vinho-400">{erro}</span>}
+      <div className="flex items-center gap-3 pt-1">
+        <Botao
+          onClick={() => salvar()}
+          disabled={!dirty && !salvando}
+          carregando={salvando}
+          textoCarregando="Salvando…"
+        >
+          {dirty ? "Salvar" : "Salvo"}
+        </Botao>
       </div>
+
+      {mensagem && (
+        <Toast tipo={mensagem.tipo} texto={mensagem.texto} onClose={() => setMensagem(null)} />
+      )}
     </div>
   );
 }
