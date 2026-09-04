@@ -1,10 +1,42 @@
 # Plano técnico — Módulo Pós-Laudo
 
-Status: **plano, sem código.** Cobre Perícia Judicial **e** Assistência Técnica desde
-o início (não faseado). Base: os 13 PDFs de `Complementos adicionais do modulos modelos
-e fluxo/` + `ESPECIFICACAO_ANALISE_LAUDO_E_PARECER_CONCORDANCIA_IMPUGNACAO_PERICONS`
-(colado na conversa, tratado como parte deste escopo — é o Pós-Laudo do lado AT) +
+Cobre Perícia Judicial **e** Assistência Técnica desde o início (não faseado). Base: os
+13 PDFs de `Complementos adicionais do modulos modelos e fluxo/` +
+`ESPECIFICACAO_ANALISE_LAUDO_E_PARECER_CONCORDANCIA_IMPUGNACAO_PERICONS` (colado na
+conversa, tratado como parte deste escopo — é o Pós-Laudo do lado AT) +
 `modulo-pos-laudo.md` (memória, com as respostas da Dra. Fernanda).
+
+---
+
+## ⚠️ PENDÊNCIA CRÍTICA EM ABERTO — teste do anti-join (fatia 3)
+
+**É a única pendência do módulo cujo erro seria SILENCIOSO.** Se o anti-join do
+`compilarLaudo` (`src/features/geracao-laudo/compilar.ts`, ver §1.7) estiver errado, o
+laudo sai citando na tabela de documentos analisados — e contando em
+`{{total_documentos}}` — um documento superveniente, ou seja, **um documento que não
+existia à época da perícia**. Ninguém percebe isso olhando o PDF: parece um laudo
+normal. Num laudo médico-legal é um vício grave passando despercebido.
+
+Código escrito e no ar (commit f6cec1c), `tsc`/`eslint`/`build` limpos, mas **NÃO
+testado em execução** (sem app/DB acessível pra quem escreveu). A Dra. Fernanda vai
+testar o módulo na prática e reportar ao Jeferson.
+
+**Roteiro de teste (5 passos):**
+1. Num processo judicial com laudo (ou criar um). Anotar quantos documentos processuais
+   ele tem; gerar o laudo; conferir a contagem e a tabela de documentos no PDF.
+2. Marcar o laudo como protocolado → abrir um ciclo de pós-laudo → seção "Documentos
+   supervenientes" → enviar um arquivo qualquer (papel "Superveniente").
+3. Voltar em "Laudo final" → "Gerar novo laudo" (nova versão).
+4. Abrir o PDF novo: o documento superveniente **não pode** estar na tabela de
+   documentos analisados, e a contagem de documentos tem que ser **a mesma** do passo 1
+   (não pode ter aumentado).
+5. Conferir também na aba "Documentos" do processo: o superveniente aparece lá com o
+   selo, mas na tabela do laudo não.
+
+Se a contagem subir ou o documento aparecer na tabela do laudo → bug no anti-join,
+corrigir antes de considerar o módulo fechado.
+
+---
 
 ## 0. O que foi lido e o que está dentro/fora do escopo
 
