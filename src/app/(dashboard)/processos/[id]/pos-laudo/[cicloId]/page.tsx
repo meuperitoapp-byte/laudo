@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
 import { RegistroDemandaForm } from "@/features/pos-laudo/registro-demanda-form";
 import { MatrizPontos, type EvidenciaVinculo } from "@/features/pos-laudo/matriz-pontos";
+import {
+  DocumentosSupervenientes,
+  type DocSuperveniente,
+} from "@/features/pos-laudo/documentos-supervenientes";
 import { CICLO_STATUS_ROTULOS, FLUXO_ROTULOS } from "@/features/pos-laudo/rotulos";
 import type { PosLaudoCicloStatus, PosLaudoFluxo } from "@/types/enums";
+
+const URL_ASSINADA_VALIDADE_SEGUNDOS = 60 * 60;
 
 export default async function PosLaudoCicloPage({
   params,
@@ -37,6 +44,56 @@ export default async function PosLaudoCicloPage({
       .eq("ciclo_id", cicloId)
       .order("ordem", { ascending: true }),
   ]);
+
+  // Documentos supervenientes do ciclo. Metadados em pos_laudo_documentos, o
+  // arquivo em documentos (resolvido em consulta à parte + signed URL).
+  const { data: pldDb } = await supabase
+    .from("pos_laudo_documentos")
+    .select("*")
+    .eq("ciclo_id", cicloId)
+    .order("created_at", { ascending: true });
+  const pldLista = pldDb ?? [];
+
+  const docsSupervenientes: DocSuperveniente[] = [];
+  if (pldLista.length > 0) {
+    const { data: docsDb } = await supabase
+      .from("documentos")
+      .select("id, nome_arquivo, storage_path")
+      .in(
+        "id",
+        pldLista.map((p) => p.documento_id),
+      );
+    const docPorId = new Map((docsDb ?? []).map((d) => [d.id, d]));
+
+    const caminhos = (docsDb ?? []).map((d) => d.storage_path);
+    let urlSup = new Map<string, string | null>();
+    if (caminhos.length > 0) {
+      const { data: assinadas } = await supabase.storage
+        .from(BUCKET_DOCUMENTOS)
+        .createSignedUrls(caminhos, URL_ASSINADA_VALIDADE_SEGUNDOS);
+      if (assinadas) urlSup = new Map(assinadas.map((a) => [a.path ?? "", a.signedUrl]));
+    }
+
+    for (const p of pldLista) {
+      const d = docPorId.get(p.documento_id);
+      docsSupervenientes.push({
+        pld_id: p.id,
+        documento_id: p.documento_id,
+        nome_arquivo: d?.nome_arquivo ?? "(documento removido)",
+        signed_url: d ? (urlSup.get(d.storage_path) ?? null) : null,
+        papel: p.papel,
+        apresentante: p.apresentante,
+        data_juntada: p.data_juntada,
+        paginas: p.paginas,
+        existencia_previa: p.existencia_previa,
+        disponivel_ao_perito_antes: p.disponivel_ao_perito_antes,
+        relevancia: p.relevancia,
+        impacto: p.impacto,
+        observacao_tecnica: p.observacao_tecnica,
+        ja_enfrentado: p.ja_enfrentado,
+      });
+    }
+  }
 
   const pontosLista = pontos ?? [];
   let evidenciasPorPonto: Record<string, EvidenciaVinculo[]> = {};
@@ -93,6 +150,8 @@ export default async function PosLaudoCicloPage({
         }}
         documentos={documentos ?? []}
       />
+
+      <DocumentosSupervenientes processoId={processoId} cicloId={ciclo.id} docs={docsSupervenientes} />
 
       <MatrizPontos
         processoId={processoId}

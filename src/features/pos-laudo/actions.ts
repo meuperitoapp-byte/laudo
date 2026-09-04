@@ -3,9 +3,17 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import type { PosLaudoCiclosInsert, PosLaudoPontosInsert } from "@/types/database";
+import { BUCKET_DOCUMENTOS, TAMANHO_MAXIMO_BYTES } from "@/features/documentos/constants";
+import type {
+  DocumentosInsert,
+  PosLaudoCiclosInsert,
+  PosLaudoDocumentosInsert,
+  PosLaudoPontosInsert,
+} from "@/types/database";
 import type {
   PosLaudoClassificacaoTriagem,
+  PosLaudoDocumentoPapel,
+  PosLaudoDocumentoRelevancia,
   PosLaudoFluxo,
   PosLaudoNatureza,
   PosLaudoOrigem,
@@ -378,5 +386,225 @@ export async function desvincularEvidencia(input: {
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
+  return { success: true };
+}
+
+// ============================================================================
+// Fatia 3 — documentos supervenientes
+// ============================================================================
+
+const PAPEL_VALIDOS: readonly PosLaudoDocumentoPapel[] = [
+  "superveniente",
+  "laudo_analisado",
+  "manifestacao_analisada",
+];
+const RELEVANCIA_VALIDAS: readonly PosLaudoDocumentoRelevancia[] = [
+  "sem_relevancia",
+  "complementar",
+  "relevante",
+  "potencialmente_modificador",
+  "determinante",
+];
+
+function texto(fd: FormData, k: string): string | null {
+  const v = (fd.get(k) as string | null)?.trim();
+  return v ? v : null;
+}
+function boolTri(fd: FormData, k: string): boolean | null {
+  const v = fd.get(k) as string | null;
+  return v === "sim" ? true : v === "nao" ? false : null;
+}
+function sanitizarNomeArquivo(nome: string): string {
+  const semAcento = nome.normalize("NFKD").replace(/[̀-ͯ]/g, "");
+  return semAcento.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+}
+
+/**
+ * Cadastra um documento superveniente do ciclo. Reaproveita 100% o pipeline
+ * de `documentos` — MESMO bucket (`documentos-processos`), mesma convenção de
+ * `storage_path`, mesmo padrão "sobe o arquivo, insere a linha, desfaz tudo
+ * se algo falhar". O que é específico do ciclo (papel, apresentante,
+ * relevância, impacto etc.) fica só em `pos_laudo_documentos`, apontando pro
+ * `documento_id`. O `compilarLaudo` exclui esses `documento_id` do acervo do
+ * laudo original (anti-join — ver compilar.ts).
+ */
+export async function adicionarDocumentoSuperveniente(
+  cicloId: string,
+  processoId: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const arquivo = formData.get("arquivo");
+  if (!(arquivo instanceof File) || arquivo.size === 0) {
+    return { error: "Selecione um arquivo." };
+  }
+  if (arquivo.size > TAMANHO_MAXIMO_BYTES) {
+    return { error: "Arquivo maior que 25MB — não é possível enviar." };
+  }
+
+  const papelBruto = formData.get("papel") as string | null;
+  const papel: PosLaudoDocumentoPapel = (PAPEL_VALIDOS as readonly string[]).includes(papelBruto ?? "")
+    ? (papelBruto as PosLaudoDocumentoPapel)
+    : "superveniente";
+  const relevanciaBruta = formData.get("relevancia") as string | null;
+  const relevancia: PosLaudoDocumentoRelevancia | null = (RELEVANCIA_VALIDAS as readonly string[]).includes(
+    relevanciaBruta ?? "",
+  )
+    ? (relevanciaBruta as PosLaudoDocumentoRelevancia)
+    : null;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const path = `${processoId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${sanitizarNomeArquivo(arquivo.name)}`;
+
+  const { error: erroUpload } = await supabase.storage
+    .from(BUCKET_DOCUMENTOS)
+    .upload(path, arquivo, { contentType: arquivo.type || undefined });
+  if (erroUpload) {
+    return { error: `Erro ao enviar o arquivo: ${erroUpload.message}` };
+  }
+
+  const { data: ultimoDoc } = await supabase
+    .from("documentos")
+    .select("ordem")
+    .eq("processo_id", processoId)
+    .order("ordem", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const docInsert: DocumentosInsert = {
+    processo_id: processoId,
+    tipo: "documento_processual",
+    nome_arquivo: arquivo.name,
+    storage_path: path,
+    mime_type: arquivo.type || null,
+    tamanho_bytes: arquivo.size,
+    ordem: (ultimoDoc?.ordem ?? 0) + 1,
+    observacao: texto(formData, "observacao"),
+    enviado_por: user?.id ?? null,
+  };
+  const { data: doc, error: erroDoc } = await supabase
+    .from("documentos")
+    .insert(docInsert)
+    .select("id")
+    .single();
+  if (erroDoc || !doc) {
+    await supabase.storage.from(BUCKET_DOCUMENTOS).remove([path]);
+    return { error: erroDoc?.message ?? "Erro ao gravar o documento." };
+  }
+
+  const pldInsert: PosLaudoDocumentosInsert = {
+    ciclo_id: cicloId,
+    documento_id: doc.id,
+    papel,
+    apresentante: texto(formData, "apresentante"),
+    data_juntada: texto(formData, "data_juntada"),
+    paginas: texto(formData, "paginas"),
+    existencia_previa: boolTri(formData, "existencia_previa"),
+    disponivel_ao_perito_antes: boolTri(formData, "disponivel_ao_perito_antes"),
+    relevancia,
+    impacto: texto(formData, "impacto"),
+    observacao_tecnica: texto(formData, "observacao_tecnica"),
+  };
+  const { error: erroPld } = await supabase.from("pos_laudo_documentos").insert(pldInsert);
+  if (erroPld) {
+    // Desfaz tudo — arquivo, linha de documentos — pra não deixar meio-cadastro.
+    await supabase.from("documentos").delete().eq("id", doc.id);
+    await supabase.storage.from(BUCKET_DOCUMENTOS).remove([path]);
+    return { error: erroPld.message };
+  }
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  revalidatePath(`/processos/${processoId}/documentos`);
+  return { success: true };
+}
+
+/** Edita os metadados de ciclo de um documento superveniente (não toca no arquivo). */
+export async function salvarMetadadosSuperveniente(input: {
+  pldId: string;
+  cicloId: string;
+  processoId: string;
+  papel: string;
+  apresentante: string | null;
+  dataJuntada: string | null;
+  paginas: string | null;
+  existenciaPrevia: boolean | null;
+  disponivelAoPeritoAntes: boolean | null;
+  relevancia: string | null;
+  impacto: string | null;
+  observacaoTecnica: string | null;
+  jaEnfrentado: boolean;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const papel: PosLaudoDocumentoPapel = (PAPEL_VALIDOS as readonly string[]).includes(input.papel)
+    ? (input.papel as PosLaudoDocumentoPapel)
+    : "superveniente";
+  const relevancia: PosLaudoDocumentoRelevancia | null =
+    input.relevancia && (RELEVANCIA_VALIDAS as readonly string[]).includes(input.relevancia)
+      ? (input.relevancia as PosLaudoDocumentoRelevancia)
+      : null;
+
+  const { error } = await supabase
+    .from("pos_laudo_documentos")
+    .update({
+      papel,
+      apresentante: input.apresentante,
+      data_juntada: input.dataJuntada,
+      paginas: input.paginas,
+      existencia_previa: input.existenciaPrevia,
+      disponivel_ao_perito_antes: input.disponivelAoPeritoAntes,
+      relevancia,
+      impacto: input.impacto,
+      observacao_tecnica: input.observacaoTecnica,
+      ja_enfrentado: input.jaEnfrentado,
+    })
+    .eq("id", input.pldId)
+    .eq("ciclo_id", input.cicloId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
+  return { success: true };
+}
+
+/**
+ * Remove um documento superveniente por completo: o vínculo de ciclo
+ * (`pos_laudo_documentos`), a linha de `documentos` e o arquivo no Storage.
+ * Foi adicionado através do fluxo de pós-laudo — removê-lo o remove inteiro.
+ */
+export async function removerDocumentoSuperveniente(input: {
+  pldId: string;
+  documentoId: string;
+  cicloId: string;
+  processoId: string;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const { data: doc } = await supabase
+    .from("documentos")
+    .select("storage_path")
+    .eq("id", input.documentoId)
+    .maybeSingle();
+
+  // Ordem: solta o vínculo primeiro (a FK documento_id é NO ACTION), depois a
+  // linha de documentos, depois o arquivo.
+  const { error: erroPld } = await supabase
+    .from("pos_laudo_documentos")
+    .delete()
+    .eq("id", input.pldId)
+    .eq("ciclo_id", input.cicloId);
+  if (erroPld) return { error: erroPld.message };
+
+  const { error: erroDoc } = await supabase.from("documentos").delete().eq("id", input.documentoId);
+  if (erroDoc) return { error: erroDoc.message };
+
+  if (doc?.storage_path) {
+    await supabase.storage.from(BUCKET_DOCUMENTOS).remove([doc.storage_path]);
+  }
+
+  revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
+  revalidatePath(`/processos/${input.processoId}/documentos`);
   return { success: true };
 }

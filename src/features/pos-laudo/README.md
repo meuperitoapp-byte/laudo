@@ -4,7 +4,15 @@ Esclarecimentos / retificação / complementação **depois do laudo entregue**.
 Perícia Judicial e Assistência Técnica. Plano completo: `docs/plano-modulo-pos-laudo.md`.
 Schema: `supabase/migrations/20260905120000_pos_laudo_schema.sql`.
 
-## Estado atual — fatias 1 e 2
+## Dívida técnica
+
+`src/features/quesitos/quesitos-panel.tsx` salva com **autosave debounced** (~1,2s),
+enquanto o resto do sistema (motor de preenchimento, e agora todo o Pós-Laudo) salva
+por **botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload`). A Dra.
+Fernanda já usa a tela de Quesitos; mudar o comportamento de salvamento dela no meio do
+Pós-Laudo é risco sem ganho. **Padronizar quando o Módulo Pós-Laudo fechar.**
+
+## Estado atual — fatias 1, 2 e 3
 
 O que já existe:
 
@@ -46,17 +54,41 @@ O que já existe:
   Esclarecimentos. Se algum código futuro precisar dela como condição de fluxo, PARAR e
   alinhar com o Jeferson antes.
 
+### Fatia 3 — documentos supervenientes
+
+- **Upload** reaproveitando 100% o pipeline de `documentos`: MESMO bucket
+  (`documentos-processos`), mesma convenção de `storage_path`, mesmo padrão "sobe,
+  insere, desfaz se falhar". `adicionarDocumentoSuperveniente` cria a linha em
+  `documentos` (`tipo='documento_processual'`) E a linha em `pos_laudo_documentos`
+  (papel superveniente/laudo_analisado/manifestacao_analisada + apresentante,
+  data_juntada, páginas, existência prévia, disponível ao perito à época, relevância,
+  impacto, observação técnica, já enfrentado). Sem bucket novo, sem caminho paralelo.
+- **Anti-join em `compilarLaudo`** (`compilar.ts`): documentos que aparecem em
+  `pos_laudo_documentos` (de qualquer ciclo do processo) são excluídos da contagem
+  (`{{total_documentos}}` etc.) E da tabela de documentos analisados do laudo original.
+  Testar explicitamente: gerar laudo num processo com documento superveniente e conferir
+  que ele não aparece em nenhum dos dois.
+- **Rastreabilidade fora da tela do ciclo**: `/processos/[id]/documentos` marca esses
+  documentos com um selo "Superveniente · pós-laudo ciclo N" e bloqueia a exclusão por
+  ali (manda remover pela tela do ciclo). `removerDocumentoSuperveniente` remove o
+  vínculo + a linha de `documentos` + o arquivo do Storage.
+
 Inerte, esperando as próximas fatias: `resposta_tecnica` / `repercussao` por ponto
-(matriz de enfrentamento — fatia 4), documentos supervenientes, quesitos do ciclo,
-geração de documento, conclusão vigente, encerramento do ciclo, mudança da situação do
-processo. O `status` do ciclo continua sem avançar de "aberto".
+(matriz de enfrentamento — fatia 4), quesitos do ciclo, geração de documento, conclusão
+vigente, encerramento do ciclo, mudança da situação do processo. O `status` do ciclo
+continua sem avançar de "aberto".
 
 ## Arquivos
 
 - `actions.ts` — `abrirCicloPosLaudo`, `salvarRegistroDemanda`, `salvarTriagemCiclo`,
   `adicionarPonto`, `salvarPonto`, `removerPonto`, `vincularEvidencia`,
-  `desvincularEvidencia` (+ helper `recomputarRascunhoComplementacao`).
+  `desvincularEvidencia`, `adicionarDocumentoSuperveniente`,
+  `salvarMetadadosSuperveniente`, `removerDocumentoSuperveniente` (+ helper
+  `recomputarRascunhoComplementacao`).
 - `abrir-ciclo-button.tsx` — client, botão do índice.
 - `registro-demanda-form.tsx` — client, etapa Registro da Demanda (botão explícito).
 - `matriz-pontos.tsx` — client, campo de ciclo + matriz de pontos + evidências.
+- `documentos-supervenientes.tsx` — client, upload + metadados dos supervenientes.
 - `rotulos.ts` — rótulos pt-BR das colunas `text` + CHECK do módulo.
+
+O anti-join vive em `src/features/geracao-laudo/compilar.ts` (não neste diretório).

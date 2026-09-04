@@ -32,6 +32,28 @@ export default async function DocumentosPage({
 
   const lista = documentos ?? [];
 
+  // Marca quais documentos são do Módulo Pós-Laudo (supervenientes / laudo
+  // analisado / manifestação analisada) — a rastreabilidade tem que aparecer
+  // aqui também, não só dentro da tela do ciclo.
+  const { data: ciclosDb } = await supabase
+    .from("pos_laudo_ciclos")
+    .select("id, numero_ciclo")
+    .eq("processo_id", processoId);
+  const numeroPorCiclo = new Map((ciclosDb ?? []).map((c) => [c.id, c.numero_ciclo]));
+  const posLaudoPorDocumento = new Map<string, { papel: string; numeroCiclo: number }>();
+  if (numeroPorCiclo.size > 0) {
+    const { data: pld } = await supabase
+      .from("pos_laudo_documentos")
+      .select("documento_id, papel, ciclo_id")
+      .in("ciclo_id", [...numeroPorCiclo.keys()]);
+    for (const p of pld ?? []) {
+      posLaudoPorDocumento.set(p.documento_id, {
+        papel: p.papel,
+        numeroCiclo: numeroPorCiclo.get(p.ciclo_id) ?? 0,
+      });
+    }
+  }
+
   let urlsAssinadas = new Map<string, string | null>();
   if (lista.length > 0) {
     const { data: assinadas } = await supabase.storage
@@ -48,6 +70,7 @@ export default async function DocumentosPage({
   const documentosComUrl: DocumentoComUrl[] = lista.map((d) => ({
     ...d,
     signedUrl: urlsAssinadas.get(d.storage_path) ?? null,
+    posLaudo: posLaudoPorDocumento.get(d.id) ?? null,
   }));
 
   const titulo =

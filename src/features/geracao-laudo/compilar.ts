@@ -101,7 +101,27 @@ export async function compilarLaudo(processoId: string): Promise<ResultadoCompil
 
   const todosCampos = campos ?? [];
   const todasRespostasProcesso = respostasProcesso ?? [];
-  const documentos = documentosDb ?? [];
+
+  // "Nunca incorporar ao acervo original" (Módulo Pós-Laudo, plano §1.7):
+  // documentos supervenientes / laudo analisado / manifestação analisada
+  // ficam SÓ nos documentos de pós-laudo. Aqui eles são excluídos da
+  // contagem ({{total_documentos}}...) e da tabela de documentos analisados
+  // do laudo original — um anti-join contra pos_laudo_documentos. Se o
+  // processo não tem nenhum ciclo de pós-laudo, o Set fica vazio e nada muda.
+  const supervenientesIds = new Set<string>();
+  const { data: ciclosDb } = await supabase
+    .from("pos_laudo_ciclos")
+    .select("id")
+    .eq("processo_id", processoId);
+  const cicloIds = (ciclosDb ?? []).map((c) => c.id);
+  if (cicloIds.length > 0) {
+    const { data: pldDb } = await supabase
+      .from("pos_laudo_documentos")
+      .select("documento_id")
+      .in("ciclo_id", cicloIds);
+    for (const p of pldDb ?? []) supervenientesIds.add(p.documento_id);
+  }
+  const documentos = (documentosDb ?? []).filter((d) => !supervenientesIds.has(d.id));
 
   const respostaPorCampoId = new Map(todasRespostasProcesso.map((r) => [r.campo_id, r]));
   const respostaSecaoPorSecaoId = new Map((respostasSecao ?? []).map((r) => [r.secao_id, r]));

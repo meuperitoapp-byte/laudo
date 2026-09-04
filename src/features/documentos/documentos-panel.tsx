@@ -35,7 +35,21 @@ function formatarTamanho(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export type DocumentoComUrl = DocumentosRow & { signedUrl: string | null };
+/** Vínculo com o Módulo Pós-Laudo, quando o documento foi cadastrado por lá. */
+export interface PosLaudoVinculo {
+  papel: string;
+  numeroCiclo: number;
+}
+const POS_LAUDO_PAPEL_ROTULOS: Record<string, string> = {
+  superveniente: "Superveniente",
+  laudo_analisado: "Laudo analisado",
+  manifestacao_analisada: "Manifestação analisada",
+};
+
+export type DocumentoComUrl = DocumentosRow & {
+  signedUrl: string | null;
+  posLaudo?: PosLaudoVinculo | null;
+};
 
 export function DocumentosPanel({
   processoId,
@@ -128,6 +142,12 @@ function DocumentoCard({
   }
 
   function excluir() {
+    if (documento.posLaudo) {
+      setErro(
+        `Este documento está vinculado ao ciclo de pós-laudo ${documento.posLaudo.numeroCiclo}. Remova por lá (tela do ciclo → Documentos supervenientes).`,
+      );
+      return;
+    }
     if (!window.confirm(`Excluir "${documento.nome_arquivo}"? Remove do processo e do armazenamento — não tem como desfazer.`)) {
       return;
     }
@@ -227,6 +247,15 @@ function DocumentoCard({
               </button>
             </div>
           </div>
+
+          {documento.posLaudo && (
+            <div className="mt-1.5">
+              <Selo variante="neutro">
+                {POS_LAUDO_PAPEL_ROTULOS[documento.posLaudo.papel] ?? documento.posLaudo.papel} · pós-laudo
+                ciclo {documento.posLaudo.numeroCiclo}
+              </Selo>
+            </div>
+          )}
 
           {documento.ilegivel_insuficiente && (
             <div className="mt-1.5">
