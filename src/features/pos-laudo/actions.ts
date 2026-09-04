@@ -18,7 +18,10 @@ import type {
   PosLaudoNatureza,
   PosLaudoOrigem,
   PosLaudoPotencialConclusao,
+  PosLaudoRepercussaoLaudo,
+  PosLaudoRepercussaoPonto,
 } from "@/types/enums";
+import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -98,6 +101,17 @@ export async function abrirCicloPosLaudo(processoId: string): Promise<{ error: s
   if (!laudoBase) {
     return {
       error: "O laudo precisa estar marcado como protocolado antes de abrir um ciclo de pós-laudo.",
+    };
+  }
+
+  // Gate da conclusão vigente: um ciclo mede a repercussão sobre uma conclusão
+  // que precisa já existir como referência. Ela NÃO é semeada retroativamente —
+  // a perita a confirma uma vez, na tela do laudo final.
+  const vigente = await conclusaoVigenteAtual(supabase, processoId);
+  if (!vigente) {
+    return {
+      error:
+        "Antes de abrir um ciclo, confirme a conclusão vigente do laudo na tela do laudo final (aba Laudo → bloco “Conclusão vigente”).",
     };
   }
 
@@ -287,7 +301,20 @@ export async function adicionarPonto(cicloId: string, processoId: string): Promi
   return { success: true };
 }
 
-/** Salva os campos de triagem de um ponto e reavalia rascunho_complementacao do ciclo. */
+const REPERCUSSAO_PONTO_VALIDAS: readonly PosLaudoRepercussaoPonto[] = [
+  "ponto_ja_esclarecido",
+  "fundamentacao_complementada",
+  "retificacao_necessaria",
+  "conclusao_parcialmente_modificada",
+  "sem_repercussao",
+];
+
+/**
+ * Salva um ponto: campos de triagem + os campos da matriz de enfrentamento
+ * (resposta_tecnica, repercussao). Ponto sem resposta técnica é estado
+ * válido — o bloqueio de completude fica na geração da saída (fatia
+ * seguinte), não aqui. Reavalia rascunho_complementacao do ciclo.
+ */
 export async function salvarPonto(input: {
   pontoId: string;
   cicloId: string;
@@ -299,6 +326,8 @@ export async function salvarPonto(input: {
   referenciaLaudo: string | null;
   classificacaoTriagem: string | null;
   fundamentacaoAdicional: string | null;
+  respostaTecnica: string | null;
+  repercussao: string | null;
 }): Promise<ActionResult> {
   const supabase = await createClient();
 
@@ -306,6 +335,10 @@ export async function salvarPonto(input: {
     input.classificacaoTriagem &&
     (CLASSIFICACAO_VALIDAS as readonly string[]).includes(input.classificacaoTriagem)
       ? (input.classificacaoTriagem as PosLaudoClassificacaoTriagem)
+      : null;
+  const repercussao: PosLaudoRepercussaoPonto | null =
+    input.repercussao && (REPERCUSSAO_PONTO_VALIDAS as readonly string[]).includes(input.repercussao)
+      ? (input.repercussao as PosLaudoRepercussaoPonto)
       : null;
 
   const { error } = await supabase
@@ -318,6 +351,8 @@ export async function salvarPonto(input: {
       referencia_laudo: input.referenciaLaudo,
       classificacao_triagem: classificacao,
       fundamentacao_adicional: input.fundamentacaoAdicional,
+      resposta_tecnica: input.respostaTecnica,
+      repercussao,
     })
     .eq("id", input.pontoId)
     .eq("ciclo_id", input.cicloId);
@@ -606,5 +641,124 @@ export async function removerDocumentoSuperveniente(input: {
 
   revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
   revalidatePath(`/processos/${input.processoId}/documentos`);
+  return { success: true };
+}
+
+// ============================================================================
+// Fatia 4 — matriz de enfrentamento (síntese de ciclo) + Conclusão Vigente V1
+// ============================================================================
+
+const REPERCUSSAO_LAUDO_VALIDAS: readonly PosLaudoRepercussaoLaudo[] = [
+  "mantido_integralmente",
+  "complementado_sem_alterar",
+  "retificacao_sem_repercussao",
+  "modificacao_parcial",
+  "revisao_substancial",
+  "substituicao_conclusao",
+];
+
+/**
+ * Semeia (ou corrige) a Conclusão Vigente V1 de um processo, a partir da ação
+ * explícita da perita na tela do laudo final. Sem backfill retroativo — o
+ * processo que já tem laudo protocolado mas nenhuma linha aqui só ganha uma
+ * quando a perita confirma o texto.
+ *
+ * Só opera enquanto a vigente for a V1 do próprio laudo (`origem_tipo =
+ * 'laudo'` e nenhum ciclo a consumiu): aí o texto é editável e a atualização é
+ * in-place. Depois que um ciclo de pós-laudo define uma nova conclusão
+ * vigente, este caminho fica bloqueado — a conclusão passa a ser matéria de
+ * ciclo, log append-only.
+ */
+export async function definirConclusaoVigenteInicial(
+  processoId: string,
+  texto: string,
+): Promise<ActionResult> {
+  const limpo = texto.trim();
+  if (!limpo) return { error: "Cole ou digite o texto da conclusão vigente." };
+
+  const supabase = await createClient();
+
+  const { data: laudoBase, error: erroLaudo } = await supabase
+    .from("laudos_gerados")
+    .select("id")
+    .eq("processo_id", processoId)
+    .eq("tipo", "laudo")
+    .eq("protocolado", true)
+    .order("versao", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroLaudo) return { error: erroLaudo.message };
+  if (!laudoBase) {
+    return { error: "O laudo precisa estar marcado como protocolado antes de definir a conclusão vigente." };
+  }
+
+  const vigente = await conclusaoVigenteAtual(supabase, processoId);
+
+  if (vigente) {
+    if (vigente.origem_tipo !== "laudo" || vigente.ciclo_id !== null) {
+      return {
+        error:
+          "A conclusão vigente foi definida por um ciclo de pós-laudo e não pode mais ser editada por aqui.",
+      };
+    }
+    const { error } = await supabase
+      .from("pos_laudo_conclusoes_vigentes")
+      .update({ texto: limpo, origem_laudo_gerado_id: laudoBase.id })
+      .eq("id", vigente.id);
+    if (error) return { error: error.message };
+  } else {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { error } = await supabase.from("pos_laudo_conclusoes_vigentes").insert({
+      processo_id: processoId,
+      origem_tipo: "laudo",
+      origem_laudo_gerado_id: laudoBase.id,
+      texto: limpo,
+      escopo: "integral",
+      created_by: user?.id ?? null,
+    });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath(`/processos/${processoId}/laudo`);
+  revalidatePath(`/processos/${processoId}/pos-laudo`);
+  return { success: true };
+}
+
+/**
+ * Síntese de nível de ciclo da matriz de enfrentamento: a repercussão sobre o
+ * laudo original (`repercussao_laudo`) e, quando ela indica alteração da
+ * conclusão, o RASCUNHO da Nova Conclusão Vigente (`conclusao_vigente_nova`).
+ * Os dois são preenchidos pela perita — o sistema só sugere (aviso visual). O
+ * rascunho não vira conclusão vigente aqui: só quando o documento de pós-laudo
+ * que o carrega é protocolado (fatia seguinte).
+ */
+export async function salvarRepercussaoCiclo(input: {
+  cicloId: string;
+  processoId: string;
+  repercussaoLaudo: string | null;
+  conclusaoVigenteNova: string | null;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const repercussaoLaudo: PosLaudoRepercussaoLaudo | null =
+    input.repercussaoLaudo &&
+    (REPERCUSSAO_LAUDO_VALIDAS as readonly string[]).includes(input.repercussaoLaudo)
+      ? (input.repercussaoLaudo as PosLaudoRepercussaoLaudo)
+      : null;
+  const rascunho = input.conclusaoVigenteNova?.trim() || null;
+
+  const { error } = await supabase
+    .from("pos_laudo_ciclos")
+    .update({
+      repercussao_laudo: repercussaoLaudo,
+      conclusao_vigente_nova: rascunho,
+    })
+    .eq("id", input.cicloId)
+    .eq("processo_id", input.processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
   return { success: true };
 }
