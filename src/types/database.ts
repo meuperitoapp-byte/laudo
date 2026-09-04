@@ -41,6 +41,7 @@ import type {
   PosLaudoDocumentoRelevancia,
   PosLaudoQuesitoTipo,
   PosLaudoQuesitoStatus,
+  PosLaudoRepercussaoLaudo,
   PosLaudoConclusaoOrigem,
   PosLaudoConclusaoEscopo,
   LaudoGeradoTipo,
@@ -469,6 +470,9 @@ export type PosLaudoCiclosRow = {
   classificacao_global: PosLaudoClassificacaoGlobal | null
   pode_modificar_conclusao: PosLaudoPotencialConclusao | null
   rascunho_complementacao: boolean
+  // --- fatia 4 (migration 20260906120000) ---
+  repercussao_laudo: PosLaudoRepercussaoLaudo | null
+  conclusao_vigente_nova: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -487,6 +491,8 @@ export type PosLaudoCiclosInsert = ComDefaults<
   | 'classificacao_global'
   | 'pode_modificar_conclusao'
   | 'rascunho_complementacao'
+  | 'repercussao_laudo'
+  | 'conclusao_vigente_nova'
   | 'created_by'
   | 'created_at'
   | 'updated_at'

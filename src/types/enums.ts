@@ -137,6 +137,19 @@ export type PosLaudoQuesitoTipo = 'suplementar' | 'esclarecimento'
 export type PosLaudoQuesitoStatus = 'rascunho' | 'revisado' | 'aprovado' | 'excluido'
 
 /**
+ * pos_laudo_ciclos.repercussao_laudo — síntese de nível de ciclo da
+ * repercussão sobre o laudo original (migration 20260906120000). Os três
+ * últimos valores exigem "Nova Conclusão Vigente" (trava de aplicação).
+ */
+export type PosLaudoRepercussaoLaudo =
+  | 'mantido_integralmente'
+  | 'complementado_sem_alterar'
+  | 'retificacao_sem_repercussao'
+  | 'modificacao_parcial'
+  | 'revisao_substancial'
+  | 'substituicao_conclusao'
+
+/**
  * pos_laudo_conclusoes_vigentes.origem_tipo — 'retificacao' está AUSENTE de
  * propósito: garantia estrutural de que uma retificação nunca cria conclusão
  * vigente (plano §1.6).

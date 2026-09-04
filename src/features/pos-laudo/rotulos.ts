@@ -11,6 +11,8 @@ import type {
   PosLaudoNatureza,
   PosLaudoClassificacaoTriagem,
   PosLaudoPotencialConclusao,
+  PosLaudoRepercussaoPonto,
+  PosLaudoRepercussaoLaudo,
 } from "@/types/enums";
 
 export const FLUXO_ROTULOS: Record<PosLaudoFluxo, string> = {
@@ -100,3 +102,46 @@ export const POTENCIAL_CONCLUSAO_ROTULOS: Record<PosLaudoPotencialConclusao, str
   sim: "Sim",
   depende_complementacao: "Depende de complementação",
 };
+
+/** pos_laudo_pontos.repercussao — o que o ponto (já respondido) faz no laudo original. */
+export const REPERCUSSAO_PONTO_ORDENADA: readonly PosLaudoRepercussaoPonto[] = [
+  "ponto_ja_esclarecido",
+  "fundamentacao_complementada",
+  "retificacao_necessaria",
+  "conclusao_parcialmente_modificada",
+  "sem_repercussao",
+];
+
+export const REPERCUSSAO_PONTO_ROTULOS: Record<PosLaudoRepercussaoPonto, string> = {
+  ponto_ja_esclarecido: "Ponto já esclarecido no laudo",
+  fundamentacao_complementada: "Fundamentação complementada",
+  retificacao_necessaria: "Retificação necessária",
+  conclusao_parcialmente_modificada: "Conclusão parcialmente modificada",
+  sem_repercussao: "Sem repercussão",
+};
+
+/** pos_laudo_ciclos.repercussao_laudo — síntese de ciclo (modelo Esclarecimentos VI / Complementação IX). */
+export const REPERCUSSAO_LAUDO_ORDENADA: readonly PosLaudoRepercussaoLaudo[] = [
+  "mantido_integralmente",
+  "complementado_sem_alterar",
+  "retificacao_sem_repercussao",
+  "modificacao_parcial",
+  "revisao_substancial",
+  "substituicao_conclusao",
+];
+
+export const REPERCUSSAO_LAUDO_ROTULOS: Record<PosLaudoRepercussaoLaudo, string> = {
+  mantido_integralmente: "Mantido integralmente",
+  complementado_sem_alterar: "Complementado, sem alterar a conclusão",
+  retificacao_sem_repercussao: "Retificação de erro material, sem repercussão",
+  modificacao_parcial: "Modificação parcial da fundamentação e/ou conclusão",
+  revisao_substancial: "Revisão substancial da conclusão",
+  substituicao_conclusao: "Substituição da conclusão anterior",
+};
+
+/** Valores de repercussao_laudo que exigem "Nova Conclusão Vigente" (trava de aplicação). */
+export const REPERCUSSAO_LAUDO_EXIGE_NOVA_CONCLUSAO: readonly PosLaudoRepercussaoLaudo[] = [
+  "modificacao_parcial",
+  "revisao_substancial",
+  "substituicao_conclusao",
+];
