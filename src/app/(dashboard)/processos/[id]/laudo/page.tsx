@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { compilarLaudo } from "@/features/geracao-laudo/compilar";
 import { GerarLaudoPanel, type VersaoLaudo } from "@/features/geracao-laudo/gerar-laudo-panel";
 import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
+import { ConclusaoVigenteInicial } from "@/features/pos-laudo/conclusao-vigente-inicial";
+import { conclusaoVigenteAtual, extrairConclusaoDoLaudo } from "@/features/pos-laudo/consultas";
 import { Selo } from "@/components/ui/badge";
 
 const URL_ASSINADA_VALIDADE_SEGUNDOS = 60 * 60; // 1 hora — a página gera de novo a cada carregamento
@@ -44,6 +46,22 @@ export default async function LaudoPage({
     protocoladoEm: v.protocolado_em,
     protocoloId: v.protocolo_id,
   }));
+
+  // Bloco "Conclusão vigente": só faz sentido depois que existe um laudo
+  // protocolado — é a partir dele que os ciclos de pós-laudo medem repercussão.
+  const temLaudoProtocolado = lista.some((v) => v.tipo === "laudo" && v.protocolado);
+  const conclusaoVigente = temLaudoProtocolado
+    ? await conclusaoVigenteAtual(supabase, processoId)
+    : null;
+  // Editável por aqui só enquanto for a V1 do próprio laudo (nenhum ciclo a
+  // consumiu). Depois disso a conclusão vira matéria de ciclo.
+  const conclusaoEditavelAqui =
+    !conclusaoVigente ||
+    (conclusaoVigente.origem_tipo === "laudo" && conclusaoVigente.ciclo_id === null);
+  const extraida =
+    temLaudoProtocolado && !conclusaoVigente
+      ? await extrairConclusaoDoLaudo(supabase, processoId)
+      : null;
 
   return (
     <main className="p-8 max-w-3xl space-y-6">
@@ -132,6 +150,29 @@ export default async function LaudoPage({
       {resultado.status !== "ok" && versoes.length > 0 && (
         <GerarLaudoPanel processoId={processoId} podeGerar={false} versoes={versoes} />
       )}
+
+      {temLaudoProtocolado &&
+        (conclusaoEditavelAqui ? (
+          <ConclusaoVigenteInicial
+            processoId={processoId}
+            textoInicial={conclusaoVigente?.texto ?? extraida?.texto ?? ""}
+            origemAutomatica={conclusaoVigente ? null : (extraida?.secaoTitulo ?? null)}
+            confirmada={Boolean(conclusaoVigente)}
+          />
+        ) : (
+          <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-2">
+            <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">
+              Conclusão vigente
+            </h2>
+            <p className="text-xs text-nevoa-500 dark:text-nevoa-400">
+              Definida por um ciclo de pós-laudo ({conclusaoVigente?.origem_tipo}). Não é mais
+              editável por aqui — as alterações passam pelos ciclos.
+            </p>
+            <p className="whitespace-pre-wrap text-sm text-nevoa-700 dark:text-nevoa-300">
+              {conclusaoVigente?.texto}
+            </p>
+          </div>
+        ))}
     </main>
   );
 }

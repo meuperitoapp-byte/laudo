@@ -8,6 +8,7 @@ import {
   DocumentosSupervenientes,
   type DocSuperveniente,
 } from "@/features/pos-laudo/documentos-supervenientes";
+import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
 import { CICLO_STATUS_ROTULOS, FLUXO_ROTULOS } from "@/features/pos-laudo/rotulos";
 import type { PosLaudoCicloStatus, PosLaudoFluxo } from "@/types/enums";
 
@@ -95,6 +96,8 @@ export default async function PosLaudoCicloPage({
     }
   }
 
+  const conclusaoVigente = await conclusaoVigenteAtual(supabase, processoId);
+
   const pontosLista = pontos ?? [];
   let evidenciasPorPonto: Record<string, EvidenciaVinculo[]> = {};
   if (pontosLista.length > 0) {
@@ -158,6 +161,17 @@ export default async function PosLaudoCicloPage({
         cicloId={ciclo.id}
         podeModificarConclusao={ciclo.pode_modificar_conclusao}
         rascunhoComplementacao={ciclo.rascunho_complementacao}
+        repercussaoLaudo={ciclo.repercussao_laudo}
+        conclusaoVigenteNova={ciclo.conclusao_vigente_nova}
+        conclusaoVigente={
+          conclusaoVigente
+            ? {
+                texto: conclusaoVigente.texto,
+                origem_tipo: conclusaoVigente.origem_tipo,
+                ciclo_id: conclusaoVigente.ciclo_id,
+              }
+            : null
+        }
         pontos={pontosLista}
         evidenciasPorPonto={evidenciasPorPonto}
         documentos={documentos ?? []}

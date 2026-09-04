@@ -12,7 +12,7 @@ por **botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload
 Fernanda já usa a tela de Quesitos; mudar o comportamento de salvamento dela no meio do
 Pós-Laudo é risco sem ganho. **Padronizar quando o Módulo Pós-Laudo fechar.**
 
-## Estado atual — fatias 1, 2 e 3
+## Estado atual — fatias 1 a 4
 
 O que já existe:
 
@@ -73,22 +73,67 @@ O que já existe:
   ali (manda remover pela tela do ciclo). `removerDocumentoSuperveniente` remove o
   vínculo + a linha de `documentos` + o arquivo do Storage.
 
-Inerte, esperando as próximas fatias: `resposta_tecnica` / `repercussao` por ponto
-(matriz de enfrentamento — fatia 4), quesitos do ciclo, geração de documento, conclusão
-vigente, encerramento do ciclo, mudança da situação do processo. O `status` do ciclo
-continua sem avançar de "aberto".
+### Fatia 4 — matriz de enfrentamento + Conclusão Vigente V1
+
+- **Enfrentamento por ponto** (`pos_laudo_pontos.resposta_tecnica` + `.repercussao`):
+  no mesmo card de cada ponto, um textarea de **resposta técnica** e um select de
+  **repercussão do ponto** (5 valores — `REPERCUSSAO_PONTO_*`). Ponto sem resposta
+  técnica é **estado válido**: salva livre, marcado com selo "Sem resposta técnica",
+  e só trava na geração da saída (fatia seguinte). `salvarPonto` estendido.
+- **Repercussão de nível de ciclo** (`pos_laudo_ciclos.repercussao_laudo`, migration
+  `20260906120000`): `RepercussaoCicloControl` — select de 6 valores
+  (`REPERCUSSAO_LAUDO_*`), com **sugestão visual** derivada das repercussões dos
+  pontos (`sugerirRepercussaoLaudo`), no mesmo modelo do `rascunho_complementacao`:
+  só sinaliza, nunca preenche nem trava. `salvarRepercussaoCiclo`.
+- **Nova Conclusão Vigente (rascunho)** (`pos_laudo_ciclos.conclusao_vigente_nova`):
+  textarea que aparece quando `repercussao_laudo ∈
+  REPERCUSSAO_LAUDO_EXIGE_NOVA_CONCLUSAO` (`modificacao_parcial` /
+  `revisao_substancial` / `substituicao_conclusao`). É texto de trabalho no ciclo —
+  só vira linha em `pos_laudo_conclusoes_vigentes` quando o documento de pós-laudo é
+  protocolado (fatia seguinte).
+- **Trava da Nova Conclusão Vigente** (`regras.ts` → `podeGerarSaida`): **só
+  definida, ainda não amarrada**. Barra a GERAÇÃO do documento (não o encerramento
+  do ciclo) quando a repercussão exige nova conclusão e o rascunho está vazio.
+- **Bloco "Conclusão vigente" na tela do laudo final**
+  (`conclusao-vigente-inicial.tsx` + `laudo/page.tsx`): aparece quando há laudo
+  `tipo='laudo'` + `protocolado=true`. A conclusão vigente V1 **não é semeada
+  retroativamente** — a perita a confirma uma vez aqui. Pré-preenchimento
+  **conservador** via `extrairConclusaoDoLaudo`: só traz texto quando há **uma**
+  seção de conclusão inequívoca com narrativo salvo (allowlist de `codigo`:
+  `conclusao_medico_pericial`, `conclusao`, `conclusao_relatorio`,
+  `conclusao_parecer`). Em qualquer ambiguidade o campo vem **vazio** com instrução
+  pra colar o texto — nunca conteúdo de outra seção "plausível". Quando o texto foi
+  extraído, a tela avisa de qual seção veio e pede conferência antes de confirmar.
+  `definirConclusaoVigenteInicial` só opera enquanto a vigente for a V1 do laudo
+  (`origem_tipo='laudo'` e `ciclo_id IS NULL`); depois vira read-only.
+- **Gate de `abrirCicloPosLaudo` estendido**: além do laudo protocolado, agora exige
+  que a conclusão vigente já exista. Sem ela, o erro aponta pra tela do laudo final.
+
+Inerte, esperando as próximas fatias: quesitos do ciclo, geração de documento
+(consome `conclusao_vigente_nova` no corpo e cria a linha de
+`pos_laudo_conclusoes_vigentes` no protocolo), amarração de `podeGerarSaida`,
+encerramento do ciclo, mudança da situação do processo. O `status` do ciclo continua
+sem avançar de "aberto".
 
 ## Arquivos
 
 - `actions.ts` — `abrirCicloPosLaudo`, `salvarRegistroDemanda`, `salvarTriagemCiclo`,
   `adicionarPonto`, `salvarPonto`, `removerPonto`, `vincularEvidencia`,
   `desvincularEvidencia`, `adicionarDocumentoSuperveniente`,
-  `salvarMetadadosSuperveniente`, `removerDocumentoSuperveniente` (+ helper
+  `salvarMetadadosSuperveniente`, `removerDocumentoSuperveniente`,
+  `salvarRepercussaoCiclo`, `definirConclusaoVigenteInicial` (+ helper
   `recomputarRascunhoComplementacao`).
+- `consultas.ts` — **não** "use server": `conclusaoVigenteAtual`,
+  `extrairConclusaoDoLaudo` (recebem o client do Supabase; usadas por páginas e por
+  `actions.ts`).
+- `regras.ts` — **não** "use server": `podeGerarSaida` (trava síncrona da Nova
+  Conclusão Vigente; definida, ainda não amarrada).
 - `abrir-ciclo-button.tsx` — client, botão do índice.
 - `registro-demanda-form.tsx` — client, etapa Registro da Demanda (botão explícito).
-- `matriz-pontos.tsx` — client, campo de ciclo + matriz de pontos + evidências.
+- `matriz-pontos.tsx` — client, campo de ciclo + matriz de pontos + enfrentamento +
+  `RepercussaoCicloControl` + evidências.
 - `documentos-supervenientes.tsx` — client, upload + metadados dos supervenientes.
+- `conclusao-vigente-inicial.tsx` — client, bloco "Conclusão vigente" do laudo final.
 - `rotulos.ts` — rótulos pt-BR das colunas `text` + CHECK do módulo.
 
 O anti-join vive em `src/features/geracao-laudo/compilar.ts` (não neste diretório).
