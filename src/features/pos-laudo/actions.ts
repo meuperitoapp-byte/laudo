@@ -4,14 +4,21 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { BUCKET_DOCUMENTOS, TAMANHO_MAXIMO_BYTES } from "@/features/documentos/constants";
+import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
+import { buscarAtivosGlobais } from "@/features/geracao-laudo/ativos-globais";
+import { renderizarDocx } from "@/features/geracao-laudo/renderizar-docx";
+import { renderizarPdfComPaginas } from "@/features/geracao-laudo/renderizar-pdf";
 import type {
   DocumentosInsert,
+  LaudosGeradosInsert,
   PosLaudoCiclosInsert,
+  PosLaudoConclusoesVigentesInsert,
   PosLaudoDocumentosInsert,
   PosLaudoPontosInsert,
 } from "@/types/database";
 import type {
   PosLaudoClassificacaoTriagem,
+  PosLaudoConclusaoOrigem,
   PosLaudoDocumentoPapel,
   PosLaudoDocumentoRelevancia,
   PosLaudoFluxo,
@@ -21,7 +28,9 @@ import type {
   PosLaudoRepercussaoLaudo,
   PosLaudoRepercussaoPonto,
 } from "@/types/enums";
+import type { SnapshotPosLaudo } from "@/types/json-fields";
 import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
+import { compilarEsclarecimentos } from "@/features/pos-laudo/compilar-esclarecimentos";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -760,5 +769,180 @@ export async function salvarRepercussaoCiclo(input: {
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
+  return { success: true };
+}
+
+// ============================================================================
+// Fatia 5 — geração dos Esclarecimentos
+// ============================================================================
+
+/**
+ * Gera uma nova versão de Esclarecimentos do ciclo: compila (mesma função que
+ * alimenta o bloco de pendências da tela), renderiza PDF + Word do MESMO
+ * modelo, sobe os dois pro Storage e grava `laudos_gerados`
+ * (`tipo='esclarecimentos'`, `versao` sempre a maior já usada pelo processo +
+ * 1 — nunca sobrescreve uma versão anterior, mesma regra de `gerarLaudo`).
+ *
+ * Two-pass de paginação (decisão aprovada — plano §4, ponto técnico 15): a 1ª
+ * passada renderiza com um placeholder ("—") no lugar do número de páginas do
+ * Encerramento e mede a paginação real via `renderizarPdfComPaginas`; a 2ª
+ * passada renderiza de novo com o número real embutido. Se a paginação da 2ª
+ * passada divergir da 1ª (o próprio texto do número, em tese, pode empurrar
+ * uma quebra de página), a geração é abortada — nunca publica um "composto
+ * por X páginas" que pode estar errado.
+ */
+export async function gerarEsclarecimentos(
+  cicloId: string,
+  processoId: string,
+): Promise<{ error: string } | { success: true; versao: number }> {
+  const pass1 = await compilarEsclarecimentos(processoId, cicloId, "—");
+  if (pass1.status === "erro") return { error: pass1.mensagem };
+  if (pass1.status === "pendencias") {
+    return { error: `Geração bloqueada — pendências: ${pass1.itens.map((i) => i.label).join("; ")}.` };
+  }
+
+  const ativos = await buscarAtivosGlobais();
+  const medidaUm = await renderizarPdfComPaginas(pass1.modelo, ativos, []);
+
+  const pass2 = await compilarEsclarecimentos(processoId, cicloId, String(medidaUm.paginas));
+  if (pass2.status !== "ok") {
+    // Não deveria acontecer — nada muda entre as duas chamadas dentro da mesma execução.
+    return { error: "O estado do ciclo mudou entre as duas passadas de paginação — tente gerar novamente." };
+  }
+  const medidaDois = await renderizarPdfComPaginas(pass2.modelo, ativos, []);
+  if (medidaDois.paginas !== medidaUm.paginas) {
+    return {
+      error: `Divergência de paginação ao inserir o número de páginas (1ª passada: ${medidaUm.paginas}; 2ª passada: ${medidaDois.paginas}). Geração abortada — tente novamente.`,
+    };
+  }
+
+  const bufferDocx = await renderizarDocx(pass2.modelo, ativos, []);
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: ultimo, error: erroUltimo } = await supabase
+    .from("laudos_gerados")
+    .select("versao")
+    .eq("processo_id", processoId)
+    .order("versao", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroUltimo) return { error: erroUltimo.message };
+  const versao = (ultimo?.versao ?? 0) + 1;
+
+  const caminhoPdf = `${processoId}/v${versao}.pdf`;
+  const caminhoDocx = `${processoId}/v${versao}.docx`;
+
+  const [uploadPdf, uploadDocx] = await Promise.all([
+    supabase.storage
+      .from(BUCKET_LAUDOS_GERADOS)
+      .upload(caminhoPdf, medidaDois.buffer, { contentType: "application/pdf" }),
+    supabase.storage.from(BUCKET_LAUDOS_GERADOS).upload(caminhoDocx, bufferDocx, {
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }),
+  ]);
+  if (uploadPdf.error || uploadDocx.error) {
+    await Promise.all([
+      uploadPdf.error ? Promise.resolve() : supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoPdf]),
+      uploadDocx.error ? Promise.resolve() : supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoDocx]),
+    ]);
+    return { error: `Erro ao salvar os arquivos: ${uploadPdf.error?.message ?? uploadDocx.error?.message}` };
+  }
+
+  const insert: LaudosGeradosInsert = {
+    processo_id: processoId,
+    versao,
+    tipo: "esclarecimentos",
+    pos_laudo_ciclo_id: cicloId,
+    titulo: "Esclarecimentos ao Laudo Médico-Pericial",
+    substitui_conclusao: pass2.snapshot.conclusao_vigente_texto !== null,
+    storage_path_pdf: caminhoPdf,
+    storage_path_docx: caminhoDocx,
+    snapshot_respostas: pass2.snapshot,
+    paginas: medidaDois.paginas,
+    gerado_por: user?.id ?? null,
+  };
+  const { error: erroInsert } = await supabase.from("laudos_gerados").insert(insert);
+  if (erroInsert) {
+    await supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoPdf, caminhoDocx]);
+    return { error: erroInsert.message };
+  }
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true, versao };
+}
+
+/**
+ * Marca uma versão de saída de pós-laudo (Esclarecimentos hoje; Retificação e
+ * Complementação nas fatias seguintes reusam a mesma ação — qualquer
+ * `laudos_gerados` com `pos_laudo_ciclo_id` preenchido) como PROTOCOLADA.
+ * Mesmo contrato de `marcarLaudoProtocolado` (geracao-laudo/actions.ts): ação
+ * irreversível, o trigger `trg_laudos_gerados_congela` passa a proteger o
+ * conteúdo dessa versão a partir daqui. `pos_laudo_ciclo_id` no filtro já
+ * garante que esta ação nunca alcança uma linha do laudo principal.
+ *
+ * Quando o snapshot JÁ CONGELADO por este UPDATE carrega uma Nova Conclusão
+ * Vigente (`conclusao_vigente_texto` não vazio), grava a linha em
+ * `pos_laudo_conclusoes_vigentes` a partir desse snapshot — NUNCA de
+ * `pos_laudo_ciclos.conclusao_vigente_nova` (a coluna viva pode ter mudado
+ * desde a geração desta versão). O que fica registrado como conclusão
+ * vigente é sempre exatamente o que está no documento protocolado.
+ */
+export async function marcarPosLaudoProtocolado(
+  laudoGeradoId: string,
+  processoId: string,
+  cicloId: string,
+  protocoloId: string | null,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("laudos_gerados")
+    .update({
+      protocolado: true,
+      protocolado_em: new Date().toISOString(),
+      protocolo_id: protocoloId,
+    })
+    .eq("id", laudoGeradoId)
+    .eq("processo_id", processoId)
+    .eq("pos_laudo_ciclo_id", cicloId)
+    .eq("protocolado", false)
+    .select("tipo, snapshot_respostas")
+    .maybeSingle();
+  if (error) return { error: error.message };
+  if (!data) {
+    return {
+      error:
+        "Não foi possível marcar como protocolado — a versão não existe, já está protocolada, ou não pertence a este ciclo.",
+    };
+  }
+
+  const snapshot = data.snapshot_respostas as SnapshotPosLaudo | null;
+  const conclusaoTexto = snapshot?.conclusao_vigente_texto?.trim() || null;
+  if (conclusaoTexto) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const insert: PosLaudoConclusoesVigentesInsert = {
+      processo_id: processoId,
+      origem_tipo: data.tipo as PosLaudoConclusaoOrigem, // nunca 'retificacao' — trava estrutural, ver enums.ts
+      origem_laudo_gerado_id: laudoGeradoId,
+      ciclo_id: cicloId,
+      texto: conclusaoTexto,
+      created_by: user?.id ?? null,
+    };
+    const { error: erroConclusao } = await supabase.from("pos_laudo_conclusoes_vigentes").insert(insert);
+    if (erroConclusao) {
+      return {
+        error: `Protocolado, mas houve erro ao registrar a nova conclusão vigente: ${erroConclusao.message}. Corrija manualmente antes de prosseguir.`,
+      };
+    }
+  }
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  revalidatePath(`/processos/${processoId}/laudo`);
   return { success: true };
 }
