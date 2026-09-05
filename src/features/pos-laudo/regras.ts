@@ -7,6 +7,27 @@ import type { PosLaudoRepercussaoLaudo } from "@/types/enums";
 import { REPERCUSSAO_LAUDO_EXIGE_NOVA_CONCLUSAO } from "@/features/pos-laudo/rotulos";
 
 /**
+ * Um item da lista de pendências que bloqueia a geração de uma saída de
+ * pós-laudo (Esclarecimentos, Retificação, ...). Compartilhado pelos
+ * `compilar-*.ts` de cada saída, pra não redefinir o mesmo formato em cada
+ * um.
+ */
+export interface PendenciaGeracaoPosLaudo {
+  id: string;
+  label: string;
+  /** Âncora (#id) da tela do ciclo que resolve a pendência. */
+  href?: string;
+  /**
+   * "bloqueio" (default se ausente) = algo ainda incompleto — tom neutro de
+   * pendência comum. "orientacao" = ela não fez nada errado; o sistema está
+   * indicando o caminho certo (ex.: Retificação com repercussão na
+   * conclusão, redirecionada pra Complementação). A tela renderiza os dois
+   * tons de formas visualmente distintas.
+   */
+  tom?: "bloqueio" | "orientacao";
+}
+
+/**
  * A trava da Nova Conclusão Vigente. Quando a repercussão de ciclo indica
  * alteração da conclusão (`modificacao_parcial` / `revisao_substancial` /
  * `substituicao_conclusao`), o rascunho da nova conclusão precisa estar

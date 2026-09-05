@@ -9,6 +9,7 @@ import type {
   PosLaudoCicloStatus,
   PosLaudoOrigem,
   PosLaudoNatureza,
+  PosLaudoNaturezaErro,
   PosLaudoClassificacaoTriagem,
   PosLaudoPotencialConclusao,
   PosLaudoRepercussaoPonto,
@@ -145,3 +146,28 @@ export const REPERCUSSAO_LAUDO_EXIGE_NOVA_CONCLUSAO: readonly PosLaudoRepercussa
   "revisao_substancial",
   "substituicao_conclusao",
 ];
+
+/** pos_laudo_retificacao_itens.natureza_erro — seção II do modelo de Retificação de Erro Material. */
+export const NATUREZA_ERRO_ORDENADA: readonly PosLaudoNaturezaErro[] = [
+  "digitacao",
+  "grafia",
+  "nome_identificacao",
+  "data",
+  "numero_valor",
+  "pagina_item_referencia",
+  "troca_omissao",
+  "formatacao",
+  "outro",
+];
+
+export const NATUREZA_ERRO_ROTULOS: Record<PosLaudoNaturezaErro, string> = {
+  digitacao: "Erro de digitação",
+  grafia: "Erro de grafia",
+  nome_identificacao: "Nome/identificação incorreta",
+  data: "Data incorreta",
+  numero_valor: "Número/valor transcrito incorretamente",
+  pagina_item_referencia: "Página/item/referência incorreta",
+  troca_omissao: "Troca ou omissão material de palavra/expressão",
+  formatacao: "Erro de formatação com repercussão na leitura",
+  outro: "Outro erro material",
+};

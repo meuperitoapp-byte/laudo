@@ -473,6 +473,9 @@ export type PosLaudoCiclosRow = {
   // --- fatia 4 (migration 20260906120000) ---
   repercussao_laudo: PosLaudoRepercussaoLaudo | null
   conclusao_vigente_nova: string | null
+  // --- fatia 6 (migration 20260907120000) ---
+  retificacao_afeta_conclusao: boolean | null
+  retificacao_justificativa: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -493,6 +496,8 @@ export type PosLaudoCiclosInsert = ComDefaults<
   | 'rascunho_complementacao'
   | 'repercussao_laudo'
   | 'conclusao_vigente_nova'
+  | 'retificacao_afeta_conclusao'
+  | 'retificacao_justificativa'
   | 'created_by'
   | 'created_at'
   | 'updated_at'

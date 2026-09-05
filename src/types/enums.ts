@@ -160,6 +160,22 @@ export type PosLaudoConclusaoOrigem = 'laudo' | 'esclarecimentos' | 'complementa
 export type PosLaudoConclusaoEscopo = 'integral' | 'parcial'
 
 /**
+ * pos_laudo_retificacao_itens.natureza_erro — vocabulário fixo (seção II do
+ * modelo de Retificação de Erro Material), validado na aplicação (não é
+ * CHECK no banco — mesmo padrão de PosLaudoNatureza/EtapaContratada).
+ */
+export type PosLaudoNaturezaErro =
+  | 'digitacao'
+  | 'grafia'
+  | 'nome_identificacao'
+  | 'data'
+  | 'numero_valor'
+  | 'pagina_item_referencia'
+  | 'troca_omissao'
+  | 'formatacao'
+  | 'outro'
+
+/**
  * laudos_gerados.tipo — discrimina a forma de snapshot_respostas. Linhas
  * pré-migration 20260905120000 assumem 'laudo' (default da coluna).
  */
