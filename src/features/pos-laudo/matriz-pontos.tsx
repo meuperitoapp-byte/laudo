@@ -315,7 +315,10 @@ function RepercussaoCicloControl({
   }
 
   return (
-    <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-4">
+    <div
+      id="repercussao-ciclo"
+      className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-4 scroll-mt-24"
+    >
       <div>
         <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">
           Repercussão sobre o laudo original
@@ -497,7 +500,10 @@ function PontoCard({
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((s) => ({ ...s, [k]: v }));
 
   return (
-    <li className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-4 space-y-3">
+    <li
+      id={`ponto-${ponto.id}`}
+      className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-4 space-y-3 scroll-mt-24"
+    >
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-2 text-xs font-medium text-nevoa-500 dark:text-nevoa-400">
           Ponto {numero}
