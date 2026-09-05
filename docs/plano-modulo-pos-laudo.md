@@ -38,6 +38,28 @@ corrigir antes de considerar o módulo fechado.
 
 ---
 
+## ⚠️ AVISO PRA DRA. FERNANDA — mudança de comportamento ao abrir ciclo (fatia 4)
+
+**Isto não é bug: é comportamento novo, avisar a Dra. Fernanda antes dela testar,**
+senão ela bate no erro sem saber que mudou de propósito.
+
+Antes da fatia 4, `abrirCicloPosLaudo` só exigia o laudo protocolado. A partir da
+fatia 4, o botão "Abrir novo ciclo" passa a exigir **também** que a **Conclusão
+vigente** do processo já esteja confirmada (tela "Laudo final" → bloco "Conclusão
+vigente"). Sem isso, o clique devolve um erro apontando pra essa tela em vez de abrir
+o ciclo.
+
+Motivo: um ciclo de pós-laudo mede repercussão sobre uma conclusão que precisa já
+existir como referência (§1.6 e §4, fatia 4). Ela não é semeada retroativamente — a
+perita confirma uma vez, na tela do laudo final, antes do primeiro ciclo daquele
+processo.
+
+Processos de teste que já tinham ciclo aberto **antes** da fatia 4 continuam
+funcionando normalmente (o ciclo já existe). O aviso vale pra qualquer ciclo **novo**
+aberto depois do deploy da fatia 4 (04/09/2026, commits `01ed31a`/`ea69768`/`0ecfd9d`).
+
+---
+
 ## 0. O que foi lido e o que está dentro/fora do escopo
 
 **Dentro (base direta do módulo):**
@@ -509,7 +531,7 @@ decidido por `pos_laudo_ciclos.fluxo`.
 | 2 | ✅ **FEITO 04/09/2026** (commit 37a8b99). Matriz de pontos com CRUD (origem, tema, síntese, já abordado?, página/item, **1** classificação de triagem, fundamentação); campo de ciclo "pode modificar conclusão?"; evidências vinculando documentos já anexados (+ observação). `rascunho_complementacao` liga/desliga sozinho conforme a classificação `necessidade_complementacao` — **puro aviso "Sugestão", nunca condição de fluxo** (Jeferson pediu alinhar antes se isso mudar). Salvamento por botão explícito (gramática do `secao-workspace`, não autosave). |
 | 3 | ✅ **FEITO 04/09/2026** (commit f6cec1c). `adicionarDocumentoSuperveniente` reusa 100% o pipeline de `documentos` (mesmo bucket, mesmo `storage_path`, sem caminho paralelo) e cria a linha em `pos_laudo_documentos` (papel + apresentante/data juntada/páginas/existência prévia/disponível ao perito/relevância/impacto/observação técnica/já enfrentado). Anti-join no `compilarLaudo` (§1.7) exclui esses docs da contagem e da tabela do laudo original. `/processos/[id]/documentos` marca os supervenientes com selo e bloqueia exclusão por ali. **PENDENTE: teste explícito do anti-join em produção pelo Jeferson** — gerar laudo num processo com doc superveniente e conferir ausência na tabela + contagem. |
 | 4 | ✅ **FEITO 04/09/2026** (migration `20260906120000` + código). Por ponto: `resposta_tecnica` (textarea) + `repercussao` (5 valores) no card; ponto sem resposta técnica é estado válido (selo "Sem resposta técnica", trava só na geração). Ciclo: `RepercussaoCicloControl` com `repercussao_laudo` (6 valores) + **sugestão visual** derivada das repercussões dos pontos (modelo `rascunho_complementacao`, nunca condição de fluxo) + textarea `conclusao_vigente_nova` quando a repercussão exige. **Conclusão Vigente V1**: bloco na tela do laudo final (`conclusao-vigente-inicial.tsx`), **sem backfill retroativo** — a perita confirma uma vez; pré-preenchimento **conservador** (`extrairConclusaoDoLaudo`: só traz texto quando há 1 seção de conclusão inequívoca com narrativo salvo — allowlist de `codigo`; ambiguidade → campo vazio + instrução pra colar; quando extraído, avisa a seção de origem e pede conferência). `definirConclusaoVigenteInicial` só opera enquanto vigente for V1 do laudo (`origem_tipo='laudo'`, `ciclo_id IS NULL`). `abrirCicloPosLaudo` agora **exige conclusão vigente** além do laudo protocolado. **Trava** (`regras.ts` → `podeGerarSaida`): só definida, amarração no fluxo de geração fica na fatia 5. |
-| 5 | **Geração — Esclarecimentos (judicial)** | `compilarPosLaudo` + `ModeloPosLaudo` + reuso dos renderers; grava `laudos_gerados` (tipo `esclarecimentos`, versão max+1). Tela de geração pré-preenchida + preview + PDF/DOCX. |
+| 5 | ✅ **FEITO 05/09/2026**. `compilarEsclarecimentos` + reuso DIRETO de `ModeloLaudo`/`renderizarPdf`/`renderizarDocx` (2 mudanças aditivas neles: `CabecalhoFormal.paragrafoIntroducao` e "APRESENTAÇÃO" condicional a `modelo.apresentacao` não vazio — zero impacto no laudo principal). Pendências como lista item a item com âncora (`podeGerarSaida` amarrado pela 1ª vez). Two-pass de paginação via `bufferedPageRange()` do PDFKit (`bufferPages:true`) — sem lib nova. `gerarEsclarecimentos` grava `laudos_gerados` (`tipo='esclarecimentos'`, versão max+1, nunca sobrescreve); `marcarPosLaudoProtocolado` generaliza o protocolar pra qualquer saída de pós-laudo e grava a Nova Conclusão Vigente a partir do **snapshot já congelado** (nunca da coluna viva do ciclo — gerar e protocolar continuam dois atos distintos). Diálogo de protocolar avisa (sem bloquear) quando a versão escolhida não é a mais recente do ciclo, com a conclusão que ela gravaria. Simplificações registradas no README (nenhuma imprime `[___]`: nome/CRM/cidade padrão da perita, data de assinatura sempre "hoje", sem "ID da manifestação", sem "Fundamentação da repercussão" à parte, seção V sempre ausente até a fatia 9, páginas do `.docx` reusam a contagem do PDF). |
 | 6 | **Retificação de Erro Material + trava** | `pos_laudo_retificacao_itens`, tela onde-se-lê/leia-se, campo "Análise da Repercussão". `finalizarRetificacao`: `nao` → gera doc; `sim` → reroteia p/ Complementação carregando itens, sem gerar retificação nem tocar conclusão. Testar os dois caminhos. |
 | 7 | **Complementação do Laudo** | Documento separado que só remete ao laudo (não reabre seções). Consome itens vindos da retificação reroteada + novos elementos/exame/avaliação. Gera doc (tipo `complementacao`); pode alterar/substituir conclusão vigente. |
 | 8 | **As 3 saídas juntas + encerramento do ciclo** | Tela que gera Esclarecimentos + Retificação + Complementação conforme aplicável no mesmo ciclo; numeração de versão coerente (V2, V3, V4…); encerrar ciclo só sem pendência técnica. |

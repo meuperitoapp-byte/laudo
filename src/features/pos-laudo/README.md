@@ -12,7 +12,7 @@ por **botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload
 Fernanda já usa a tela de Quesitos; mudar o comportamento de salvamento dela no meio do
 Pós-Laudo é risco sem ganho. **Padronizar quando o Módulo Pós-Laudo fechar.**
 
-## Estado atual — fatias 1 a 4
+## Estado atual — fatias 1 a 5
 
 O que já existe:
 
@@ -109,11 +109,75 @@ O que já existe:
 - **Gate de `abrirCicloPosLaudo` estendido**: além do laudo protocolado, agora exige
   que a conclusão vigente já exista. Sem ela, o erro aponta pra tela do laudo final.
 
-Inerte, esperando as próximas fatias: quesitos do ciclo, geração de documento
-(consome `conclusao_vigente_nova` no corpo e cria a linha de
-`pos_laudo_conclusoes_vigentes` no protocolo), amarração de `podeGerarSaida`,
-encerramento do ciclo, mudança da situação do processo. O `status` do ciclo continua
-sem avançar de "aberto".
+### Fatia 5 — geração dos Esclarecimentos
+
+Baseada em `MODELO_ESCLARECIMENTOS_AO_LAUDO_MEDICO_PERICIAL.pdf` (seções I–VIII).
+Reaproveita o MESMO `ModeloLaudo` + `renderizarPdf`/`renderizarDocx` do laudo principal —
+zero motor de PDF/Word duplicado. Duas mudanças pequenas e aditivas em
+`geracao-laudo/` pra viabilizar isso: `CabecalhoFormal.paragrafoIntroducao` (parágrafo
+extra antes do título, usado pelo Pós-Laudo; `undefined` no laudo principal, sem
+mudança de comportamento) e a seção "APRESENTAÇÃO" só entra quando `modelo.apresentacao`
+não é vazio (o laudo principal sempre preenche; o Pós-Laudo deixa em branco de propósito
+e usa `paragrafoIntroducao` em vez disso).
+
+- **`compilar-esclarecimentos.ts`** — `compilarEsclarecimentos(processoId, cicloId,
+  paginasTexto?)`: monta as 8 seções a partir do ciclo (Registro da Demanda, matriz de
+  pontos, documentos supervenientes, repercussão + conclusão vigente) e devolve
+  `{status: "ok", modelo, snapshot}` | `{status:"erro", mensagem}` |
+  `{status:"pendencias", itens}` — UMA lista de pendências, cada item com `href` pra
+  âncora exata da tela (`#ponto-<id>`, `#repercussao-ciclo`), no mesmo espírito do bloco
+  "Geração bloqueada" do laudo principal. É aqui que `podeGerarSaida` (fatia 4) é
+  amarrado pela primeira vez. Bloqueia também `repercussao_laudo = 'substituicao_conclusao'`
+  (exclusiva da Complementação — fatia 7, ainda não existe).
+- **Two-pass de paginação** (`renderizarPdfComPaginas`, `geracao-laudo/renderizar-pdf.ts`):
+  usa `bufferPages: true` do PDFKit pra ler `bufferedPageRange().count` — a contagem real
+  de páginas — ANTES de finalizar o PDF, sem precisar reabrir o buffer com outra lib.
+  `gerarEsclarecimentos` chama `compilarEsclarecimentos` duas vezes (1ª com placeholder
+  "—" no lugar do número; mede; 2ª com o número real) e aborta se a paginação divergir
+  entre as duas passadas.
+- **`gerarEsclarecimentos(cicloId, processoId)`** — mesmo padrão de `gerarLaudo`:
+  `versao` = maior já usada pelo processo + 1 (nunca sobrescreve), grava
+  `laudos_gerados` com `tipo='esclarecimentos'`, `pos_laudo_ciclo_id`,
+  `substitui_conclusao` = (`snapshot.conclusao_vigente_texto !== null`).
+- **`marcarPosLaudoProtocolado(laudoGeradoId, processoId, cicloId, protocoloId)`** —
+  mesmo contrato de `marcarLaudoProtocolado`, generalizado pra qualquer saída de
+  pós-laudo (filtra por `pos_laudo_ciclo_id`, nunca alcança o laudo principal). Quando o
+  snapshot JÁ CONGELADO por este UPDATE carrega uma Nova Conclusão Vigente, grava a linha
+  em `pos_laudo_conclusoes_vigentes` **a partir do snapshot**, nunca da coluna viva do
+  ciclo — gerar e protocolar continuam dois atos distintos; editar o rascunho depois de
+  gerar não muda o que uma versão já gerada vai gravar se for protocolada.
+- **`gerar-pos-laudo-panel.tsx`** (client) — mesmo padrão visual de `GerarLaudoPanel`.
+  No diálogo de protocolar, quando a versão escolhida não é a mais recente gerada NESTE
+  ciclo, mostra aviso (sem bloquear) com a versão mais nova e qual texto de conclusão
+  vigente a versão ESCOLHIDA vai gravar.
+- `gerar-laudo-panel.tsx` (laudo principal) ganhou um selo de tipo (`TIPO_ROTULOS`) nas
+  linhas que não são `tipo='laudo'` — sem isso, uma vez que o Pós-Laudo gera versões,
+  elas apareciam na lista de "Versões geradas" do laudo final como "Versão 2" sem dizer
+  que é outro tipo de documento.
+
+Simplificações registradas (nenhuma imprime `[___]` no documento — quando falta dado, a
+frase é composta sem a cláusula):
+- "ID da manifestação" do modelo não tem campo equivalente no schema — a seção I não a
+  menciona.
+- Nome/CRM/cidade de assinatura vêm de `VALORES_PADRAO_PERITO` (mesmo padrão já usado no
+  motor de preenchimento), não de uma nova consulta às respostas do laudo original —
+  "só existe uma perita usando o sistema" (CLAUDE.md), risco de divergência é próximo de
+  zero.
+- Data da assinatura é sempre "hoje", por extenso — sem campo pra ela digitar outra data
+  (diferente do laudo principal, onde `data_assinatura` é `texto_livre`).
+- Seção VI não tem um campo de "Fundamentação da repercussão" à parte — a fundamentação
+  já está nas respostas técnicas de cada ponto (seção IV); a seção VI só declara o nível
+  marcado.
+- Seção V (quesitos suplementares) nunca aparece ainda: `pos_laudo_quesitos` não tem CRUD
+  (fatia 9).
+- O número de páginas do `.docx` reusa o mesmo valor medido no PDF (o `.docx` não tem
+  como medir sua própria paginação na geração — ela depende do Word/impressora de quem
+  abrir o arquivo).
+
+Inerte, esperando as próximas fatias: Retificação de Erro Material (fatia 6),
+Complementação do Laudo (fatia 7, é ela quem habilita `substituicao_conclusao`),
+quesitos do ciclo (fatia 9), encerramento do ciclo, mudança da situação do processo. O
+`status` do ciclo continua sem avançar de "aberto".
 
 ## Arquivos
 
@@ -121,19 +185,24 @@ sem avançar de "aberto".
   `adicionarPonto`, `salvarPonto`, `removerPonto`, `vincularEvidencia`,
   `desvincularEvidencia`, `adicionarDocumentoSuperveniente`,
   `salvarMetadadosSuperveniente`, `removerDocumentoSuperveniente`,
-  `salvarRepercussaoCiclo`, `definirConclusaoVigenteInicial` (+ helper
-  `recomputarRascunhoComplementacao`).
+  `salvarRepercussaoCiclo`, `definirConclusaoVigenteInicial`, `gerarEsclarecimentos`,
+  `marcarPosLaudoProtocolado` (+ helper `recomputarRascunhoComplementacao`).
 - `consultas.ts` — **não** "use server": `conclusaoVigenteAtual`,
   `extrairConclusaoDoLaudo` (recebem o client do Supabase; usadas por páginas e por
   `actions.ts`).
 - `regras.ts` — **não** "use server": `podeGerarSaida` (trava síncrona da Nova
-  Conclusão Vigente; definida, ainda não amarrada).
+  Conclusão Vigente; amarrada em `compilar-esclarecimentos.ts` desde a fatia 5).
+- `compilar-esclarecimentos.ts` — **não** "use server": `compilarEsclarecimentos` (busca
+  no banco + monta o `ModeloLaudo` + `SnapshotPosLaudo` dos Esclarecimentos).
 - `abrir-ciclo-button.tsx` — client, botão do índice.
 - `registro-demanda-form.tsx` — client, etapa Registro da Demanda (botão explícito).
 - `matriz-pontos.tsx` — client, campo de ciclo + matriz de pontos + enfrentamento +
   `RepercussaoCicloControl` + evidências.
 - `documentos-supervenientes.tsx` — client, upload + metadados dos supervenientes.
 - `conclusao-vigente-inicial.tsx` — client, bloco "Conclusão vigente" do laudo final.
+- `gerar-pos-laudo-panel.tsx` — client, geração + protocolar dos Esclarecimentos.
 - `rotulos.ts` — rótulos pt-BR das colunas `text` + CHECK do módulo.
 
-O anti-join vive em `src/features/geracao-laudo/compilar.ts` (não neste diretório).
+O anti-join vive em `src/features/geracao-laudo/compilar.ts` (não neste diretório). O
+renderer de PDF/Word também: `geracao-laudo/renderizar-pdf.ts` e `renderizar-docx.ts`,
+reaproveitados quase sem alteração (ver nota da fatia 5 acima).
