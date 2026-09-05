@@ -10,7 +10,10 @@ import {
   type DocSuperveniente,
 } from "@/features/pos-laudo/documentos-supervenientes";
 import { GerarPosLaudoPanel, type VersaoPosLaudo } from "@/features/pos-laudo/gerar-pos-laudo-panel";
-import { compilarEsclarecimentos } from "@/features/pos-laudo/compilar-esclarecimentos";
+import { RetificacaoPanel } from "@/features/pos-laudo/retificacao-panel";
+import { compilarEsclarecimentos, type PendenciaGeracaoPosLaudo } from "@/features/pos-laudo/compilar-esclarecimentos";
+import { compilarRetificacao } from "@/features/pos-laudo/compilar-retificacao";
+import { gerarEsclarecimentos, gerarRetificacao } from "@/features/pos-laudo/actions";
 import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
 import { CICLO_STATUS_ROTULOS, FLUXO_ROTULOS } from "@/features/pos-laudo/rotulos";
 import { Selo } from "@/components/ui/badge";
@@ -18,6 +21,52 @@ import type { PosLaudoCicloStatus, PosLaudoFluxo } from "@/types/enums";
 import type { SnapshotPosLaudo } from "@/types/json-fields";
 
 const URL_ASSINADA_VALIDADE_SEGUNDOS = 60 * 60;
+
+/**
+ * Lista de pendências que bloqueia a geração de uma saída — separa os itens
+ * de tom "orientação" (ela não fez nada errado; o sistema indica o caminho
+ * certo, ex.: Retificação com repercussão redirecionada pra Complementação)
+ * dos de tom "bloqueio" comum (algo ainda incompleto), com framings visuais
+ * diferentes: o primeiro nunca aparece como "Geração bloqueada".
+ */
+function BlocoPendencias({ itens }: { itens: PendenciaGeracaoPosLaudo[] }) {
+  const orientacao = itens.filter((i) => i.tom === "orientacao");
+  const bloqueio = itens.filter((i) => i.tom !== "orientacao");
+  return (
+    <>
+      {orientacao.map((item) => (
+        <div
+          key={item.id}
+          className="flex items-start gap-2 rounded-lg border border-nevoa-300/60 dark:border-nevoa-700/40 bg-nevoa-50 dark:bg-nevoa-900/60 px-4 py-3 text-sm"
+        >
+          <Selo variante="neutro">Caminho indicado</Selo>
+          <p className="text-nevoa-800 dark:text-nevoa-200">{item.label}</p>
+        </div>
+      ))}
+      {bloqueio.length > 0 && (
+        <div className="text-sm space-y-3 rounded-lg border border-ambar-400/60 dark:border-ambar-600/40 bg-ambar-100 dark:bg-ambar-950/30 px-4 py-4">
+          <div className="flex items-center gap-2">
+            <Selo variante="atencao">Geração bloqueada</Selo>
+          </div>
+          <p className="text-nevoa-800 dark:text-nevoa-200">Falta resolver, antes de gerar:</p>
+          <ul className="list-disc pl-5 space-y-0.5">
+            {bloqueio.map((item) =>
+              item.href ? (
+                <li key={item.id}>
+                  <a href={item.href} className="text-petroleo-700 hover:underline dark:text-petroleo-400">
+                    {item.label}
+                  </a>
+                </li>
+              ) : (
+                <li key={item.id}>{item.label}</li>
+              ),
+            )}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+}
 
 export default async function PosLaudoCicloPage({
   params,
@@ -123,7 +172,7 @@ export default async function PosLaudoCicloPage({
       .createSignedUrls(caminhosVersoes, URL_ASSINADA_VALIDADE_SEGUNDOS);
     if (assinadasVersoes) urlPorCaminho = new Map(assinadasVersoes.map((a) => [a.path ?? "", a.signedUrl]));
   }
-  const versoesEsclarecimentos: VersaoPosLaudo[] = versoesLista.map((v) => {
+  const versoesPosLaudo: VersaoPosLaudo[] = versoesLista.map((v) => {
     const snapshot = v.snapshot_respostas as SnapshotPosLaudo | null;
     return {
       id: v.id,
@@ -138,11 +187,21 @@ export default async function PosLaudoCicloPage({
       conclusaoVigenteTexto: snapshot?.conclusao_vigente_texto ?? null,
     };
   });
+  // Cada saída compara "versão mais recente" só entre as versões DO MESMO
+  // TIPO — a mesma laudos_gerados carrega Esclarecimentos e Retificação lado
+  // a lado a partir desta fatia.
+  const versoesEsclarecimentos = versoesPosLaudo.filter((v) => v.tipo === "esclarecimentos");
+  const versoesRetificacao = versoesPosLaudo.filter((v) => v.tipo === "retificacao");
 
-  // Pendências pra gerar Esclarecimentos — mesmo cálculo que a geração de
-  // verdade faz (compilarEsclarecimentos), só que sem gastar as duas passadas
-  // de paginação: aqui é preview de leitura, não geração.
-  const resultadoEsclarecimentos = await compilarEsclarecimentos(processoId, cicloId);
+  // Pendências pra gerar cada saída — mesmo cálculo que a geração de verdade
+  // faz (compilarEsclarecimentos/compilarRetificacao), só que sem gastar as
+  // duas passadas de paginação: aqui é preview de leitura, não geração.
+  const [resultadoEsclarecimentos, resultadoRetificacao, { data: itensRetificacaoDb }] = await Promise.all([
+    compilarEsclarecimentos(processoId, cicloId),
+    compilarRetificacao(processoId, cicloId),
+    supabase.from("pos_laudo_retificacao_itens").select("*").eq("ciclo_id", cicloId).order("ordem"),
+  ]);
+  const itensRetificacao = itensRetificacaoDb ?? [];
 
   const pontosLista = pontos ?? [];
   let evidenciasPorPonto: Record<string, EvidenciaVinculo[]> = {};
@@ -182,8 +241,8 @@ export default async function PosLaudoCicloPage({
           {CICLO_STATUS_ROTULOS[ciclo.status as PosLaudoCicloStatus] ?? ciclo.status}
         </p>
         <p className="text-xs text-nevoa-400 dark:text-nevoa-600">
-          O fluxo vem do tipo de trabalho do processo e não muda. As etapas de resposta (matriz de
-          enfrentamento, documentos supervenientes, quesitos, geração) entram nas fatias seguintes.
+          O fluxo vem do tipo de trabalho do processo e não muda. Quesitos suplementares do ciclo e o
+          encerramento formal entram nas fatias seguintes.
         </p>
       </div>
 
@@ -234,35 +293,50 @@ export default async function PosLaudoCicloPage({
           </p>
         )}
 
-        {resultadoEsclarecimentos.status === "pendencias" && (
-          <div className="text-sm space-y-3 rounded-lg border border-ambar-400/60 dark:border-ambar-600/40 bg-ambar-100 dark:bg-ambar-950/30 px-4 py-4">
-            <div className="flex items-center gap-2">
-              <Selo variante="atencao">Geração bloqueada</Selo>
-            </div>
-            <p className="text-nevoa-800 dark:text-nevoa-200">
-              Falta resolver, antes de gerar os Esclarecimentos:
-            </p>
-            <ul className="list-disc pl-5 space-y-0.5">
-              {resultadoEsclarecimentos.itens.map((item) =>
-                item.href ? (
-                  <li key={item.id}>
-                    <a href={item.href} className="text-petroleo-700 hover:underline dark:text-petroleo-400">
-                      {item.label}
-                    </a>
-                  </li>
-                ) : (
-                  <li key={item.id}>{item.label}</li>
-                ),
-              )}
-            </ul>
-          </div>
-        )}
+        {resultadoEsclarecimentos.status === "pendencias" && <BlocoPendencias itens={resultadoEsclarecimentos.itens} />}
 
         <GerarPosLaudoPanel
           processoId={processoId}
           cicloId={ciclo.id}
+          chave="esclarecimentos"
+          nomeDocumento="Esclarecimentos ao Laudo Médico-Pericial"
+          tituloBotao="Gerar Esclarecimentos"
           podeGerar={resultadoEsclarecimentos.status === "ok"}
           versoes={versoesEsclarecimentos}
+          gerar={gerarEsclarecimentos}
+        />
+      </div>
+
+      <RetificacaoPanel
+        processoId={processoId}
+        cicloId={ciclo.id}
+        itens={itensRetificacao}
+        afetaConclusao={ciclo.retificacao_afeta_conclusao}
+        justificativa={ciclo.retificacao_justificativa}
+      />
+
+      <div className="space-y-3">
+        <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-50">
+          Gerar Retificação
+        </h2>
+
+        {resultadoRetificacao.status === "erro" && (
+          <p className="text-sm rounded-lg border border-vinho-600/30 bg-vinho-100 text-vinho-700 dark:border-vinho-400/30 dark:bg-vinho-950 dark:text-vinho-400 px-4 py-3">
+            {resultadoRetificacao.mensagem}
+          </p>
+        )}
+
+        {resultadoRetificacao.status === "pendencias" && <BlocoPendencias itens={resultadoRetificacao.itens} />}
+
+        <GerarPosLaudoPanel
+          processoId={processoId}
+          cicloId={ciclo.id}
+          chave="retificacao"
+          nomeDocumento="Retificação de Erro Material"
+          tituloBotao="Gerar Retificação"
+          podeGerar={resultadoRetificacao.status === "ok"}
+          versoes={versoesRetificacao}
+          gerar={gerarRetificacao}
         />
       </div>
     </main>

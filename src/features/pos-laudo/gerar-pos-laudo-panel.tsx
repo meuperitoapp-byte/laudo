@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { gerarEsclarecimentos, marcarPosLaudoProtocolado } from "./actions";
+import { marcarPosLaudoProtocolado } from "./actions";
 import { Botao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
@@ -32,24 +32,39 @@ function hojeIsoLocal(): string {
 }
 
 /**
- * Painel de geração dos Esclarecimentos de um ciclo — mesmo padrão visual do
- * `GerarLaudoPanel` (geracao-laudo), com um cuidado a mais no diálogo de
- * protocolar: aqui a versão protocolada pode gravar uma Nova Conclusão
- * Vigente, então protocolar a versão errada (não a mais recente gerada deste
- * tipo) tem mais peso do que no laudo principal — o diálogo avisa qual
- * versão existe mais nova e qual texto de conclusão vigente SERIA gravado
- * pela versão escolhida, sem bloquear a ação.
+ * Painel de geração de uma saída de pós-laudo (Esclarecimentos, Retificação
+ * — e reusável pra Complementação quando a fatia 7 chegar) — mesmo padrão
+ * visual do `GerarLaudoPanel` (geracao-laudo), com um cuidado a mais no
+ * diálogo de protocolar: aqui a versão protocolada pode gravar uma Nova
+ * Conclusão Vigente, então protocolar a versão errada (não a mais recente
+ * gerada deste ciclo) tem mais peso do que no laudo principal — o diálogo
+ * avisa qual versão existe mais nova e qual texto de conclusão vigente
+ * SERIA gravado pela versão escolhida, sem bloquear a ação.
+ *
+ * `chave` (ex.: "esclarecimentos", "retificacao") só existe pra dar um id
+ * de elemento único ao campo de data quando os dois painéis renderizam na
+ * mesma página do ciclo.
  */
 export function GerarPosLaudoPanel({
   processoId,
   cicloId,
+  chave,
+  nomeDocumento,
+  tituloBotao,
   podeGerar,
   versoes,
+  gerar: gerarAcao,
 }: {
   processoId: string;
   cicloId: string;
+  chave: string;
+  /** Nome do documento por extenso, usado no diálogo de protocolar (ex.: "Esclarecimentos ao Laudo Médico-Pericial"). */
+  nomeDocumento: string;
+  /** Texto do botão de gerar (ex.: "Gerar Esclarecimentos"). */
+  tituloBotao: string;
   podeGerar: boolean;
   versoes: VersaoPosLaudo[];
+  gerar: (cicloId: string, processoId: string, dataAssinatura: string) => Promise<{ error: string } | { success: true; versao: number }>;
 }) {
   const router = useRouter();
   const [toast, setToast] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
@@ -64,7 +79,7 @@ export function GerarPosLaudoPanel({
   function gerar() {
     setToast(null);
     startTransition(async () => {
-      const resultado = await gerarEsclarecimentos(cicloId, processoId, dataAssinatura);
+      const resultado = await gerarAcao(cicloId, processoId, dataAssinatura);
       if ("error" in resultado) {
         setToast({ tipo: "erro", texto: resultado.error });
         return;
@@ -79,7 +94,7 @@ export function GerarPosLaudoPanel({
       <div className="space-y-3">
         <div className="max-w-xs">
           <label
-            htmlFor="data-assinatura-esclarecimentos"
+            htmlFor={`data-assinatura-${chave}`}
             className="block text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1"
           >
             Data da assinatura
@@ -89,7 +104,7 @@ export function GerarPosLaudoPanel({
             outro dia.
           </p>
           <input
-            id="data-assinatura-esclarecimentos"
+            id={`data-assinatura-${chave}`}
             type="date"
             value={dataAssinatura}
             onChange={(e) => setDataAssinatura(e.target.value)}
@@ -97,7 +112,7 @@ export function GerarPosLaudoPanel({
           />
         </div>
         <Botao onClick={gerar} disabled={!podeGerar || !dataAssinatura} carregando={isPending} textoCarregando="Gerando…">
-          Gerar Esclarecimentos
+          {tituloBotao}
         </Botao>
       </div>
 
@@ -152,6 +167,7 @@ export function GerarPosLaudoPanel({
                       cicloId={cicloId}
                       laudoGeradoId={v.id}
                       versao={v.versao}
+                      nomeDocumento={nomeDocumento}
                       conclusaoVigenteTexto={v.conclusaoVigenteTexto}
                       versaoMaisRecente={versaoMaisRecente}
                       onErro={(texto) => setToast({ tipo: "erro", texto })}
@@ -184,6 +200,7 @@ function MarcarProtocoladoAcao({
   cicloId,
   laudoGeradoId,
   versao,
+  nomeDocumento,
   conclusaoVigenteTexto,
   versaoMaisRecente,
   onOk,
@@ -193,6 +210,7 @@ function MarcarProtocoladoAcao({
   cicloId: string;
   laudoGeradoId: string;
   versao: number;
+  nomeDocumento: string;
   conclusaoVigenteTexto: string | null;
   versaoMaisRecente: VersaoPosLaudo | null;
   onOk: () => void;
@@ -253,7 +271,7 @@ function MarcarProtocoladoAcao({
           )}
 
           <p className="text-nevoa-700 dark:text-nevoa-300">
-            Isto registra que a Versão {versao} destes Esclarecimentos foi protocolada nos autos. A partir
+            Isto registra que a Versão {versao} — {nomeDocumento} — foi protocolada nos autos. A partir
             daqui o conteúdo dessa versão — arquivo, texto, título e numeração de páginas — fica{" "}
             <strong>congelado</strong>, e <strong>não há como desfazer</strong>: nem a marcação, nem o
             conteúdo. Só o número do protocolo pode ser corrigido depois.
