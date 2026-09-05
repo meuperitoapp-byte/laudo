@@ -19,7 +19,7 @@ import { rodapeTexto } from "@/features/geracao-laudo/contatos";
 import type { ModeloLaudo, SecaoCompilada, BlocoConteudo } from "@/features/geracao-laudo/modelo";
 import type { SnapshotPosLaudo, SnapshotPosLaudoPonto } from "@/types/json-fields";
 import type { PosLaudoCiclosRow, PosLaudoPontosRow } from "@/types/database";
-import { podeGerarSaida } from "./regras";
+import { podeGerarSaida, type PendenciaGeracaoPosLaudo } from "./regras";
 import {
   FLUXO_ROTULOS,
   NATUREZA_ROTULOS,
@@ -30,12 +30,7 @@ import {
 import { VALORES_PADRAO_PERITO } from "@/features/preenchimento/perito-padrao";
 import type { PosLaudoNatureza, PosLaudoOrigem, PosLaudoRepercussaoLaudo, PosLaudoRepercussaoPonto } from "@/types/enums";
 
-export interface PendenciaGeracaoPosLaudo {
-  id: string;
-  label: string;
-  /** Âncora (#id) da tela do ciclo que resolve a pendência. */
-  href?: string;
-}
+export type { PendenciaGeracaoPosLaudo };
 
 export type ResultadoEsclarecimentos =
   | { status: "ok"; modelo: ModeloLaudo; snapshot: SnapshotPosLaudo }

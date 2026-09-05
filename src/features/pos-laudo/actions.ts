@@ -15,6 +15,7 @@ import type {
   PosLaudoConclusoesVigentesInsert,
   PosLaudoDocumentosInsert,
   PosLaudoPontosInsert,
+  PosLaudoRetificacaoItensInsert,
 } from "@/types/database";
 import type {
   PosLaudoClassificacaoTriagem,
@@ -23,6 +24,7 @@ import type {
   PosLaudoDocumentoRelevancia,
   PosLaudoFluxo,
   PosLaudoNatureza,
+  PosLaudoNaturezaErro,
   PosLaudoOrigem,
   PosLaudoPotencialConclusao,
   PosLaudoRepercussaoLaudo,
@@ -31,6 +33,7 @@ import type {
 import type { SnapshotPosLaudo } from "@/types/json-fields";
 import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
 import { compilarEsclarecimentos } from "@/features/pos-laudo/compilar-esclarecimentos";
+import { compilarRetificacao } from "@/features/pos-laudo/compilar-retificacao";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -956,4 +959,239 @@ export async function marcarPosLaudoProtocolado(
   revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
   revalidatePath(`/processos/${processoId}/laudo`);
   return { success: true };
+}
+
+// ============================================================================
+// Fatia 6 — Retificação de Erro Material
+// ============================================================================
+
+const NATUREZA_ERRO_VALIDAS: readonly PosLaudoNaturezaErro[] = [
+  "digitacao",
+  "grafia",
+  "nome_identificacao",
+  "data",
+  "numero_valor",
+  "pagina_item_referencia",
+  "troca_omissao",
+  "formatacao",
+  "outro",
+];
+
+/**
+ * Cria um item de retificação em branco — `onde_se_le`/`leia_se` chegam como
+ * string vazia (a coluna é NOT NULL no banco, mas "" satisfaz isso; o campo
+ * só precisa ter conteúdo de verdade na hora de gerar, não de salvar — mesmo
+ * "estado válido" dos pontos da matriz de enfrentamento). `documento_alvo_id`
+ * é pré-preenchido com o `laudo_base_id` do ciclo — simplificação registrada:
+ * hoje não há seletor pra apontar um item pra outro documento (Esclarecimentos
+ * anterior, por ex.); todos os itens de um ciclo retificam o mesmo documento.
+ */
+export async function adicionarItemRetificacao(cicloId: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const [{ data: ciclo }, { data: ultimo, error: erroUltimo }] = await Promise.all([
+    supabase.from("pos_laudo_ciclos").select("laudo_base_id").eq("id", cicloId).maybeSingle(),
+    supabase
+      .from("pos_laudo_retificacao_itens")
+      .select("ordem")
+      .eq("ciclo_id", cicloId)
+      .order("ordem", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  if (erroUltimo) return { error: erroUltimo.message };
+
+  const insert: PosLaudoRetificacaoItensInsert = {
+    ciclo_id: cicloId,
+    documento_alvo_id: ciclo?.laudo_base_id ?? null,
+    ordem: (ultimo?.ordem ?? 0) + 1,
+    onde_se_le: "",
+    leia_se: "",
+  };
+  const { error } = await supabase.from("pos_laudo_retificacao_itens").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true };
+}
+
+/** Salva os campos de um item de retificação (seção III do modelo). */
+export async function salvarItemRetificacao(input: {
+  itemId: string;
+  cicloId: string;
+  processoId: string;
+  pagina: string | null;
+  itemSecao: string | null;
+  ondeSeLe: string;
+  leiaSe: string;
+  naturezaErro: string | null;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const naturezaErro: PosLaudoNaturezaErro | null =
+    input.naturezaErro && (NATUREZA_ERRO_VALIDAS as readonly string[]).includes(input.naturezaErro)
+      ? (input.naturezaErro as PosLaudoNaturezaErro)
+      : null;
+
+  const { error } = await supabase
+    .from("pos_laudo_retificacao_itens")
+    .update({
+      pagina: input.pagina,
+      item_secao: input.itemSecao,
+      onde_se_le: input.ondeSeLe,
+      leia_se: input.leiaSe,
+      natureza_erro: naturezaErro,
+    })
+    .eq("id", input.itemId)
+    .eq("ciclo_id", input.cicloId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
+  return { success: true };
+}
+
+/** Remove um item de retificação. */
+export async function removerItemRetificacao(
+  itemId: string,
+  cicloId: string,
+  processoId: string,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("pos_laudo_retificacao_itens")
+    .delete()
+    .eq("id", itemId)
+    .eq("ciclo_id", cicloId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true };
+}
+
+/**
+ * Salva a Análise da Repercussão (seção IV do modelo) — a principal trava do
+ * módulo. Pergunta EXPLÍCITA à perita (NÃO/SIM + justificativa obrigatória
+ * nas duas respostas, pelo modelo): nunca é derivada de outro campo. Salvar
+ * sempre funciona livre (mesmo com o valor "" ainda na justificativa) — a
+ * exigência de completude é checada só na geração (compilarRetificacao).
+ */
+export async function salvarAnaliseRetificacao(input: {
+  cicloId: string;
+  processoId: string;
+  afetaConclusao: string | null;
+  justificativa: string | null;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const afetaConclusao = input.afetaConclusao === "sim" ? true : input.afetaConclusao === "nao" ? false : null;
+
+  const { error } = await supabase
+    .from("pos_laudo_ciclos")
+    .update({
+      retificacao_afeta_conclusao: afetaConclusao,
+      retificacao_justificativa: input.justificativa?.trim() || null,
+    })
+    .eq("id", input.cicloId)
+    .eq("processo_id", input.processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
+  return { success: true };
+}
+
+/**
+ * Gera uma nova versão de Retificação do ciclo — mesmo padrão de
+ * `gerarEsclarecimentos` (two-pass de paginação, `versao` = maior do processo
+ * + 1, nunca sobrescreve). Só chega a compilar quando
+ * `retificacao_afeta_conclusao === false`: se for `true` ou `null`,
+ * `compilarRetificacao` devolve pendências antes de qualquer renderização.
+ * `substitui_conclusao` é sempre `false` aqui — Retificação nunca cria Nova
+ * Conclusão Vigente (trava estrutural, ver enums.ts).
+ */
+export async function gerarRetificacao(
+  cicloId: string,
+  processoId: string,
+  dataAssinaturaIso: string,
+): Promise<{ error: string } | { success: true; versao: number }> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataAssinaturaIso)) {
+    return { error: "Informe a data da assinatura." };
+  }
+
+  const pass1 = await compilarRetificacao(processoId, cicloId, "—", dataAssinaturaIso);
+  if (pass1.status === "erro") return { error: pass1.mensagem };
+  if (pass1.status === "pendencias") {
+    return { error: `Geração bloqueada — pendências: ${pass1.itens.map((i) => i.label).join("; ")}.` };
+  }
+
+  const ativos = await buscarAtivosGlobais();
+  const medidaUm = await renderizarPdfComPaginas(pass1.modelo, ativos, []);
+
+  const pass2 = await compilarRetificacao(processoId, cicloId, String(medidaUm.paginas), dataAssinaturaIso);
+  if (pass2.status !== "ok") {
+    return { error: "O estado do ciclo mudou entre as duas passadas de paginação — tente gerar novamente." };
+  }
+  const medidaDois = await renderizarPdfComPaginas(pass2.modelo, ativos, []);
+  if (medidaDois.paginas !== medidaUm.paginas) {
+    return {
+      error: `Divergência de paginação ao inserir o número de páginas (1ª passada: ${medidaUm.paginas}; 2ª passada: ${medidaDois.paginas}). Geração abortada — tente novamente.`,
+    };
+  }
+
+  const bufferDocx = await renderizarDocx(pass2.modelo, ativos, []);
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: ultimo, error: erroUltimo } = await supabase
+    .from("laudos_gerados")
+    .select("versao")
+    .eq("processo_id", processoId)
+    .order("versao", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroUltimo) return { error: erroUltimo.message };
+  const versao = (ultimo?.versao ?? 0) + 1;
+
+  const caminhoPdf = `${processoId}/v${versao}.pdf`;
+  const caminhoDocx = `${processoId}/v${versao}.docx`;
+
+  const [uploadPdf, uploadDocx] = await Promise.all([
+    supabase.storage
+      .from(BUCKET_LAUDOS_GERADOS)
+      .upload(caminhoPdf, medidaDois.buffer, { contentType: "application/pdf" }),
+    supabase.storage.from(BUCKET_LAUDOS_GERADOS).upload(caminhoDocx, bufferDocx, {
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }),
+  ]);
+  if (uploadPdf.error || uploadDocx.error) {
+    await Promise.all([
+      uploadPdf.error ? Promise.resolve() : supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoPdf]),
+      uploadDocx.error ? Promise.resolve() : supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoDocx]),
+    ]);
+    return { error: `Erro ao salvar os arquivos: ${uploadPdf.error?.message ?? uploadDocx.error?.message}` };
+  }
+
+  const insert: LaudosGeradosInsert = {
+    processo_id: processoId,
+    versao,
+    tipo: "retificacao",
+    pos_laudo_ciclo_id: cicloId,
+    titulo: "Retificação de Erro Material",
+    substitui_conclusao: false,
+    storage_path_pdf: caminhoPdf,
+    storage_path_docx: caminhoDocx,
+    snapshot_respostas: pass2.snapshot,
+    paginas: medidaDois.paginas,
+    gerado_por: user?.id ?? null,
+  };
+  const { error: erroInsert } = await supabase.from("laudos_gerados").insert(insert);
+  if (erroInsert) {
+    await supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoPdf, caminhoDocx]);
+    return { error: erroInsert.message };
+  }
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true, versao };
 }
