@@ -164,6 +164,7 @@ function cabecalhoJudicialDocx(modelo: ModeloLaudo): Bloco[] {
   if (cab.parteAutora) out.push(paragrafo(`Parte autora / Reclamante: ${cab.parteAutora}`));
   if (cab.partesRe) out.push(paragrafo(`Parte ré / Reclamada(s): ${cab.partesRe}`));
   out.push(...linhasVazias(LINHAS_ENTORNO_TITULO_DOCUMENTO));
+  if (cab.paragrafoIntroducao) out.push(paragrafo(cab.paragrafoIntroducao));
   out.push(tituloDocumento(cab.tituloDocumento));
   out.push(...linhasVazias(LINHAS_ENTORNO_TITULO_DOCUMENTO));
   return out;
@@ -217,9 +218,11 @@ export async function renderizarDocx(
       : cabecalhoJudicialDocx(modelo))
   );
 
-  // Apresentação
-  filhos.push(tituloSecao("APRESENTAÇÃO"));
-  filhos.push(paragrafo(modelo.apresentacao));
+  // Apresentação — só entra quando há texto (ver mesma nota em renderizar-pdf.ts).
+  if (modelo.apresentacao) {
+    filhos.push(tituloSecao("APRESENTAÇÃO"));
+    filhos.push(paragrafo(modelo.apresentacao));
+  }
 
   // Seções do tipo_laudo (já com o bloco de Quesitos na posição certa — ver compilar.ts).
   // Documentos e Imagens da Perícia entram logo antes do Encerramento — depois de todo

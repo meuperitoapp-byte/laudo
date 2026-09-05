@@ -63,6 +63,13 @@ export interface CabecalhoFormal {
   processoNumero: string | null;
   parteAutora: string | null;
   partesRe: string | null;
+  /**
+   * Parágrafo de abertura entre os dados do processo e o título — usado pelo
+   * Módulo Pós-Laudo (ex.: "Dra. X, médica, CRM..., vem respeitosamente
+   * apresentar os presentes Esclarecimentos..."). `undefined`/`null` = nenhum
+   * parágrafo extra (comportamento do laudo principal, inalterado).
+   */
+  paragrafoIntroducao?: string | null;
 }
 
 /**

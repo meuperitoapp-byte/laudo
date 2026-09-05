@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import PdfPrinter from "pdfmake/js/Printer";
+import PdfPrinter, { type PdfKitDocumentLike } from "pdfmake/js/Printer";
 import URLResolver from "pdfmake/js/URLResolver";
 import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import type { BlocoConteudo, ModeloLaudo } from "./modelo";
@@ -121,6 +121,9 @@ function cabecalhoJudicialPdf(modelo: ModeloLaudo): Content[] {
   if (cab.parteAutora) out.push({ text: `Parte autora / Reclamante: ${cab.parteAutora}` });
   if (cab.partesRe) out.push({ text: `Parte ré / Reclamada(s): ${cab.partesRe}` });
   out.push(...linhasVaziasPdf(LINHAS_ENTORNO_TITULO_DOCUMENTO));
+  if (cab.paragrafoIntroducao) {
+    out.push({ text: cab.paragrafoIntroducao, margin: [0, 0, 0, 10] });
+  }
   out.push({ text: cab.tituloDocumento, bold: true, alignment: "center", fontSize: 16 });
   out.push(...linhasVaziasPdf(LINHAS_ENTORNO_TITULO_DOCUMENTO));
   return out;
@@ -145,11 +148,17 @@ function cabecalhoAtPdf(modelo: ModeloLaudo, ativos: AtivosGlobais): Content[] {
   return out;
 }
 
-export async function renderizarPdf(
+/**
+ * Monta o `TDocumentDefinitions` inteiro a partir do modelo — extraído de
+ * `renderizarPdf` pra ser reaproveitado por `renderizarPdfComPaginas` (Módulo
+ * Pós-Laudo) sem duplicar cabeçalho/rodapé/estilos. Comportamento idêntico ao
+ * de antes da extração.
+ */
+function montarDocDefinition(
   modelo: ModeloLaudo,
   ativos: AtivosGlobais,
-  imagensPericia: ImagemPericiaEmbutida[] = []
-): Promise<Buffer> {
+  imagensPericia: ImagemPericiaEmbutida[]
+): TDocumentDefinitions {
   const conteudo: Content[] = [];
 
   // Cabeçalho: endereçamento formal (Perícia Judicial) OU cabeçalho de Parecer
@@ -160,8 +169,15 @@ export async function renderizarPdf(
       : cabecalhoJudicialPdf(modelo))
   );
 
-  conteudo.push(tituloSecao("APRESENTAÇÃO"));
-  conteudo.push({ text: modelo.apresentacao, margin: [0, 0, 0, 10] });
+  // "APRESENTAÇÃO" só entra quando há texto — o laudo principal sempre tem
+  // (montarApresentacao nunca devolve vazio); o Módulo Pós-Laudo deixa
+  // `apresentacao` em branco de propósito (o parágrafo de abertura dele vai
+  // no cabeçalho, ver CabecalhoFormal.paragrafoIntroducao) pra não abrir uma
+  // seção "APRESENTAÇÃO" vazia.
+  if (modelo.apresentacao) {
+    conteudo.push(tituloSecao("APRESENTAÇÃO"));
+    conteudo.push({ text: modelo.apresentacao, margin: [0, 0, 0, 10] });
+  }
 
   // Seções do tipo_laudo (já com o bloco de Quesitos na posição certa — ver compilar.ts).
   // Documentos e Imagens da Perícia entram logo antes do Encerramento — depois de todo
@@ -218,7 +234,7 @@ export async function renderizarPdf(
       }
     : undefined;
 
-  const docDefinition: TDocumentDefinitions = {
+  return {
     defaultStyle: { font: "Roboto", fontSize: 11, alignment: "justify" },
     pageMargins: [56, 56, 56, temFaixa ? 58 : 56],
     footer: rodapeIdentidade,
@@ -227,18 +243,55 @@ export async function renderizarPdf(
       tituloSecao: { fontSize: 13, bold: true, margin: [0, 16, 0, 8] },
     },
   };
+}
 
-  // urlResolver é exigido pelo construtor mesmo só usando fontes locais —
-  // ver nota em pdfmake-printer.d.ts.
-  const printer = new PdfPrinter(FONTES, undefined, new URLResolver(fs));
-  const pdfDoc = await printer.createPdfKitDocument(docDefinition);
-
+/** Dreno comum do PDFKit doc pra Buffer — usado pelas duas variantes abaixo. */
+function drenarParaBuffer(pdfDoc: PdfKitDocumentLike): Promise<Buffer> {
   const chunks: Buffer[] = [];
   const finalizado = new Promise<Buffer>((resolve) => {
     pdfDoc.on("data", (chunk) => chunks.push(chunk));
     pdfDoc.on("end", () => resolve(Buffer.concat(chunks)));
   });
   pdfDoc.end();
-
   return finalizado;
+}
+
+export async function renderizarPdf(
+  modelo: ModeloLaudo,
+  ativos: AtivosGlobais,
+  imagensPericia: ImagemPericiaEmbutida[] = []
+): Promise<Buffer> {
+  const docDefinition = montarDocDefinition(modelo, ativos, imagensPericia);
+  // urlResolver é exigido pelo construtor mesmo só usando fontes locais —
+  // ver nota em pdfmake-printer.d.ts.
+  const printer = new PdfPrinter(FONTES, undefined, new URLResolver(fs));
+  const pdfDoc = await printer.createPdfKitDocument(docDefinition);
+  return drenarParaBuffer(pdfDoc);
+}
+
+/**
+ * Variante do renderizador que também devolve a contagem REAL de páginas —
+ * usada pelo Módulo Pós-Laudo (Esclarecimentos etc.), cujo modelo de
+ * documento exige mencionar "composto por [X] páginas" no corpo do
+ * Encerramento (§VIII). `bufferPages: true` faz o PDFKit reter todas as
+ * páginas em memória em vez de descarregá-las pro stream conforme são
+ * geradas — o que permite ler `bufferedPageRange().count` (a contagem final
+ * de verdade) ANTES de finalizar o documento. Chamador típico faz two-pass:
+ * 1ª chamada com um texto-placeholder no lugar do número, mede `paginas`;
+ * monta o modelo de novo com o número real; 2ª chamada; compara as duas
+ * contagens e aborta se divergirem (o texto do número em si pode, em teoria,
+ * empurrar uma quebra de linha/página — casuística rara, mas silenciosa se
+ * não for checada, e um documento médico-legal não pode arriscar isso).
+ */
+export async function renderizarPdfComPaginas(
+  modelo: ModeloLaudo,
+  ativos: AtivosGlobais,
+  imagensPericia: ImagemPericiaEmbutida[] = []
+): Promise<{ buffer: Buffer; paginas: number }> {
+  const docDefinition = montarDocDefinition(modelo, ativos, imagensPericia);
+  const printer = new PdfPrinter(FONTES, undefined, new URLResolver(fs));
+  const pdfDoc = await printer.createPdfKitDocument(docDefinition, { bufferPages: true });
+  const paginas = pdfDoc.bufferedPageRange().count;
+  const buffer = await drenarParaBuffer(pdfDoc);
+  return { buffer, paginas };
 }

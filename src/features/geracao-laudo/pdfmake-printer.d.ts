@@ -14,11 +14,17 @@ declare module "pdfmake/js/Printer" {
     bolditalics?: string;
   }
 
-  /** O que a lib de fato devolve é um documento pdfkit — só tipamos o que usamos pra virar Buffer. */
+  /**
+   * O que a lib de fato devolve é um documento pdfkit — tipamos o que usamos
+   * pra virar Buffer, mais `bufferedPageRange()` (só populado de verdade
+   * quando `createPdfKitDocument` é chamado com `{ bufferPages: true }` —
+   * ver renderizarPdfComPaginas em renderizar-pdf.ts, Módulo Pós-Laudo).
+   */
   export interface PdfKitDocumentLike {
     on(event: "data", listener: (chunk: Buffer) => void): this;
     on(event: "end", listener: () => void): this;
     end(): void;
+    bufferedPageRange(): { start: number; count: number };
   }
 
   export default class PdfPrinter {

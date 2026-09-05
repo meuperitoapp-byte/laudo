@@ -23,6 +23,23 @@ const dataHora = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 const dataCurta = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { dateStyle: "short" });
 
+/**
+ * Esta lista mistura o laudo principal com as saídas do Módulo Pós-Laudo
+ * (mesma `laudos_gerados`, ver migration 20260905120000) — sem rótulo, "Versão
+ * 2" sozinho não diz se é uma nova versão do laudo ou um documento de
+ * Esclarecimentos gerado num ciclo. Só rotula quando não é o laudo principal;
+ * a linha do tempo unificada de verdade fica pra fatia 12.
+ */
+const TIPO_ROTULOS: Record<string, string> = {
+  esclarecimentos: "Esclarecimentos",
+  retificacao: "Retificação de Erro Material",
+  complementacao: "Complementação do Laudo",
+  parecer_at: "Parecer Técnico",
+  manifestacao_at: "Manifestação (AT)",
+  impugnacao_at: "Impugnação (AT)",
+  parecer_divergente_at: "Parecer Divergente (AT)",
+};
+
 export function GerarLaudoPanel({
   processoId,
   podeGerar,
@@ -70,6 +87,7 @@ export function GerarLaudoPanel({
               >
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-nevoa-900 dark:text-nevoa-100">Versão {v.versao}</span>
+                  {v.tipo !== "laudo" && <Selo variante="neutro">{TIPO_ROTULOS[v.tipo] ?? v.tipo}</Selo>}
                   <span className="text-nevoa-500 dark:text-nevoa-400">{dataHora(v.criadoEm)}</span>
                   {v.protocolado && (
                     <Selo variante="sucesso">
