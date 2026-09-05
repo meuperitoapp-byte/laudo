@@ -12,7 +12,7 @@ por **botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload
 Fernanda já usa a tela de Quesitos; mudar o comportamento de salvamento dela no meio do
 Pós-Laudo é risco sem ganho. **Padronizar quando o Módulo Pós-Laudo fechar.**
 
-## Estado atual — fatias 1 a 5
+## Estado atual — fatias 1 a 6
 
 O que já existe:
 
@@ -178,8 +178,53 @@ frase é composta sem a cláusula):
   como medir sua própria paginação na geração — ela depende do Word/impressora de quem
   abrir o arquivo).
 
-Inerte, esperando as próximas fatias: Retificação de Erro Material (fatia 6),
-Complementação do Laudo (fatia 7, é ela quem habilita `substituicao_conclusao`),
+### Fatia 6 — Retificação de Erro Material
+
+Baseada em `MODELO_RETIFICACAO_DE_ERRO_MATERIAL.pdf` (seções I–VII). Mesmo reuso direto
+do `ModeloLaudo`/renderers, mesmo two-pass de paginação e campo de data-do-ato da fatia 5.
+Migration `20260907120000`: 2 colunas em `pos_laudo_ciclos`.
+
+- **Itens onde-se-lê / leia-se** (`pos_laudo_retificacao_itens`, seção III): CRUD por
+  card, com botão explícito. `onde_se_le`/`leia_se` são `not null` no banco — item novo
+  nasce com `""` (satisfaz a constraint), e a exigência de conteúdo de verdade é
+  pendência de geração, não de save (mesmo "estado válido" da matriz de pontos).
+  `documento_alvo_id` é pré-preenchido com o `laudo_base_id` do ciclo — **sem seletor por
+  item** por ora (simplificação registrada): todos os itens de um ciclo retificam o mesmo
+  documento-base.
+- **Análise da Repercussão** (`AnaliseRepercussaoControl`, seção IV — a trava central):
+  `retificacao_afeta_conclusao` (boolean, NÃO/SIM) + `retificacao_justificativa` (texto)
+  em `pos_laudo_ciclos`. **Pergunta EXPLÍCITA — nunca inferida** de `repercussao_laudo`,
+  de `natureza_erro` nem de nada. Justificativa obrigatória nas duas respostas (pelo
+  modelo); quando NÃO, entra **verbatim** na seção IV do documento gerado.
+- **`compilarRetificacao`** (`compilar-retificacao.ts`, não "use server"): seções I–VII.
+  - **NÃO** → gera. Seção V (conclusão original mantida integralmente) só existe nesse
+    caminho. `substitui_conclusao` sempre `false` — Retificação nunca cria Nova Conclusão
+    Vigente (trava estrutural da fatia 0: `'retificacao'` ausente de
+    `pos_laudo_conclusoes_vigentes.origem_tipo`).
+  - **SIM** → pendência de **tom `"orientacao"`** (não `"bloqueio"`): ela acertou ao
+    identificar a repercussão, o caminho técnico é a Complementação (fatia 7, ainda não
+    existe). **Sem migração de dado** — `pos_laudo_retificacao_itens` já é chaveada só por
+    `ciclo_id`, não pela saída que a consome (decisão da fatia 0). Sem beco sem saída: a
+    resposta não trava (pode voltar pra NÃO), os itens ficam salvos, só a geração da
+    Retificação fica indisponível enquanto SIM.
+- **`BlocoPendencias`** (na page do ciclo): separa itens `tom:"orientacao"` (caixa calma,
+  selo "Caminho indicado", nunca "Geração bloqueada") de `tom:"bloqueio"` (caixa âmbar
+  padrão). `PendenciaGeracaoPosLaudo` foi movida pra `regras.ts` (compartilhada pelos dois
+  `compilar-*.ts`).
+- **`GerarPosLaudoPanel` generalizado**: agora recebe `gerar` (a server action), `chave`,
+  `nomeDocumento` e `tituloBotao` por prop — a mesma tela serve Esclarecimentos e
+  Retificação (e Complementação na fatia 7) sem duplicar ~250 linhas. Renderizada 2x na
+  page do ciclo, cada instância com a lista de versões filtrada pelo seu `tipo`.
+
+Simplificações da fatia 6 (mesmo critério: nunca imprime `[___]`):
+- Sem "ID da manifestação"/"Data da identificação do erro"/"Origem da identificação" da
+  seção I — não há campo equivalente no schema.
+- Sem seletor de `documento_alvo_id` por item (default = `laudo_base_id`).
+- Seção II não tem parágrafo de "Descrição objetiva do erro" à parte — os pares
+  onde-se-lê/leia-se da seção III já são a descrição objetiva, em forma checável.
+
+Inerte, esperando as próximas fatias: Complementação do Laudo (fatia 7, é ela quem
+habilita `substituicao_conclusao` e recebe os itens quando a Retificação dá SIM),
 quesitos do ciclo (fatia 9), encerramento do ciclo, mudança da situação do processo. O
 `status` do ciclo continua sem avançar de "aberto".
 
@@ -190,21 +235,25 @@ quesitos do ciclo (fatia 9), encerramento do ciclo, mudança da situação do pr
   `desvincularEvidencia`, `adicionarDocumentoSuperveniente`,
   `salvarMetadadosSuperveniente`, `removerDocumentoSuperveniente`,
   `salvarRepercussaoCiclo`, `definirConclusaoVigenteInicial`, `gerarEsclarecimentos`,
-  `marcarPosLaudoProtocolado` (+ helper `recomputarRascunhoComplementacao`).
+  `marcarPosLaudoProtocolado`, `adicionarItemRetificacao`, `salvarItemRetificacao`,
+  `removerItemRetificacao`, `salvarAnaliseRetificacao`, `gerarRetificacao` (+ helper
+  `recomputarRascunhoComplementacao`).
 - `consultas.ts` — **não** "use server": `conclusaoVigenteAtual`,
   `extrairConclusaoDoLaudo` (recebem o client do Supabase; usadas por páginas e por
   `actions.ts`).
-- `regras.ts` — **não** "use server": `podeGerarSaida` (trava síncrona da Nova
-  Conclusão Vigente; amarrada em `compilar-esclarecimentos.ts` desde a fatia 5).
-- `compilar-esclarecimentos.ts` — **não** "use server": `compilarEsclarecimentos` (busca
-  no banco + monta o `ModeloLaudo` + `SnapshotPosLaudo` dos Esclarecimentos).
+- `regras.ts` — **não** "use server": `podeGerarSaida` + o tipo compartilhado
+  `PendenciaGeracaoPosLaudo`.
+- `compilar-esclarecimentos.ts` / `compilar-retificacao.ts` — **não** "use server":
+  `compilarEsclarecimentos` / `compilarRetificacao` (busca no banco + monta o
+  `ModeloLaudo` + `SnapshotPosLaudo` de cada saída).
 - `abrir-ciclo-button.tsx` — client, botão do índice.
 - `registro-demanda-form.tsx` — client, etapa Registro da Demanda (botão explícito).
 - `matriz-pontos.tsx` — client, campo de ciclo + matriz de pontos + enfrentamento +
   `RepercussaoCicloControl` + evidências.
 - `documentos-supervenientes.tsx` — client, upload + metadados dos supervenientes.
+- `retificacao-panel.tsx` — client, itens onde-se-lê/leia-se + Análise da Repercussão.
 - `conclusao-vigente-inicial.tsx` — client, bloco "Conclusão vigente" do laudo final.
-- `gerar-pos-laudo-panel.tsx` — client, geração + protocolar dos Esclarecimentos.
+- `gerar-pos-laudo-panel.tsx` — client, geração + protocolar (genérico por saída).
 - `rotulos.ts` — rótulos pt-BR das colunas `text` + CHECK do módulo.
 
 O anti-join vive em `src/features/geracao-laudo/compilar.ts` (não neste diretório). O
