@@ -790,12 +790,23 @@ export async function salvarRepercussaoCiclo(input: {
  * passada divergir da 1ª (o próprio texto do número, em tese, pode empurrar
  * uma quebra de página), a geração é abortada — nunca publica um "composto
  * por X páginas" que pode estar errado.
+ *
+ * `dataAssinaturaIso` ("YYYY-MM-DD") é a data do ATO, escolhida pela perita na
+ * tela de geração (pré-preenchida com hoje, mas editável) — NÃO a data em que
+ * ela clicou em gerar. Um documento pode ser gerado num dia e protocolado
+ * dias depois; a data que vai aos autos tem que corresponder ao que
+ * efetivamente aconteceu, não ao momento da geração no sistema.
  */
 export async function gerarEsclarecimentos(
   cicloId: string,
   processoId: string,
+  dataAssinaturaIso: string,
 ): Promise<{ error: string } | { success: true; versao: number }> {
-  const pass1 = await compilarEsclarecimentos(processoId, cicloId, "—");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataAssinaturaIso)) {
+    return { error: "Informe a data da assinatura." };
+  }
+
+  const pass1 = await compilarEsclarecimentos(processoId, cicloId, "—", dataAssinaturaIso);
   if (pass1.status === "erro") return { error: pass1.mensagem };
   if (pass1.status === "pendencias") {
     return { error: `Geração bloqueada — pendências: ${pass1.itens.map((i) => i.label).join("; ")}.` };
@@ -804,7 +815,7 @@ export async function gerarEsclarecimentos(
   const ativos = await buscarAtivosGlobais();
   const medidaUm = await renderizarPdfComPaginas(pass1.modelo, ativos, []);
 
-  const pass2 = await compilarEsclarecimentos(processoId, cicloId, String(medidaUm.paginas));
+  const pass2 = await compilarEsclarecimentos(processoId, cicloId, String(medidaUm.paginas), dataAssinaturaIso);
   if (pass2.status !== "ok") {
     // Não deveria acontecer — nada muda entre as duas chamadas dentro da mesma execução.
     return { error: "O estado do ciclo mudou entre as duas passadas de paginação — tente gerar novamente." };

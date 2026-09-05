@@ -163,8 +163,12 @@ frase é composta sem a cláusula):
   motor de preenchimento), não de uma nova consulta às respostas do laudo original —
   "só existe uma perita usando o sistema" (CLAUDE.md), risco de divergência é próximo de
   zero.
-- Data da assinatura é sempre "hoje", por extenso — sem campo pra ela digitar outra data
-  (diferente do laudo principal, onde `data_assinatura` é `texto_livre`).
+- ~~Data da assinatura é sempre "hoje"~~ — **corrigido**: é a data do ATO (ela pode gerar
+  num dia e protocolar dias depois), não a de hoje. Campo `<input type="date">` na tela de
+  geração (`gerar-pos-laudo-panel.tsx`), pré-preenchido com hoje no fuso do navegador,
+  editável — `formatarDataExtenso` em `compilar-esclarecimentos.ts` compõe "5 de setembro
+  de 2026" a partir de "YYYY-MM-DD" sem passar por `Date` (mesmo cuidado de fuso de
+  `formatarDataPura`).
 - Seção VI não tem um campo de "Fundamentação da repercussão" à parte — a fundamentação
   já está nas respostas técnicas de cada ponto (seção IV); a seção VI só declara o nível
   marcado.

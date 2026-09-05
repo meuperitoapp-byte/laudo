@@ -55,6 +55,25 @@ function formatarTimestamp(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString("pt-BR", { dateStyle: "short" }) : "—";
 }
 
+const MESES_EXTENSO = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+
+/**
+ * "YYYY-MM-DD" -> "5 de setembro de 2026", sem passar por `Date` (mesmo
+ * cuidado de fuso de `formatarDataPura`). É a data do ATO — a perita escolhe
+ * na tela de geração (pré-preenchida com hoje, mas editável): um documento
+ * pode ser gerado num dia e protocolado dias depois, e a data que vai aos
+ * autos tem que ser a do ato, não a da geração.
+ */
+function formatarDataExtenso(dataIso: string): string {
+  const m = dataIso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return dataIso;
+  const [, ano, mes, dia] = m;
+  return `${parseInt(dia, 10)} de ${MESES_EXTENSO[parseInt(mes, 10) - 1]} de ${ano}`;
+}
+
 function paragrafo(texto: string): BlocoConteudo {
   return { tipo: "paragrafo", texto };
 }
@@ -239,10 +258,13 @@ function montarSecaoVII(repercussaoLaudo: PosLaudoRepercussaoLaudo, conclusaoVig
   };
 }
 
-/** Seção VIII — Encerramento. `paginasTexto` chega pronto (placeholder na 1ª passada, número real na 2ª — ver actions.ts). */
-function montarSecaoVIII(paginasTexto: string): SecaoCompilada {
-  const hoje = new Date();
-  const dataExtenso = hoje.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+/**
+ * Seção VIII — Encerramento. `paginasTexto` chega pronto (placeholder na 1ª
+ * passada, número real na 2ª — ver actions.ts). `dataAssinaturaIso` é a data
+ * do ato escolhida pela perita na tela de geração (não a data de hoje).
+ */
+function montarSecaoVIII(paginasTexto: string, dataAssinaturaIso: string): SecaoCompilada {
+  const dataExtenso = formatarDataExtenso(dataAssinaturaIso);
   return {
     secaoId: "esclarecimentos-viii",
     codigo: "encerramento",
@@ -262,16 +284,26 @@ function montarSecaoVIII(paginasTexto: string): SecaoCompilada {
   };
 }
 
+/** "YYYY-MM-DD" de hoje, no fuso do servidor — só serve de default pra chamada de leitura (preview de pendências), que nunca vira documento de verdade. */
+function hojeIso(): string {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+}
+
 /**
  * Compila os Esclarecimentos de um ciclo. `paginasTexto` é o texto que entra
  * na frase de "composto por X páginas" do Encerramento — quem chama faz o
  * two-pass (1ª chamada com um placeholder, mede a paginação real, chama de
- * novo com o número): ver `gerarEsclarecimentos` em actions.ts.
+ * novo com o número): ver `gerarEsclarecimentos` em actions.ts. `dataAssinaturaIso`
+ * é a data do ato (escolhida pela perita na tela de geração, não a de hoje) —
+ * o default aqui só importa pra chamada de preview de pendências da página,
+ * que nunca chega a gerar um documento.
  */
 export async function compilarEsclarecimentos(
   processoId: string,
   cicloId: string,
   paginasTexto = "—",
+  dataAssinaturaIso: string = hojeIso(),
 ): Promise<ResultadoEsclarecimentos> {
   const supabase = await createClient();
 
@@ -403,7 +435,7 @@ export async function compilarEsclarecimentos(
     // Seção V (quesitos suplementares do ciclo) — sempre ausente por ora, ver nota acima de montarSecaoVI.
     montarSecaoVI(repercussaoLaudo),
     montarSecaoVII(repercussaoLaudo, conclusaoVigenteTexto),
-    montarSecaoVIII(paginasTexto),
+    montarSecaoVIII(paginasTexto, dataAssinaturaIso),
   ].filter((s): s is SecaoCompilada => s !== null);
 
   const modelo: ModeloLaudo = {

@@ -25,6 +25,12 @@ const dataHora = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 const dataCurta = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { dateStyle: "short" });
 
+/** "YYYY-MM-DD" de hoje no fuso do NAVEGADOR (não toISOString, que é UTC e pode voltar um dia). */
+function hojeIsoLocal(): string {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+}
+
 /**
  * Painel de geração dos Esclarecimentos de um ciclo — mesmo padrão visual do
  * `GerarLaudoPanel` (geracao-laudo), com um cuidado a mais no diálogo de
@@ -48,6 +54,7 @@ export function GerarPosLaudoPanel({
   const router = useRouter();
   const [toast, setToast] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [dataAssinatura, setDataAssinatura] = useState(() => hojeIsoLocal());
 
   const versaoMaisRecente = versoes.reduce<VersaoPosLaudo | null>(
     (max, v) => (!max || v.versao > max.versao ? v : max),
@@ -57,7 +64,7 @@ export function GerarPosLaudoPanel({
   function gerar() {
     setToast(null);
     startTransition(async () => {
-      const resultado = await gerarEsclarecimentos(cicloId, processoId);
+      const resultado = await gerarEsclarecimentos(cicloId, processoId, dataAssinatura);
       if ("error" in resultado) {
         setToast({ tipo: "erro", texto: resultado.error });
         return;
@@ -69,8 +76,27 @@ export function GerarPosLaudoPanel({
 
   return (
     <div className="space-y-8">
-      <div>
-        <Botao onClick={gerar} disabled={!podeGerar} carregando={isPending} textoCarregando="Gerando…">
+      <div className="space-y-3">
+        <div className="max-w-xs">
+          <label
+            htmlFor="data-assinatura-esclarecimentos"
+            className="block text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1"
+          >
+            Data da assinatura
+          </label>
+          <p className="text-xs text-nevoa-400 dark:text-nevoa-600 mb-1">
+            É a data do ato que vai no documento — confira antes de gerar se o protocolo vai acontecer em
+            outro dia.
+          </p>
+          <input
+            id="data-assinatura-esclarecimentos"
+            type="date"
+            value={dataAssinatura}
+            onChange={(e) => setDataAssinatura(e.target.value)}
+            className="w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
+          />
+        </div>
+        <Botao onClick={gerar} disabled={!podeGerar || !dataAssinatura} carregando={isPending} textoCarregando="Gerando…">
           Gerar Esclarecimentos
         </Botao>
       </div>
