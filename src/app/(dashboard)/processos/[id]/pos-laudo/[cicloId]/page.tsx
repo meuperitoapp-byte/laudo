@@ -311,6 +311,9 @@ export default async function PosLaudoCicloPage({
         processoId={processoId}
         cicloId={ciclo.id}
         itens={itensRetificacao}
+        idDocumento={ciclo.retificacao_id_documento}
+        dataIdentificacao={ciclo.retificacao_data_identificacao}
+        origemIdentificacao={ciclo.retificacao_origem_identificacao}
         afetaConclusao={ciclo.retificacao_afeta_conclusao}
         justificativa={ciclo.retificacao_justificativa}
       />

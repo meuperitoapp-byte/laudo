@@ -216,9 +216,16 @@ Migration `20260907120000`: 2 colunas em `pos_laudo_ciclos`.
   Retificação (e Complementação na fatia 7) sem duplicar ~250 linhas. Renderizada 2x na
   page do ciclo, cada instância com a lista de versões filtrada pelo seu `tipo`.
 
-Simplificações da fatia 6 (mesmo critério: nunca imprime `[___]`):
-- Sem "ID da manifestação"/"Data da identificação do erro"/"Origem da identificação" da
-  seção I — não há campo equivalente no schema.
+**Seção I completa** (migration `20260908120000`, gap fechado 07/09/2026): 3 colunas
+novas em `pos_laudo_ciclos` (`retificacao_id_documento`,
+`retificacao_data_identificacao` date, `retificacao_origem_identificacao` text CHECK
+`perito/juizo/autor/reu/outro`). Card `IdentificacaoRetificacaoControl` no topo do
+`RetificacaoPanel` (botão explícito). Entram na seção I do documento gerado quando
+preenchidos — não são obrigatórios pra gerar (o modelo não os marca "obrigatório",
+diferente da seção IV). "ID do documento" cai no `protocolo_id` do laudo-base quando o
+campo fica em branco.
+
+Simplificações que ficam na fatia 6 (mesmo critério: nunca imprime `[___]`):
 - Sem seletor de `documento_alvo_id` por item (default = `laudo_base_id`).
 - Seção II não tem parágrafo de "Descrição objetiva do erro" à parte — os pares
   onde-se-lê/leia-se da seção III já são a descrição objetiva, em forma checável.
@@ -236,8 +243,8 @@ quesitos do ciclo (fatia 9), encerramento do ciclo, mudança da situação do pr
   `salvarMetadadosSuperveniente`, `removerDocumentoSuperveniente`,
   `salvarRepercussaoCiclo`, `definirConclusaoVigenteInicial`, `gerarEsclarecimentos`,
   `marcarPosLaudoProtocolado`, `adicionarItemRetificacao`, `salvarItemRetificacao`,
-  `removerItemRetificacao`, `salvarAnaliseRetificacao`, `gerarRetificacao` (+ helper
-  `recomputarRascunhoComplementacao`).
+  `removerItemRetificacao`, `salvarIdentificacaoRetificacao`, `salvarAnaliseRetificacao`,
+  `gerarRetificacao` (+ helper `recomputarRascunhoComplementacao`).
 - `consultas.ts` — **não** "use server": `conclusaoVigenteAtual`,
   `extrairConclusaoDoLaudo` (recebem o client do Supabase; usadas por páginas e por
   `actions.ts`).

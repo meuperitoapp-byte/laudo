@@ -6,13 +6,20 @@ import {
   adicionarItemRetificacao,
   removerItemRetificacao,
   salvarAnaliseRetificacao,
+  salvarIdentificacaoRetificacao,
   salvarItemRetificacao,
 } from "./actions";
 import { Botao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
-import { NATUREZA_ERRO_ORDENADA, NATUREZA_ERRO_ROTULOS } from "./rotulos";
+import {
+  NATUREZA_ERRO_ORDENADA,
+  NATUREZA_ERRO_ROTULOS,
+  ORIGEM_IDENTIFICACAO_ORDENADA,
+  ORIGEM_IDENTIFICACAO_ROTULOS,
+} from "./rotulos";
 import type { PosLaudoRetificacaoItensRow } from "@/types/database";
+import type { PosLaudoOrigemIdentificacao } from "@/types/enums";
 
 const inputClass =
   "w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-3 py-2 text-sm text-nevoa-900 dark:text-nevoa-100 " +
@@ -30,12 +37,18 @@ export function RetificacaoPanel({
   processoId,
   cicloId,
   itens,
+  idDocumento,
+  dataIdentificacao,
+  origemIdentificacao,
   afetaConclusao,
   justificativa,
 }: {
   processoId: string;
   cicloId: string;
   itens: PosLaudoRetificacaoItensRow[];
+  idDocumento: string | null;
+  dataIdentificacao: string | null;
+  origemIdentificacao: PosLaudoOrigemIdentificacao | null;
   afetaConclusao: boolean | null;
   justificativa: string | null;
 }) {
@@ -57,6 +70,16 @@ export function RetificacaoPanel({
 
   return (
     <div className="space-y-6 max-w-2xl">
+      <IdentificacaoRetificacaoControl
+        processoId={processoId}
+        cicloId={cicloId}
+        idDocumentoInicial={idDocumento}
+        dataIdentificacaoInicial={dataIdentificacao}
+        origemIdentificacaoInicial={origemIdentificacao}
+        onErro={(t) => setMensagem({ tipo: "erro", texto: t })}
+        onOk={(t) => setMensagem({ tipo: "ok", texto: t })}
+      />
+
       <div id="retificacao-itens">
         <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100 mb-2">
           Retificação — onde se lê / leia-se
@@ -97,6 +120,149 @@ export function RetificacaoPanel({
       />
 
       {mensagem && <Toast tipo={mensagem.tipo} texto={mensagem.texto} onClose={() => setMensagem(null)} />}
+    </div>
+  );
+}
+
+/**
+ * Seção I do modelo — "Identificação do Documento Retificado". Campos de
+ * contexto (não obrigatórios pra gerar, o modelo não os marca "obrigatório"):
+ * ID do documento retificado, data da identificação do erro e origem da
+ * identificação. Entram na seção I do documento gerado quando preenchidos.
+ */
+function IdentificacaoRetificacaoControl({
+  processoId,
+  cicloId,
+  idDocumentoInicial,
+  dataIdentificacaoInicial,
+  origemIdentificacaoInicial,
+  onErro,
+  onOk,
+}: {
+  processoId: string;
+  cicloId: string;
+  idDocumentoInicial: string | null;
+  dataIdentificacaoInicial: string | null;
+  origemIdentificacaoInicial: PosLaudoOrigemIdentificacao | null;
+  onErro: (texto: string) => void;
+  onOk: (texto: string) => void;
+}) {
+  const router = useRouter();
+
+  const doBanco = {
+    idDocumento: idDocumentoInicial ?? "",
+    dataIdentificacao: dataIdentificacaoInicial ?? "",
+    origemIdentificacao: (origemIdentificacaoInicial ?? "") as string,
+  };
+  const [f, setF] = useState(doBanco);
+  const [salvoSnap, setSalvoSnap] = useState(() => JSON.stringify(doBanco));
+  const [salvando, setSalvando] = useState(false);
+  const dirty = JSON.stringify(f) !== salvoSnap;
+
+  const [sync, setSync] = useState({ idDocumentoInicial, dataIdentificacaoInicial, origemIdentificacaoInicial });
+  if (
+    (idDocumentoInicial !== sync.idDocumentoInicial ||
+      dataIdentificacaoInicial !== sync.dataIdentificacaoInicial ||
+      origemIdentificacaoInicial !== sync.origemIdentificacaoInicial) &&
+    !dirty &&
+    !salvando
+  ) {
+    setSync({ idDocumentoInicial, dataIdentificacaoInicial, origemIdentificacaoInicial });
+    setF(doBanco);
+    setSalvoSnap(JSON.stringify(doBanco));
+  }
+
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((s) => ({ ...s, [k]: v }));
+
+  async function salvar() {
+    setSalvando(true);
+    const r = await salvarIdentificacaoRetificacao({
+      cicloId,
+      processoId,
+      idDocumento: f.idDocumento || null,
+      dataIdentificacao: f.dataIdentificacao || null,
+      origemIdentificacao: f.origemIdentificacao || null,
+    });
+    setSalvando(false);
+    if ("error" in r) {
+      onErro(r.error);
+      return;
+    }
+    setSalvoSnap(JSON.stringify(f));
+    onOk("Identificação do documento retificado salva.");
+    router.refresh();
+  }
+
+  return (
+    <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-4">
+      <div>
+        <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">
+          Identificação do documento retificado
+        </h2>
+        <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+          Seção I do documento. O documento retificado é o laudo-base deste ciclo; a versão e a data do
+          protocolo entram automaticamente.
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="retificacao_id_documento" className={labelClass}>
+          ID do documento retificado (nº de protocolo / juntada)
+        </label>
+        <input
+          id="retificacao_id_documento"
+          value={f.idDocumento}
+          onChange={(e) => set("idDocumento", e.target.value)}
+          className={inputClass}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label htmlFor="retificacao_data_identificacao" className={labelClass}>
+            Data da identificação do erro material
+          </label>
+          <input
+            id="retificacao_data_identificacao"
+            type="date"
+            value={f.dataIdentificacao}
+            onChange={(e) => set("dataIdentificacao", e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="retificacao_origem_identificacao" className={labelClass}>
+            Origem da identificação
+          </label>
+          <select
+            id="retificacao_origem_identificacao"
+            value={f.origemIdentificacao}
+            onChange={(e) => set("origemIdentificacao", e.target.value)}
+            className={inputClass}
+          >
+            <option value="">—</option>
+            {ORIGEM_IDENTIFICACAO_ORDENADA.map((o) => (
+              <option key={o} value={o}>
+                {ORIGEM_IDENTIFICACAO_ROTULOS[o]}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <Botao onClick={() => salvar()} disabled={!dirty && !salvando} carregando={salvando} textoCarregando="Salvando…">
+        {dirty ? "Salvar" : "Salvo"}
+      </Botao>
     </div>
   );
 }

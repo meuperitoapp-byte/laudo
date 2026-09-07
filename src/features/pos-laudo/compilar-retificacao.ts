@@ -25,9 +25,9 @@ import { rodapeTexto } from "@/features/geracao-laudo/contatos";
 import type { ModeloLaudo, SecaoCompilada, BlocoConteudo } from "@/features/geracao-laudo/modelo";
 import type { SnapshotPosLaudo, SnapshotPosLaudoRetificacaoItem } from "@/types/json-fields";
 import type { PosLaudoRetificacaoItensRow } from "@/types/database";
-import { FLUXO_ROTULOS, NATUREZA_ERRO_ROTULOS } from "./rotulos";
+import { FLUXO_ROTULOS, NATUREZA_ERRO_ROTULOS, ORIGEM_IDENTIFICACAO_ROTULOS } from "./rotulos";
 import { VALORES_PADRAO_PERITO } from "@/features/preenchimento/perito-padrao";
-import type { PosLaudoNaturezaErro } from "@/types/enums";
+import type { PosLaudoNaturezaErro, PosLaudoOrigemIdentificacao } from "@/types/enums";
 import type { PendenciaGeracaoPosLaudo } from "./regras";
 
 export type { PendenciaGeracaoPosLaudo };
@@ -41,6 +41,12 @@ const TITULO_RETIFICACAO = "RETIFICAÇÃO DE ERRO MATERIAL";
 
 function formatarTimestamp(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString("pt-BR", { dateStyle: "short" }) : "—";
+}
+
+/** "YYYY-MM-DD" -> "DD/MM/YYYY", sem passar por Date (mesmo cuidado de fuso de compilar-esclarecimentos.ts). */
+function formatarDataPura(data: string | null): string {
+  const m = data?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "—";
 }
 
 const MESES_EXTENSO = [
@@ -88,16 +94,33 @@ function montarParagrafoIntroducao(protocoloDocumentoAlvo: string | null): strin
  * simplificação registrada: o modelo prevê apontar pra qualquer versão
  * anterior (Laudo/Esclarecimentos/Complementação); por ora não há seletor de
  * item por item, então todos os itens deste ciclo retificam o mesmo
- * documento-base. "Data da identificação do erro" e "Origem da identificação"
- * do modelo não têm campo equivalente no schema — a seção não as menciona.
+ * documento-base. "ID do documento" / "Data da identificação do erro" /
+ * "Origem da identificação" vêm de `pos_laudo_ciclos` (migration
+ * 20260908120000, digitados pela perita na tela); linhas ausentes quando o
+ * campo não foi preenchido (nunca imprime colchete vazio).
  */
-function montarSecaoI(documentoAlvo: { tipo: string; versao: number; protocolo_id: string | null; protocolado_em: string | null } | null): SecaoCompilada {
+function montarSecaoI(input: {
+  documentoAlvo: { tipo: string; versao: number; protocolo_id: string | null; protocolado_em: string | null } | null;
+  idDocumento: string | null;
+  dataIdentificacao: string | null;
+  origemIdentificacao: PosLaudoOrigemIdentificacao | null;
+}): SecaoCompilada {
+  const { documentoAlvo } = input;
   const blocos: BlocoConteudo[] = [
     paragrafo(`Laudo/documento original: ${documentoAlvo ? (TIPO_DOCUMENTO_ROTULOS[documentoAlvo.tipo] ?? documentoAlvo.tipo) : "—"}`),
   ];
-  if (documentoAlvo?.protocolo_id) blocos.push(paragrafo(`ID do documento: ${documentoAlvo.protocolo_id}`));
+  // "ID do documento": o que a perita digitou (seção I); sem isso, cai no
+  // protocolo_id do laudo-base, se existir.
+  const idDocumento = input.idDocumento?.trim() || documentoAlvo?.protocolo_id || null;
+  if (idDocumento) blocos.push(paragrafo(`ID do documento: ${idDocumento}`));
   blocos.push(paragrafo(`Versão: V${documentoAlvo?.versao ?? "—"}`));
   blocos.push(paragrafo(`Data do protocolo: ${documentoAlvo ? formatarTimestamp(documentoAlvo.protocolado_em) : "—"}`));
+  if (input.dataIdentificacao) {
+    blocos.push(paragrafo(`Data da identificação do erro material: ${formatarDataPura(input.dataIdentificacao)}`));
+  }
+  if (input.origemIdentificacao) {
+    blocos.push(paragrafo(`Origem da identificação: ${ORIGEM_IDENTIFICACAO_ROTULOS[input.origemIdentificacao]}`));
+  }
   return {
     secaoId: "retificacao-i",
     codigo: "retificacao_identificacao",
@@ -316,7 +339,12 @@ export async function compilarRetificacao(
   };
 
   const secoes: SecaoCompilada[] = [
-    montarSecaoI(documentoAlvo),
+    montarSecaoI({
+      documentoAlvo,
+      idDocumento: ciclo.retificacao_id_documento,
+      dataIdentificacao: ciclo.retificacao_data_identificacao,
+      origemIdentificacao: ciclo.retificacao_origem_identificacao,
+    }),
     montarSecaoII(itens),
     montarSecaoIII(itens),
     montarSecaoIV(justificativa),
