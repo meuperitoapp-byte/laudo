@@ -12,7 +12,7 @@ por **botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload
 Fernanda já usa a tela de Quesitos; mudar o comportamento de salvamento dela no meio do
 Pós-Laudo é risco sem ganho. **Padronizar quando o Módulo Pós-Laudo fechar.**
 
-## Estado atual — fatias 1 a 6
+## Estado atual — fatias 1 a 7
 
 O que já existe:
 
@@ -230,10 +230,42 @@ Simplificações que ficam na fatia 6 (mesmo critério: nunca imprime `[___]`):
 - Seção II não tem parágrafo de "Descrição objetiva do erro" à parte — os pares
   onde-se-lê/leia-se da seção III já são a descrição objetiva, em forma checável.
 
-Inerte, esperando as próximas fatias: Complementação do Laudo (fatia 7, é ela quem
-habilita `substituicao_conclusao` e recebe os itens quando a Retificação dá SIM),
-quesitos do ciclo (fatia 9), encerramento do ciclo, mudança da situação do processo. O
-`status` do ciclo continua sem avançar de "aberto".
+### Fatia 7 — Complementação do Laudo
+
+Modelo `MODELO_COMPLEMENTACAO_AO_LAUDO_MEDICO_PERICIAL.pdf` completo (seções I–XI). É a
+saída mais pesada. Migration `20260909120000`: tabela nova `pos_laudo_complementacao`
+(1:1 com o ciclo, `ciclo_id` unique) só pros campos específicos das seções II–VII; jsonb
+`vii_elementos` pros 7 elementos centrais.
+
+- **Seções I/IX/X reusam o que já existe** — I vem de `pos_laudo_ciclos` (Registro da
+  Demanda) + `laudo_base`; IX/X reusam **`repercussao_laudo` / `conclusao_vigente_nova`**
+  (o mesmo enum de 6 valores + `RepercussaoCicloControl` da fatia 4, na matriz de pontos).
+  `podeGerarSaida` já é a trava da Nova Conclusão Vigente.
+- **`substituicao_conclusao` desbloqueado**: é a única saída que aceita essa repercussão.
+  Nos Esclarecimentos ela virou pendência de **tom "orientação"** ("só a Complementação
+  pode substituir a conclusão — gere a Complementação em vez disso").
+- **Fecha o caminho SIM da Retificação**: `compilarComplementacao` lê
+  `pos_laudo_retificacao_itens` do ciclo e, se houver, renderiza a tabela
+  onde-se-lê/leia-se **dentro da seção VI**, read-only, antes do texto livre — sem
+  migração de dado (a tabela já é chaveada só por `ciclo_id`, decisão da fatia 0). A
+  mensagem calma do SIM agora aponta pro bloco da Complementação, na mesma tela.
+- **§IV (nova avaliação) e §V (exames/especialista)** são condicionais por toggle
+  (`avaliacao_realizada` / `exames_realizados`) — só entram no documento quando ligadas.
+- `salvarComplementacao(cicloId, processoId, patch)` — **UPSERT** 1:1 (`onConflict:
+  ciclo_id`), cada card manda só os seus campos. `ComplementacaoPanel` é um **formulário
+  único com um só botão "Salvar"** (§II–VII têm muitos campos narrativos
+  interdependentes; a gramática "um card, um botão" ficaria pesada).
+- `gerarComplementacao` — mesmo two-pass e data-do-ato das fatias 5-6. Calcula `versao`
+  ANTES de compilar (a seção I mostra "Versão do documento: V{n}"). `substitui_conclusao`
+  = `snapshot.conclusao_vigente_texto !== null`.
+- Pendências de geração: §IX não preenchida; Nova Conclusão Vigente quando a repercussão
+  exige; **§VI fundamentação médico-pericial complementar vazia** (é o núcleo do
+  documento — análogo a "ponto sem resposta técnica"); §IV/§V ligadas sem o campo-âncora.
+
+Inerte, esperando as próximas fatias: quesitos do ciclo (fatia 9 — seção VIII de
+Esclarecimentos/Complementação), "as 3 saídas juntas" + encerramento do ciclo (fatia 8,
+travada nas 5 perguntas da Dra.), mudança da situação do processo (fatia 11). O `status`
+do ciclo continua sem avançar de "aberto".
 
 ## Arquivos
 
@@ -244,21 +276,23 @@ quesitos do ciclo (fatia 9), encerramento do ciclo, mudança da situação do pr
   `salvarRepercussaoCiclo`, `definirConclusaoVigenteInicial`, `gerarEsclarecimentos`,
   `marcarPosLaudoProtocolado`, `adicionarItemRetificacao`, `salvarItemRetificacao`,
   `removerItemRetificacao`, `salvarIdentificacaoRetificacao`, `salvarAnaliseRetificacao`,
-  `gerarRetificacao` (+ helper `recomputarRascunhoComplementacao`).
+  `gerarRetificacao`, `salvarComplementacao`, `gerarComplementacao` (+ helper
+  `recomputarRascunhoComplementacao`).
 - `consultas.ts` — **não** "use server": `conclusaoVigenteAtual`,
   `extrairConclusaoDoLaudo` (recebem o client do Supabase; usadas por páginas e por
   `actions.ts`).
 - `regras.ts` — **não** "use server": `podeGerarSaida` + o tipo compartilhado
-  `PendenciaGeracaoPosLaudo`.
-- `compilar-esclarecimentos.ts` / `compilar-retificacao.ts` — **não** "use server":
-  `compilarEsclarecimentos` / `compilarRetificacao` (busca no banco + monta o
-  `ModeloLaudo` + `SnapshotPosLaudo` de cada saída).
+  `PendenciaGeracaoPosLaudo` (com `tom?: "bloqueio" | "orientacao"`).
+- `compilar-esclarecimentos.ts` / `compilar-retificacao.ts` / `compilar-complementacao.ts`
+  — **não** "use server": `compilar*` (busca no banco + monta o `ModeloLaudo` +
+  `SnapshotPosLaudo` de cada saída, reusando os renderers de `geracao-laudo`).
 - `abrir-ciclo-button.tsx` — client, botão do índice.
 - `registro-demanda-form.tsx` — client, etapa Registro da Demanda (botão explícito).
 - `matriz-pontos.tsx` — client, campo de ciclo + matriz de pontos + enfrentamento +
   `RepercussaoCicloControl` + evidências.
 - `documentos-supervenientes.tsx` — client, upload + metadados dos supervenientes.
 - `retificacao-panel.tsx` — client, itens onde-se-lê/leia-se + Análise da Repercussão.
+- `complementacao-panel.tsx` — client, formulário das seções II–VII da Complementação.
 - `conclusao-vigente-inicial.tsx` — client, bloco "Conclusão vigente" do laudo final.
 - `gerar-pos-laudo-panel.tsx` — client, geração + protocolar (genérico por saída).
 - `rotulos.ts` — rótulos pt-BR das colunas `text` + CHECK do módulo.
