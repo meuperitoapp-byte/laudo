@@ -317,7 +317,7 @@ export async function compilarRetificacao(
       id: "afeta-conclusao",
       tom: "orientacao",
       label:
-        "Você identificou corretamente que esta correção tem repercussão sobre a fundamentação ou a conclusão do laudo — isso não é um erro seu. Pelo modelo, o caminho técnico correto para esse caso é a Complementação do Laudo, não uma Retificação simples. A Complementação ainda não foi implementada neste sistema; por enquanto, os itens que você já cadastrou aqui ficam salvos e serão usados automaticamente assim que ela existir. Nenhum documento de Retificação será gerado para este ciclo enquanto esta resposta for SIM — não porque algo deu errado, mas porque essa não é mais a saída certa para este caso.",
+        "Você identificou corretamente que esta correção tem repercussão sobre a fundamentação ou a conclusão do laudo — isso não é um erro seu. Pelo modelo, o caminho técnico correto é a Complementação do Laudo, não uma Retificação simples. Use o bloco da Complementação, mais abaixo nesta tela: os itens onde-se-lê/leia-se que você cadastrou aqui aparecem lá, na seção VI, como referência. Nenhum documento de Retificação será gerado enquanto esta resposta for SIM — não porque algo deu errado, mas porque essa não é a saída certa para este caso.",
       href: "#retificacao-analise",
     });
   } else if (!ciclo.retificacao_justificativa?.trim()) {

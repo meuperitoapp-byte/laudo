@@ -378,8 +378,9 @@ export async function compilarEsclarecimentos(
   } else if (ciclo.repercussao_laudo === "substituicao_conclusao") {
     pendencias.push({
       id: "repercussao-invalida",
+      tom: "orientacao",
       label:
-        "A repercussão \"Substituição da conclusão anterior\" é exclusiva da Complementação do Laudo (ainda não implementada) — escolha outra repercussão para gerar Esclarecimentos.",
+        "A repercussão \"Substituição da conclusão anterior\" não cabe num documento de Esclarecimentos — só a Complementação do Laudo pode substituir a conclusão pericial. Gere a Complementação (bloco mais abaixo nesta tela) em vez dos Esclarecimentos.",
       href: "#repercussao-ciclo",
     });
   } else {

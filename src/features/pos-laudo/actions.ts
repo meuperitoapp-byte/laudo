@@ -12,6 +12,7 @@ import type {
   DocumentosInsert,
   LaudosGeradosInsert,
   PosLaudoCiclosInsert,
+  PosLaudoComplementacaoInsert,
   PosLaudoConclusoesVigentesInsert,
   PosLaudoDocumentosInsert,
   PosLaudoPontosInsert,
@@ -19,9 +20,12 @@ import type {
 } from "@/types/database";
 import type {
   PosLaudoClassificacaoTriagem,
+  PosLaudoComplementacaoImpacto,
+  PosLaudoComplementacaoMotivo,
   PosLaudoConclusaoOrigem,
   PosLaudoDocumentoPapel,
   PosLaudoDocumentoRelevancia,
+  PosLaudoElementoCentralSituacao,
   PosLaudoFluxo,
   PosLaudoNatureza,
   PosLaudoNaturezaErro,
@@ -31,10 +35,11 @@ import type {
   PosLaudoRepercussaoLaudo,
   PosLaudoRepercussaoPonto,
 } from "@/types/enums";
-import type { SnapshotPosLaudo } from "@/types/json-fields";
+import type { ComplementacaoElementosCentrais, SnapshotPosLaudo } from "@/types/json-fields";
 import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
 import { compilarEsclarecimentos } from "@/features/pos-laudo/compilar-esclarecimentos";
 import { compilarRetificacao } from "@/features/pos-laudo/compilar-retificacao";
+import { compilarComplementacao } from "@/features/pos-laudo/compilar-complementacao";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -1225,6 +1230,248 @@ export async function gerarRetificacao(
     pos_laudo_ciclo_id: cicloId,
     titulo: "Retificação de Erro Material",
     substitui_conclusao: false,
+    storage_path_pdf: caminhoPdf,
+    storage_path_docx: caminhoDocx,
+    snapshot_respostas: pass2.snapshot,
+    paginas: medidaDois.paginas,
+    gerado_por: user?.id ?? null,
+  };
+  const { error: erroInsert } = await supabase.from("laudos_gerados").insert(insert);
+  if (erroInsert) {
+    await supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoPdf, caminhoDocx]);
+    return { error: erroInsert.message };
+  }
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true, versao };
+}
+
+// ============================================================================
+// Fatia 7 — Complementação do Laudo
+// ============================================================================
+
+const COMPLEMENTACAO_MOTIVO_VALIDOS: readonly PosLaudoComplementacaoMotivo[] = [
+  "documento_novo",
+  "nova_avaliacao",
+  "exame_complementar",
+  "avaliacao_especialista",
+  "diligencia_juizo",
+  "determinacao_judicial",
+  "insuficiencia_tecnica",
+  "esclarecimento_ampliado",
+  "outro",
+];
+const COMPLEMENTACAO_IMPACTO_VALIDOS: readonly PosLaudoComplementacaoImpacto[] = [
+  "sem_relevancia_modificadora",
+  "complementares",
+  "relevantes_fundamentacao",
+  "potencialmente_modificadores",
+  "determinantes_revisao_parcial",
+  "determinantes_revisao_integral",
+];
+const ELEMENTO_SITUACAO_VALIDAS: readonly PosLaudoElementoCentralSituacao[] = [
+  "mantido",
+  "complementado",
+  "modificado",
+  "nao_aplicavel",
+];
+
+/** Sanitiza o jsonb vii_elementos vindo do cliente (seção VII). */
+function sanitizarElementosCentrais(v: unknown): ComplementacaoElementosCentrais {
+  const out: ComplementacaoElementosCentrais = {};
+  if (!v || typeof v !== "object") return out;
+  const src = v as Record<string, unknown>;
+  for (const chave of ["diagnostico", "conduta", "nexo", "dano", "incapacidade", "prognostico"] as const) {
+    const raw = src[chave];
+    if (raw && typeof raw === "object") {
+      const r = raw as Record<string, unknown>;
+      const situacao =
+        typeof r.situacao === "string" && (ELEMENTO_SITUACAO_VALIDAS as readonly string[]).includes(r.situacao)
+          ? (r.situacao as PosLaudoElementoCentralSituacao)
+          : null;
+      const fundamentacao = typeof r.fundamentacao === "string" ? r.fundamentacao : "";
+      if (situacao !== null || fundamentacao.trim()) out[chave] = { situacao, fundamentacao };
+    }
+  }
+  if (typeof src.outros === "string" && src.outros.trim()) out.outros = src.outros;
+  return out;
+}
+
+/**
+ * Campos que o painel da Complementação pode enviar. Cada card manda só os
+ * seus — a ação faz UPSERT em `pos_laudo_complementacao` (1:1 com o ciclo),
+ * criando a linha na primeira gravação. Salvar sempre funciona livre; a
+ * exigência de completude é checada só na geração (compilarComplementacao).
+ */
+export interface ComplementacaoPatch {
+  idDocumentoOrigem?: string | null;
+  motivos?: string[];
+  motivoDescricao?: string | null;
+  impactoElementos?: string | null;
+  impactoFundamentacao?: string | null;
+  avaliacaoRealizada?: boolean;
+  avaliacaoData?: string | null;
+  avaliacaoHorario?: string | null;
+  avaliacaoLocal?: string | null;
+  avaliacaoPresentes?: string | null;
+  avaliacaoAssistentes?: string | null;
+  avaliacaoDocumentosAto?: string | null;
+  avaliacaoAchados?: string | null;
+  avaliacaoComparacao?: string | null;
+  examesRealizados?: boolean;
+  exameDescricao?: string | null;
+  exameData?: string | null;
+  exameProfissional?: string | null;
+  exameResultado?: string | null;
+  exameRepercussao?: string | null;
+  viMantidos?: string | null;
+  viNecessitam?: string | null;
+  viRevistos?: string | null;
+  viFundamentacao?: string | null;
+  viiElementos?: unknown;
+}
+
+export async function salvarComplementacao(
+  cicloId: string,
+  processoId: string,
+  patch: ComplementacaoPatch,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const p: Record<string, unknown> = { ciclo_id: cicloId };
+  const txt = (v: string | null | undefined) => (v === undefined ? undefined : v?.trim() || null);
+
+  if ("idDocumentoOrigem" in patch) p.id_documento_origem = txt(patch.idDocumentoOrigem);
+  if (patch.motivos !== undefined) {
+    p.motivos = patch.motivos.filter((m): m is PosLaudoComplementacaoMotivo =>
+      (COMPLEMENTACAO_MOTIVO_VALIDOS as readonly string[]).includes(m),
+    );
+  }
+  if ("motivoDescricao" in patch) p.motivo_descricao = txt(patch.motivoDescricao);
+  if ("impactoElementos" in patch) {
+    p.impacto_elementos =
+      patch.impactoElementos &&
+      (COMPLEMENTACAO_IMPACTO_VALIDOS as readonly string[]).includes(patch.impactoElementos)
+        ? patch.impactoElementos
+        : null;
+  }
+  if ("impactoFundamentacao" in patch) p.impacto_fundamentacao = txt(patch.impactoFundamentacao);
+
+  if (patch.avaliacaoRealizada !== undefined) p.avaliacao_realizada = patch.avaliacaoRealizada;
+  if ("avaliacaoData" in patch) p.avaliacao_data = patch.avaliacaoData || null;
+  if ("avaliacaoHorario" in patch) p.avaliacao_horario = txt(patch.avaliacaoHorario);
+  if ("avaliacaoLocal" in patch) p.avaliacao_local = txt(patch.avaliacaoLocal);
+  if ("avaliacaoPresentes" in patch) p.avaliacao_presentes = txt(patch.avaliacaoPresentes);
+  if ("avaliacaoAssistentes" in patch) p.avaliacao_assistentes = txt(patch.avaliacaoAssistentes);
+  if ("avaliacaoDocumentosAto" in patch) p.avaliacao_documentos_ato = txt(patch.avaliacaoDocumentosAto);
+  if ("avaliacaoAchados" in patch) p.avaliacao_achados = txt(patch.avaliacaoAchados);
+  if ("avaliacaoComparacao" in patch) p.avaliacao_comparacao = txt(patch.avaliacaoComparacao);
+
+  if (patch.examesRealizados !== undefined) p.exames_realizados = patch.examesRealizados;
+  if ("exameDescricao" in patch) p.exame_descricao = txt(patch.exameDescricao);
+  if ("exameData" in patch) p.exame_data = patch.exameData || null;
+  if ("exameProfissional" in patch) p.exame_profissional = txt(patch.exameProfissional);
+  if ("exameResultado" in patch) p.exame_resultado = txt(patch.exameResultado);
+  if ("exameRepercussao" in patch) p.exame_repercussao = txt(patch.exameRepercussao);
+
+  if ("viMantidos" in patch) p.vi_mantidos = txt(patch.viMantidos);
+  if ("viNecessitam" in patch) p.vi_necessitam = txt(patch.viNecessitam);
+  if ("viRevistos" in patch) p.vi_revistos = txt(patch.viRevistos);
+  if ("viFundamentacao" in patch) p.vi_fundamentacao = txt(patch.viFundamentacao);
+
+  if (patch.viiElementos !== undefined) p.vii_elementos = sanitizarElementosCentrais(patch.viiElementos);
+
+  const { error } = await supabase
+    .from("pos_laudo_complementacao")
+    .upsert(p as PosLaudoComplementacaoInsert, { onConflict: "ciclo_id" });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true };
+}
+
+/**
+ * Gera uma nova versão da Complementação do ciclo — mesmo padrão de
+ * `gerarRetificacao`/`gerarEsclarecimentos` (two-pass de paginação, `versao` =
+ * maior do processo + 1). É a única saída que aceita
+ * `repercussao_laudo = 'substituicao_conclusao'`; e a que grava Nova Conclusão
+ * Vigente quando a repercussão altera/revê/substitui a conclusão
+ * (`marcarPosLaudoProtocolado`, já genérico, faz isso a partir do snapshot).
+ */
+export async function gerarComplementacao(
+  cicloId: string,
+  processoId: string,
+  dataAssinaturaIso: string,
+): Promise<{ error: string } | { success: true; versao: number }> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataAssinaturaIso)) {
+    return { error: "Informe a data da assinatura." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // `versao` é calculada ANTES da compilação porque a seção I do documento
+  // mostra "Versão do documento: V{n}" (só a Complementação faz isso).
+  const { data: ultimo, error: erroUltimo } = await supabase
+    .from("laudos_gerados")
+    .select("versao")
+    .eq("processo_id", processoId)
+    .order("versao", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroUltimo) return { error: erroUltimo.message };
+  const versao = (ultimo?.versao ?? 0) + 1;
+
+  const pass1 = await compilarComplementacao(processoId, cicloId, "—", dataAssinaturaIso, versao);
+  if (pass1.status === "erro") return { error: pass1.mensagem };
+  if (pass1.status === "pendencias") {
+    return { error: `Geração bloqueada — pendências: ${pass1.itens.map((i) => i.label).join("; ")}.` };
+  }
+
+  const ativos = await buscarAtivosGlobais();
+  const medidaUm = await renderizarPdfComPaginas(pass1.modelo, ativos, []);
+
+  const pass2 = await compilarComplementacao(processoId, cicloId, String(medidaUm.paginas), dataAssinaturaIso, versao);
+  if (pass2.status !== "ok") {
+    return { error: "O estado do ciclo mudou entre as duas passadas de paginação — tente gerar novamente." };
+  }
+  const medidaDois = await renderizarPdfComPaginas(pass2.modelo, ativos, []);
+  if (medidaDois.paginas !== medidaUm.paginas) {
+    return {
+      error: `Divergência de paginação ao inserir o número de páginas (1ª passada: ${medidaUm.paginas}; 2ª passada: ${medidaDois.paginas}). Geração abortada — tente novamente.`,
+    };
+  }
+
+  const bufferDocx = await renderizarDocx(pass2.modelo, ativos, []);
+
+  const caminhoPdf = `${processoId}/v${versao}.pdf`;
+  const caminhoDocx = `${processoId}/v${versao}.docx`;
+
+  const [uploadPdf, uploadDocx] = await Promise.all([
+    supabase.storage
+      .from(BUCKET_LAUDOS_GERADOS)
+      .upload(caminhoPdf, medidaDois.buffer, { contentType: "application/pdf" }),
+    supabase.storage.from(BUCKET_LAUDOS_GERADOS).upload(caminhoDocx, bufferDocx, {
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }),
+  ]);
+  if (uploadPdf.error || uploadDocx.error) {
+    await Promise.all([
+      uploadPdf.error ? Promise.resolve() : supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoPdf]),
+      uploadDocx.error ? Promise.resolve() : supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoDocx]),
+    ]);
+    return { error: `Erro ao salvar os arquivos: ${uploadPdf.error?.message ?? uploadDocx.error?.message}` };
+  }
+
+  const insert: LaudosGeradosInsert = {
+    processo_id: processoId,
+    versao,
+    tipo: "complementacao",
+    pos_laudo_ciclo_id: cicloId,
+    titulo: "Complementação ao Laudo Médico-Pericial",
+    substitui_conclusao: pass2.snapshot.conclusao_vigente_texto !== null,
     storage_path_pdf: caminhoPdf,
     storage_path_docx: caminhoDocx,
     snapshot_respostas: pass2.snapshot,
