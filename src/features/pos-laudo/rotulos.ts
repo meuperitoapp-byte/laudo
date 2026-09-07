@@ -15,6 +15,9 @@ import type {
   PosLaudoPotencialConclusao,
   PosLaudoRepercussaoPonto,
   PosLaudoRepercussaoLaudo,
+  PosLaudoComplementacaoMotivo,
+  PosLaudoComplementacaoImpacto,
+  PosLaudoElementoCentralSituacao,
 } from "@/types/enums";
 
 export const FLUXO_ROTULOS: Record<PosLaudoFluxo, string> = {
@@ -188,4 +191,86 @@ export const ORIGEM_IDENTIFICACAO_ROTULOS: Record<PosLaudoOrigemIdentificacao, s
   autor: "Autor",
   reu: "Réu",
   outro: "Outro",
+};
+
+// ---------------------------------------------------------------------------
+// Complementação do Laudo (migration 20260909120000)
+// ---------------------------------------------------------------------------
+
+/** pos_laudo_complementacao.motivos — "Motivo da complementação" (seção II). */
+export const COMPLEMENTACAO_MOTIVO_ORDENADA: readonly PosLaudoComplementacaoMotivo[] = [
+  "documento_novo",
+  "nova_avaliacao",
+  "exame_complementar",
+  "avaliacao_especialista",
+  "diligencia_juizo",
+  "determinacao_judicial",
+  "insuficiencia_tecnica",
+  "esclarecimento_ampliado",
+  "outro",
+];
+
+export const COMPLEMENTACAO_MOTIVO_ROTULOS: Record<PosLaudoComplementacaoMotivo, string> = {
+  documento_novo: "Documento novo",
+  nova_avaliacao: "Nova avaliação médico-pericial",
+  exame_complementar: "Exame complementar",
+  avaliacao_especialista: "Avaliação por especialista",
+  diligencia_juizo: "Diligência determinada pelo Juízo",
+  determinacao_judicial: "Determinação judicial de complementação",
+  insuficiencia_tecnica: "Insuficiência técnica posteriormente identificada",
+  esclarecimento_ampliado: "Necessidade de esclarecimento com ampliação da análise",
+  outro: "Outro",
+};
+
+/** pos_laudo_complementacao.impacto_elementos — "Classificação do impacto" (seção III). */
+export const COMPLEMENTACAO_IMPACTO_ORDENADA: readonly PosLaudoComplementacaoImpacto[] = [
+  "sem_relevancia_modificadora",
+  "complementares",
+  "relevantes_fundamentacao",
+  "potencialmente_modificadores",
+  "determinantes_revisao_parcial",
+  "determinantes_revisao_integral",
+];
+
+export const COMPLEMENTACAO_IMPACTO_ROTULOS: Record<PosLaudoComplementacaoImpacto, string> = {
+  sem_relevancia_modificadora: "Sem relevância modificadora",
+  complementares: "Complementares aos elementos já analisados",
+  relevantes_fundamentacao: "Relevantes para a fundamentação",
+  potencialmente_modificadores: "Potencialmente modificadores",
+  determinantes_revisao_parcial: "Determinantes para revisão parcial",
+  determinantes_revisao_integral: "Determinantes para revisão integral",
+};
+
+/** vii_elementos — situação de cada elemento central (seção VII). */
+export const ELEMENTO_CENTRAL_SITUACAO_ORDENADA: readonly PosLaudoElementoCentralSituacao[] = [
+  "mantido",
+  "complementado",
+  "modificado",
+  "nao_aplicavel",
+];
+
+export const ELEMENTO_CENTRAL_SITUACAO_ROTULOS: Record<PosLaudoElementoCentralSituacao, string> = {
+  mantido: "Mantido",
+  complementado: "Complementado",
+  modificado: "Modificado",
+  nao_aplicavel: "Não aplicável",
+};
+
+/** As 6 chaves fixas de vii_elementos com situação (a 7ª, "outros", é texto livre). */
+export const ELEMENTO_CENTRAL_ORDENADA = [
+  "diagnostico",
+  "conduta",
+  "nexo",
+  "dano",
+  "incapacidade",
+  "prognostico",
+] as const;
+
+export const ELEMENTO_CENTRAL_ROTULOS: Record<(typeof ELEMENTO_CENTRAL_ORDENADA)[number], string> = {
+  diagnostico: "Diagnóstico / condição clínica",
+  conduta: "Conduta médica / assistencial",
+  nexo: "Nexo causal / concausal",
+  dano: "Dano",
+  incapacidade: "Incapacidade / funcionalidade",
+  prognostico: "Prognóstico",
 };

@@ -34,6 +34,7 @@ import type {
   PosLaudoCicloStatus,
   PosLaudoOrigem,
   PosLaudoOrigemIdentificacao,
+  PosLaudoComplementacaoImpacto,
   PosLaudoClassificacaoGlobal,
   PosLaudoPotencialConclusao,
   PosLaudoClassificacaoTriagem,
@@ -53,6 +54,7 @@ import type {
   ConfigTabela,
   ValorSelecionado,
   SnapshotLaudoGerado,
+  ComplementacaoElementosCentrais,
 } from './json-fields'
 
 /** Torna as chaves em K opcionais em T — modela colunas com DEFAULT no banco para o tipo Insert. */
@@ -637,6 +639,80 @@ export type PosLaudoRetificacaoItensInsert = ComDefaults<
 export type PosLaudoRetificacaoItensUpdate = Partial<PosLaudoRetificacaoItensRow>
 
 // ============================================================================
+// pos_laudo_complementacao  (20260909120000_pos_laudo_complementacao.sql)
+// ============================================================================
+export type PosLaudoComplementacaoRow = {
+  id: string
+  ciclo_id: string
+  // I
+  id_documento_origem: string | null
+  // II — códigos PosLaudoComplementacaoMotivo (validado na aplicação)
+  motivos: string[]
+  motivo_descricao: string | null
+  // III
+  impacto_elementos: PosLaudoComplementacaoImpacto | null
+  impacto_fundamentacao: string | null
+  // IV
+  avaliacao_realizada: boolean
+  avaliacao_data: string | null
+  avaliacao_horario: string | null
+  avaliacao_local: string | null
+  avaliacao_presentes: string | null
+  avaliacao_assistentes: string | null
+  avaliacao_documentos_ato: string | null
+  avaliacao_achados: string | null
+  avaliacao_comparacao: string | null
+  // V
+  exames_realizados: boolean
+  exame_descricao: string | null
+  exame_data: string | null
+  exame_profissional: string | null
+  exame_resultado: string | null
+  exame_repercussao: string | null
+  // VI
+  vi_mantidos: string | null
+  vi_necessitam: string | null
+  vi_revistos: string | null
+  vi_fundamentacao: string | null
+  // VII
+  vii_elementos: ComplementacaoElementosCentrais
+  created_at: string
+  updated_at: string
+}
+export type PosLaudoComplementacaoInsert = ComDefaults<
+  PosLaudoComplementacaoRow,
+  | 'id'
+  | 'id_documento_origem'
+  | 'motivos'
+  | 'motivo_descricao'
+  | 'impacto_elementos'
+  | 'impacto_fundamentacao'
+  | 'avaliacao_realizada'
+  | 'avaliacao_data'
+  | 'avaliacao_horario'
+  | 'avaliacao_local'
+  | 'avaliacao_presentes'
+  | 'avaliacao_assistentes'
+  | 'avaliacao_documentos_ato'
+  | 'avaliacao_achados'
+  | 'avaliacao_comparacao'
+  | 'exames_realizados'
+  | 'exame_descricao'
+  | 'exame_data'
+  | 'exame_profissional'
+  | 'exame_resultado'
+  | 'exame_repercussao'
+  | 'vi_mantidos'
+  | 'vi_necessitam'
+  | 'vi_revistos'
+  | 'vi_fundamentacao'
+  | 'vii_elementos'
+  | 'created_at'
+  | 'updated_at'
+>
+export type PosLaudoComplementacaoUpdate = Partial<PosLaudoComplementacaoRow>
+
+// ============================================================================
 // pos_laudo_quesitos
 // ============================================================================
 export type PosLaudoQuesitosRow = {
@@ -810,6 +886,12 @@ export interface Database {
         Row: PosLaudoRetificacaoItensRow
         Insert: PosLaudoRetificacaoItensInsert
         Update: PosLaudoRetificacaoItensUpdate
+        Relationships: []
+      }
+      pos_laudo_complementacao: {
+        Row: PosLaudoComplementacaoRow
+        Insert: PosLaudoComplementacaoInsert
+        Update: PosLaudoComplementacaoUpdate
         Relationships: []
       }
       pos_laudo_quesitos: {

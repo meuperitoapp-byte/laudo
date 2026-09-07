@@ -235,6 +235,27 @@ export interface SnapshotPosLaudoRetificacaoItem {
   leia_se: string
 }
 
+// ----------------------------------------------------------------------------
+// pos_laudo_complementacao.vii_elementos (jsonb) — "Repercussão sobre os
+// elementos centrais da perícia" (seção VII do modelo de Complementação).
+// Chaves fixas; cada elemento tem situação + fundamentação, exceto `outros`
+// que é texto livre. Ausência de chave = elemento ainda não avaliado.
+// ----------------------------------------------------------------------------
+export interface ElementoCentralRepercussao {
+  situacao: 'mantido' | 'complementado' | 'modificado' | 'nao_aplicavel' | null
+  fundamentacao: string
+}
+export interface ComplementacaoElementosCentrais {
+  diagnostico?: ElementoCentralRepercussao
+  conduta?: ElementoCentralRepercussao
+  nexo?: ElementoCentralRepercussao
+  dano?: ElementoCentralRepercussao
+  incapacidade?: ElementoCentralRepercussao
+  prognostico?: ElementoCentralRepercussao
+  /** "Outros pontos do objeto pericial" — texto livre, sem situação. */
+  outros?: string
+}
+
 /**
  * laudos_gerados.snapshot_respostas quando `laudos_gerados.tipo` != 'laudo'.
  * Congela o conteúdo compilado de um documento de pós-laudo no momento da

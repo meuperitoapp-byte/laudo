@@ -166,6 +166,48 @@ export type PosLaudoConclusaoEscopo = 'integral' | 'parcial'
  */
 export type PosLaudoOrigemIdentificacao = 'perito' | 'juizo' | 'autor' | 'reu' | 'outro'
 
+// ----------------------------------------------------------------------------
+// Complementação do Laudo (migration 20260909120000_pos_laudo_complementacao)
+// ----------------------------------------------------------------------------
+
+/**
+ * pos_laudo_complementacao.motivos (text[]) — "Motivo da complementação"
+ * (seção II do modelo). Vocabulário fixo, validado na aplicação (não é CHECK
+ * no banco — mesmo padrão de pos_laudo_ciclos.natureza).
+ */
+export type PosLaudoComplementacaoMotivo =
+  | 'documento_novo'
+  | 'nova_avaliacao'
+  | 'exame_complementar'
+  | 'avaliacao_especialista'
+  | 'diligencia_juizo'
+  | 'determinacao_judicial'
+  | 'insuficiencia_tecnica'
+  | 'esclarecimento_ampliado'
+  | 'outro'
+
+/**
+ * pos_laudo_complementacao.impacto_elementos — "Classificação do impacto dos
+ * elementos supervenientes" (seção III do modelo). CHECK no banco.
+ */
+export type PosLaudoComplementacaoImpacto =
+  | 'sem_relevancia_modificadora'
+  | 'complementares'
+  | 'relevantes_fundamentacao'
+  | 'potencialmente_modificadores'
+  | 'determinantes_revisao_parcial'
+  | 'determinantes_revisao_integral'
+
+/**
+ * Situação de cada elemento central da perícia na Complementação (seção VII
+ * do modelo). Guardado dentro do jsonb pos_laudo_complementacao.vii_elementos.
+ */
+export type PosLaudoElementoCentralSituacao =
+  | 'mantido'
+  | 'complementado'
+  | 'modificado'
+  | 'nao_aplicavel'
+
 /**
  * pos_laudo_retificacao_itens.natureza_erro — vocabulário fixo (seção II do
  * modelo de Retificação de Erro Material), validado na aplicação (não é
