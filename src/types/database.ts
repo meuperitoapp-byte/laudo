@@ -33,6 +33,7 @@ import type {
   PosLaudoFluxo,
   PosLaudoCicloStatus,
   PosLaudoOrigem,
+  PosLaudoOrigemIdentificacao,
   PosLaudoClassificacaoGlobal,
   PosLaudoPotencialConclusao,
   PosLaudoClassificacaoTriagem,
@@ -476,6 +477,10 @@ export type PosLaudoCiclosRow = {
   // --- fatia 6 (migration 20260907120000) ---
   retificacao_afeta_conclusao: boolean | null
   retificacao_justificativa: string | null
+  // --- fatia 6, gap seção I (migration 20260908120000) ---
+  retificacao_id_documento: string | null
+  retificacao_data_identificacao: string | null
+  retificacao_origem_identificacao: PosLaudoOrigemIdentificacao | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -498,6 +503,9 @@ export type PosLaudoCiclosInsert = ComDefaults<
   | 'conclusao_vigente_nova'
   | 'retificacao_afeta_conclusao'
   | 'retificacao_justificativa'
+  | 'retificacao_id_documento'
+  | 'retificacao_data_identificacao'
+  | 'retificacao_origem_identificacao'
   | 'created_by'
   | 'created_at'
   | 'updated_at'

@@ -160,6 +160,13 @@ export type PosLaudoConclusaoOrigem = 'laudo' | 'esclarecimentos' | 'complementa
 export type PosLaudoConclusaoEscopo = 'integral' | 'parcial'
 
 /**
+ * pos_laudo_ciclos.retificacao_origem_identificacao — "Origem da
+ * identificação" (seção I do modelo de Retificação). CHECK no banco (mesma
+ * convenção da coluna `origem` da tabela).
+ */
+export type PosLaudoOrigemIdentificacao = 'perito' | 'juizo' | 'autor' | 'reu' | 'outro'
+
+/**
  * pos_laudo_retificacao_itens.natureza_erro — vocabulário fixo (seção II do
  * modelo de Retificação de Erro Material), validado na aplicação (não é
  * CHECK no banco — mesmo padrão de PosLaudoNatureza/EtapaContratada).

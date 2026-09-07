@@ -8,6 +8,7 @@ import type {
   PosLaudoFluxo,
   PosLaudoCicloStatus,
   PosLaudoOrigem,
+  PosLaudoOrigemIdentificacao,
   PosLaudoNatureza,
   PosLaudoNaturezaErro,
   PosLaudoClassificacaoTriagem,
@@ -170,4 +171,21 @@ export const NATUREZA_ERRO_ROTULOS: Record<PosLaudoNaturezaErro, string> = {
   troca_omissao: "Troca ou omissão material de palavra/expressão",
   formatacao: "Erro de formatação com repercussão na leitura",
   outro: "Outro erro material",
+};
+
+/** pos_laudo_ciclos.retificacao_origem_identificacao — "Origem da identificação" (seção I do modelo de Retificação). */
+export const ORIGEM_IDENTIFICACAO_ORDENADA: readonly PosLaudoOrigemIdentificacao[] = [
+  "perito",
+  "juizo",
+  "autor",
+  "reu",
+  "outro",
+];
+
+export const ORIGEM_IDENTIFICACAO_ROTULOS: Record<PosLaudoOrigemIdentificacao, string> = {
+  perito: "Perito",
+  juizo: "Juízo",
+  autor: "Autor",
+  reu: "Réu",
+  outro: "Outro",
 };

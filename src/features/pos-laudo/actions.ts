@@ -26,6 +26,7 @@ import type {
   PosLaudoNatureza,
   PosLaudoNaturezaErro,
   PosLaudoOrigem,
+  PosLaudoOrigemIdentificacao,
   PosLaudoPotencialConclusao,
   PosLaudoRepercussaoLaudo,
   PosLaudoRepercussaoPonto,
@@ -1090,6 +1091,50 @@ export async function salvarAnaliseRetificacao(input: {
     .update({
       retificacao_afeta_conclusao: afetaConclusao,
       retificacao_justificativa: input.justificativa?.trim() || null,
+    })
+    .eq("id", input.cicloId)
+    .eq("processo_id", input.processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
+  return { success: true };
+}
+
+const ORIGEM_IDENTIFICACAO_VALIDAS: readonly PosLaudoOrigemIdentificacao[] = [
+  "perito",
+  "juizo",
+  "autor",
+  "reu",
+  "outro",
+];
+
+/**
+ * Salva os campos da seção I do modelo de Retificação ("Identificação do
+ * Documento Retificado"): ID do documento retificado, data da identificação
+ * do erro e origem da identificação. Não são obrigatórios pra gerar (o
+ * modelo não os marca "obrigatório", diferente da seção IV).
+ */
+export async function salvarIdentificacaoRetificacao(input: {
+  cicloId: string;
+  processoId: string;
+  idDocumento: string | null;
+  dataIdentificacao: string | null;
+  origemIdentificacao: string | null;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const origem: PosLaudoOrigemIdentificacao | null =
+    input.origemIdentificacao &&
+    (ORIGEM_IDENTIFICACAO_VALIDAS as readonly string[]).includes(input.origemIdentificacao)
+      ? (input.origemIdentificacao as PosLaudoOrigemIdentificacao)
+      : null;
+
+  const { error } = await supabase
+    .from("pos_laudo_ciclos")
+    .update({
+      retificacao_id_documento: input.idDocumento?.trim() || null,
+      retificacao_data_identificacao: input.dataIdentificacao || null,
+      retificacao_origem_identificacao: origem,
     })
     .eq("id", input.cicloId)
     .eq("processo_id", input.processoId);
