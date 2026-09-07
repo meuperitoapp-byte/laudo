@@ -11,9 +11,11 @@ import {
 } from "@/features/pos-laudo/documentos-supervenientes";
 import { GerarPosLaudoPanel, type VersaoPosLaudo } from "@/features/pos-laudo/gerar-pos-laudo-panel";
 import { RetificacaoPanel } from "@/features/pos-laudo/retificacao-panel";
+import { ComplementacaoPanel } from "@/features/pos-laudo/complementacao-panel";
 import { compilarEsclarecimentos, type PendenciaGeracaoPosLaudo } from "@/features/pos-laudo/compilar-esclarecimentos";
 import { compilarRetificacao } from "@/features/pos-laudo/compilar-retificacao";
-import { gerarEsclarecimentos, gerarRetificacao } from "@/features/pos-laudo/actions";
+import { compilarComplementacao } from "@/features/pos-laudo/compilar-complementacao";
+import { gerarEsclarecimentos, gerarRetificacao, gerarComplementacao } from "@/features/pos-laudo/actions";
 import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
 import { CICLO_STATUS_ROTULOS, FLUXO_ROTULOS } from "@/features/pos-laudo/rotulos";
 import { Selo } from "@/components/ui/badge";
@@ -192,14 +194,23 @@ export default async function PosLaudoCicloPage({
   // a lado a partir desta fatia.
   const versoesEsclarecimentos = versoesPosLaudo.filter((v) => v.tipo === "esclarecimentos");
   const versoesRetificacao = versoesPosLaudo.filter((v) => v.tipo === "retificacao");
+  const versoesComplementacao = versoesPosLaudo.filter((v) => v.tipo === "complementacao");
 
   // Pendências pra gerar cada saída — mesmo cálculo que a geração de verdade
   // faz (compilarEsclarecimentos/compilarRetificacao), só que sem gastar as
   // duas passadas de paginação: aqui é preview de leitura, não geração.
-  const [resultadoEsclarecimentos, resultadoRetificacao, { data: itensRetificacaoDb }] = await Promise.all([
+  const [
+    resultadoEsclarecimentos,
+    resultadoRetificacao,
+    resultadoComplementacao,
+    { data: itensRetificacaoDb },
+    { data: complementacaoDb },
+  ] = await Promise.all([
     compilarEsclarecimentos(processoId, cicloId),
     compilarRetificacao(processoId, cicloId),
+    compilarComplementacao(processoId, cicloId),
     supabase.from("pos_laudo_retificacao_itens").select("*").eq("ciclo_id", cicloId).order("ordem"),
+    supabase.from("pos_laudo_complementacao").select("*").eq("ciclo_id", cicloId).maybeSingle(),
   ]);
   const itensRetificacao = itensRetificacaoDb ?? [];
 
@@ -340,6 +351,39 @@ export default async function PosLaudoCicloPage({
           podeGerar={resultadoRetificacao.status === "ok"}
           versoes={versoesRetificacao}
           gerar={gerarRetificacao}
+        />
+      </div>
+
+      <ComplementacaoPanel
+        processoId={processoId}
+        cicloId={ciclo.id}
+        complementacao={complementacaoDb ?? null}
+        retificacaoItens={itensRetificacao}
+        documentosSupervenientesCount={pldLista.length}
+      />
+
+      <div className="space-y-3">
+        <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-50">
+          Gerar Complementação
+        </h2>
+
+        {resultadoComplementacao.status === "erro" && (
+          <p className="text-sm rounded-lg border border-vinho-600/30 bg-vinho-100 text-vinho-700 dark:border-vinho-400/30 dark:bg-vinho-950 dark:text-vinho-400 px-4 py-3">
+            {resultadoComplementacao.mensagem}
+          </p>
+        )}
+
+        {resultadoComplementacao.status === "pendencias" && <BlocoPendencias itens={resultadoComplementacao.itens} />}
+
+        <GerarPosLaudoPanel
+          processoId={processoId}
+          cicloId={ciclo.id}
+          chave="complementacao"
+          nomeDocumento="Complementação ao Laudo Médico-Pericial"
+          tituloBotao="Gerar Complementação"
+          podeGerar={resultadoComplementacao.status === "ok"}
+          versoes={versoesComplementacao}
+          gerar={gerarComplementacao}
         />
       </div>
     </main>
