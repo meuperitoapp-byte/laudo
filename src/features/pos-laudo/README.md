@@ -12,7 +12,7 @@ por **botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload
 Fernanda já usa a tela de Quesitos; mudar o comportamento de salvamento dela no meio do
 Pós-Laudo é risco sem ganho. **Padronizar quando o Módulo Pós-Laudo fechar.**
 
-## Estado atual — fatias 1 a 7
+## Estado atual — fatias 1 a 8
 
 O que já existe:
 
@@ -262,10 +262,30 @@ saída mais pesada. Migration `20260909120000`: tabela nova `pos_laudo_complemen
   exige; **§VI fundamentação médico-pericial complementar vazia** (é o núcleo do
   documento — análogo a "ponto sem resposta técnica"); §IV/§V ligadas sem o campo-âncora.
 
-Inerte, esperando as próximas fatias: quesitos do ciclo (fatia 9 — seção VIII de
-Esclarecimentos/Complementação), "as 3 saídas juntas" + encerramento do ciclo (fatia 8,
-travada nas 5 perguntas da Dra.), mudança da situação do processo (fatia 11). O `status`
-do ciclo continua sem avançar de "aberto".
+### Fatia 8 — encerramento da rodada
+
+Sem migration — a fatia 0 já pôs `'encerrado'` no CHECK de `pos_laudo_ciclos.status` e a
+coluna `encerrado_em`. Resposta (d) da Dra. (confirmada em áudio): **gerar só as saídas
+que fizerem sentido em cada rodada** — nunca PDF único consolidado, nunca forçar as 3.
+Não sobrou orquestração real além do encerramento em si (a fatia 7 já resolveu o handoff
+Retificação→Complementação).
+
+- `encerrarCiclo` (`status='encerrado'` + `encerrado_em=now()`) / `reabrirCiclo` (volta
+  pra `'aberto'`, limpa `encerrado_em`). Encerrar é **reversível** — ≠ protocolar (só
+  protocolar congela um documento). Não exige nenhum documento gerado (uma rodada pode
+  terminar com 0 — ex.: manifestação triada como mero inconformismo).
+- `encerramento-ciclo.tsx` (client) — resumo das 3 saídas (versões geradas + protocolo,
+  dos dados que a página já tem) + botão encerrar/reabrir, no fim da tela do ciclo.
+- Com o ciclo encerrado: os 3 botões "Gerar" ficam desabilitados (aviso
+  `CicloEncerradoAviso`); **protocolar continua liberado** (finalizar um documento que já
+  existe ≠ produzir um novo); os formulários de edição ficam como estão (editar sem
+  regerar é inócuo — documentos protocolados são snapshots congelados).
+- A tela-índice de ciclos já mostrava `status='encerrado'` com selo (feito lá atrás).
+
+Inerte, esperando as próximas fatias: quesitos do ciclo (fatia 9 — seção VIII / V de
+Complementação e Esclarecimentos), fluxo AT (fatia 10 — precisa de desenho próprio: doc
+de AT não é protocolado pelo sistema), mudança da situação do processo (fatia 11), linha
+do tempo de versões (fatia 12, opcional).
 
 ## Arquivos
 
@@ -276,8 +296,8 @@ do ciclo continua sem avançar de "aberto".
   `salvarRepercussaoCiclo`, `definirConclusaoVigenteInicial`, `gerarEsclarecimentos`,
   `marcarPosLaudoProtocolado`, `adicionarItemRetificacao`, `salvarItemRetificacao`,
   `removerItemRetificacao`, `salvarIdentificacaoRetificacao`, `salvarAnaliseRetificacao`,
-  `gerarRetificacao`, `salvarComplementacao`, `gerarComplementacao` (+ helper
-  `recomputarRascunhoComplementacao`).
+  `gerarRetificacao`, `salvarComplementacao`, `gerarComplementacao`, `encerrarCiclo`,
+  `reabrirCiclo` (+ helper `recomputarRascunhoComplementacao`).
 - `consultas.ts` — **não** "use server": `conclusaoVigenteAtual`,
   `extrairConclusaoDoLaudo` (recebem o client do Supabase; usadas por páginas e por
   `actions.ts`).
@@ -293,6 +313,7 @@ do ciclo continua sem avançar de "aberto".
 - `documentos-supervenientes.tsx` — client, upload + metadados dos supervenientes.
 - `retificacao-panel.tsx` — client, itens onde-se-lê/leia-se + Análise da Repercussão.
 - `complementacao-panel.tsx` — client, formulário das seções II–VII da Complementação.
+- `encerramento-ciclo.tsx` — client, resumo das 3 saídas + encerrar/reabrir a rodada.
 - `conclusao-vigente-inicial.tsx` — client, bloco "Conclusão vigente" do laudo final.
 - `gerar-pos-laudo-panel.tsx` — client, geração + protocolar (genérico por saída).
 - `rotulos.ts` — rótulos pt-BR das colunas `text` + CHECK do módulo.
