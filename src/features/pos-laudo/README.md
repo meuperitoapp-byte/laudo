@@ -12,7 +12,7 @@ por **botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload
 Fernanda já usa a tela de Quesitos; mudar o comportamento de salvamento dela no meio do
 Pós-Laudo é risco sem ganho. **Padronizar quando o Módulo Pós-Laudo fechar.**
 
-## Estado atual — fatias 1 a 8
+## Estado atual — fatias 1 a 9
 
 O que já existe:
 
@@ -282,10 +282,30 @@ Retificação→Complementação).
   regerar é inócuo — documentos protocolados são snapshots congelados).
 - A tela-índice de ciclos já mostrava `status='encerrado'` com selo (feito lá atrás).
 
-Inerte, esperando as próximas fatias: quesitos do ciclo (fatia 9 — seção VIII / V de
-Complementação e Esclarecimentos), fluxo AT (fatia 10 — precisa de desenho próprio: doc
-de AT não é protocolado pelo sistema), mudança da situação do processo (fatia 11), linha
-do tempo de versões (fatia 12, opcional).
+### Fatia 9 — quesitos suplementares do ciclo
+
+Sem migration — `pos_laudo_quesitos` já existe desde a fatia 0. **Decisão (c) da Dra.:
+a numeração REINICIA do 1 a cada ciclo** (nunca continua a contagem do laudo original) —
+`adicionarQuesitoCiclo` usa `max(numero) WHERE ciclo_id` + 1.
+
+- `salvarQuesitoCiclo` / `removerQuesitoCiclo`. `QuesitosCicloPanel` (client): um card por
+  quesito com origem (autora/ré/Juízo/outros) + tipo (suplementar/esclarecimento) +
+  pergunta + resposta, botão explícito, selo "Incompleto" enquanto pergunta ou resposta
+  vazia. Fica antes dos blocos "Gerar" (alimenta os dois).
+- `compilar-quesitos-secao.ts` (helper compartilhado, não "use server"): renderiza a
+  **seção V dos Esclarecimentos** e a **VIII da Complementação** — condicionais (somem
+  quando não há quesito), agrupadas por origem, numeradas de 1 por grupo. A §VIII ganha um
+  parágrafo de intro deixando claro que as respostas são complementares às do laudo
+  original.
+- Cada quesito com pergunta/resposta vazia vira pendência de geração dos dois documentos
+  (análogo a "ponto sem resposta técnica"). Snapshot `quesitos_ciclo` populado.
+- **Não** entra na aba Quesitos do laudo — fica só no ciclo (Dra. confirmou lá atrás). O
+  texto do quesito fica editável até a geração; o snapshot do documento é que congela
+  (não há lock por quesito — a garantia de imutabilidade é a mesma do resto do módulo).
+
+Inerte, esperando as próximas fatias: fluxo AT (fatia 10 — precisa de desenho próprio: doc
+de AT não é protocolado pelo sistema, fica editável até o advogado protocolar), mudança da
+situação do processo (fatia 11), linha do tempo de versões (fatia 12, opcional).
 
 ## Arquivos
 
@@ -297,7 +317,8 @@ do tempo de versões (fatia 12, opcional).
   `marcarPosLaudoProtocolado`, `adicionarItemRetificacao`, `salvarItemRetificacao`,
   `removerItemRetificacao`, `salvarIdentificacaoRetificacao`, `salvarAnaliseRetificacao`,
   `gerarRetificacao`, `salvarComplementacao`, `gerarComplementacao`, `encerrarCiclo`,
-  `reabrirCiclo` (+ helper `recomputarRascunhoComplementacao`).
+  `reabrirCiclo`, `adicionarQuesitoCiclo`, `salvarQuesitoCiclo`, `removerQuesitoCiclo`
+  (+ helper `recomputarRascunhoComplementacao`).
 - `consultas.ts` — **não** "use server": `conclusaoVigenteAtual`,
   `extrairConclusaoDoLaudo` (recebem o client do Supabase; usadas por páginas e por
   `actions.ts`).
@@ -306,6 +327,8 @@ do tempo de versões (fatia 12, opcional).
 - `compilar-esclarecimentos.ts` / `compilar-retificacao.ts` / `compilar-complementacao.ts`
   — **não** "use server": `compilar*` (busca no banco + monta o `ModeloLaudo` +
   `SnapshotPosLaudo` de cada saída, reusando os renderers de `geracao-laudo`).
+- `compilar-quesitos-secao.ts` — **não** "use server": `montarSecaoQuesitos`, helper
+  compartilhado pelas seções V (Esclarecimentos) e VIII (Complementação).
 - `abrir-ciclo-button.tsx` — client, botão do índice.
 - `registro-demanda-form.tsx` — client, etapa Registro da Demanda (botão explícito).
 - `matriz-pontos.tsx` — client, campo de ciclo + matriz de pontos + enfrentamento +
@@ -313,6 +336,7 @@ do tempo de versões (fatia 12, opcional).
 - `documentos-supervenientes.tsx` — client, upload + metadados dos supervenientes.
 - `retificacao-panel.tsx` — client, itens onde-se-lê/leia-se + Análise da Repercussão.
 - `complementacao-panel.tsx` — client, formulário das seções II–VII da Complementação.
+- `quesitos-ciclo-panel.tsx` — client, quesitos suplementares do ciclo (card por quesito).
 - `encerramento-ciclo.tsx` — client, resumo das 3 saídas + encerrar/reabrir a rodada.
 - `conclusao-vigente-inicial.tsx` — client, bloco "Conclusão vigente" do laudo final.
 - `gerar-pos-laudo-panel.tsx` — client, geração + protocolar (genérico por saída).
