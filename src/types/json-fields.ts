@@ -263,7 +263,7 @@ export interface ComplementacaoElementosCentrais {
  * para que editar o ciclo depois não altere um documento já entregue.
  */
 export interface SnapshotPosLaudo {
-  tipo: 'esclarecimentos' | 'retificacao' | 'complementacao' | 'parecer_at' | 'manifestacao_at' | 'impugnacao_at' | 'parecer_divergente_at'
+  tipo: 'esclarecimentos' | 'retificacao' | 'complementacao' | 'parecer_at' | 'manifestacao_at' | 'impugnacao_at' | 'parecer_divergente_at' | 'quesitos_at'
   gerado_em: string // ISO 8601
   ciclo_id: string
   numero_ciclo: number
@@ -277,6 +277,15 @@ export interface SnapshotPosLaudo {
   classificacao_global: string | null
   /** Texto da conclusão vigente registrada por este documento (quando altera/substitui). */
   conclusao_vigente_texto: string | null
+  // --- fluxo AT (fatia 10). Ausentes no judicial. Como na fatia 7, os campos
+  // estruturados da análise (pos_laudo_at_analise) NÃO entram no snapshot —
+  // só o que é identidade do documento entregue. ---
+  /** laudos_gerados.at_modalidade congelada (só parecer AT). */
+  at_modalidade?: string | null
+  /** pos_laudo_ciclos.providencia_recomendada congelada. */
+  at_providencia?: string[]
+  /** pos_laudo_ciclos.posicao_pericons_sintese congelada (entra verbatim na peça). */
+  at_posicao_pericons?: string | null
 }
 
 /**

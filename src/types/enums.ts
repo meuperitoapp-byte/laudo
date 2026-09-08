@@ -234,6 +234,9 @@ export type PosLaudoNaturezaErro =
 /**
  * laudos_gerados.tipo — discrimina a forma de snapshot_respostas. Linhas
  * pré-migration 20260905120000 assumem 'laudo' (default da coluna).
+ * 'quesitos_at' (migration 20260910120000) = documento isolado "Quesitos
+ * Suplementares" do lado AT (os mesmos quesitos também saem embutidos no
+ * parecer).
  */
 export type LaudoGeradoTipo =
   | 'laudo'
@@ -244,3 +247,39 @@ export type LaudoGeradoTipo =
   | 'manifestacao_at'
   | 'impugnacao_at'
   | 'parecer_divergente_at'
+  | 'quesitos_at'
+
+// ----------------------------------------------------------------------------
+// Fluxo Assistência Técnica (migration 20260910120000_pos_laudo_at)
+// ----------------------------------------------------------------------------
+
+/**
+ * laudos_gerados.at_modalidade — a modalidade concreta do parecer AT, que
+ * escolhe o texto-base da conclusão no compilador. CHECK no banco. Null fora
+ * dos tipos parecer_at / manifestacao_at / impugnacao_at / parecer_divergente_at.
+ */
+export type PosLaudoAtModalidade =
+  | 'concordancia'
+  | 'concordancia_ressalvas'
+  | 'impugnacao_parcial'
+  | 'impugnacao_integral'
+  | 'divergente'
+  | 'manifestacao'
+
+/**
+ * pos_laudo_ciclos.providencia_recomendada (text[]) — "Decisão pós-laudo"
+ * (Gestão Assistência Técnica.pdf §13). Vocabulário fixo validado na
+ * aplicação (mesmo padrão de PosLaudoNatureza). Define quais saídas AT fazem
+ * sentido gerar.
+ */
+export type PosLaudoProvidenciaAt =
+  | 'nenhuma'
+  | 'concordancia'
+  | 'quesitos_esclarecimento'
+  | 'quesitos_suplementares'
+  | 'manifestacao_tecnica'
+  | 'impugnacao_tecnica'
+  | 'solicitacao_complementacao'
+  | 'pedido_nova_pericia'
+  | 'parecer_divergente'
+  | 'outro'

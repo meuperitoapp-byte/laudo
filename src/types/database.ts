@@ -47,6 +47,7 @@ import type {
   PosLaudoConclusaoOrigem,
   PosLaudoConclusaoEscopo,
   LaudoGeradoTipo,
+  PosLaudoAtModalidade,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -435,6 +436,9 @@ export type LaudosGeradosRow = {
   protocolo_id: string | null
   protocolado_em: string | null
   paginas: number | null
+  // --- fatia 10, fluxo AT (migration 20260910120000) ---
+  at_modalidade: PosLaudoAtModalidade | null
+  entregue_ao_advogado_em: string | null
 }
 export type LaudosGeradosInsert = ComDefaults<
   LaudosGeradosRow,
@@ -452,6 +456,8 @@ export type LaudosGeradosInsert = ComDefaults<
   | 'protocolo_id'
   | 'protocolado_em'
   | 'paginas'
+  | 'at_modalidade'
+  | 'entregue_ao_advogado_em'
 >
 export type LaudosGeradosUpdate = Partial<LaudosGeradosRow>
 
@@ -483,6 +489,11 @@ export type PosLaudoCiclosRow = {
   retificacao_id_documento: string | null
   retificacao_data_identificacao: string | null
   retificacao_origem_identificacao: PosLaudoOrigemIdentificacao | null
+  // --- fatia 10, fluxo AT (migration 20260910120000) ---
+  objeto_analise: string | null
+  tese_assistida: string | null
+  providencia_recomendada: string[]     // códigos PosLaudoProvidenciaAt (validado na aplicação)
+  posicao_pericons_sintese: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -508,6 +519,10 @@ export type PosLaudoCiclosInsert = ComDefaults<
   | 'retificacao_id_documento'
   | 'retificacao_data_identificacao'
   | 'retificacao_origem_identificacao'
+  | 'objeto_analise'
+  | 'tese_assistida'
+  | 'providencia_recomendada'
+  | 'posicao_pericons_sintese'
   | 'created_by'
   | 'created_at'
   | 'updated_at'
@@ -713,6 +728,82 @@ export type PosLaudoComplementacaoInsert = ComDefaults<
 export type PosLaudoComplementacaoUpdate = Partial<PosLaudoComplementacaoRow>
 
 // ============================================================================
+// pos_laudo_at_analise  (20260910120000_pos_laudo_at.sql)
+// ============================================================================
+// "Análise estruturada do laudo judicial" no fluxo AT (Gestão Assistência
+// Técnica.pdf §12), 1:1 com o ciclo. Cada eixo é boolean | null (null = não
+// avaliado) + uma nota de texto. Resultado global = pos_laudo_ciclos.classificacao_global.
+export type PosLaudoAtAnaliseRow = {
+  id: string
+  ciclo_id: string
+  conclusao_do_perito: string | null
+  respondeu_objeto: boolean | null
+  respondeu_objeto_nota: string | null
+  respondeu_quesitos: boolean | null
+  respondeu_quesitos_nota: string | null
+  considerou_documentos: boolean | null
+  considerou_documentos_nota: string | null
+  tem_omissoes: boolean | null
+  tem_omissoes_nota: string | null
+  tem_contradicoes: boolean | null
+  tem_contradicoes_nota: string | null
+  tem_erros_tecnicos: boolean | null
+  tem_erros_tecnicos_nota: string | null
+  tem_erros_conceituais: boolean | null
+  tem_erros_conceituais_nota: string | null
+  extrapolou_objeto: boolean | null
+  extrapolou_objeto_nota: string | null
+  conclusoes_sem_fundamentacao: boolean | null
+  conclusoes_sem_fundamentacao_nota: string | null
+  divergencia_literatura: boolean | null
+  divergencia_literatura_nota: string | null
+  tem_fato_novo: boolean | null
+  tem_fato_novo_nota: string | null
+  favorece_tese: boolean | null
+  favorece_tese_nota: string | null
+  prejudica_tese: boolean | null
+  prejudica_tese_nota: string | null
+  impacto_processual: string | null
+  created_at: string
+  updated_at: string
+}
+export type PosLaudoAtAnaliseInsert = ComDefaults<
+  PosLaudoAtAnaliseRow,
+  | 'id'
+  | 'conclusao_do_perito'
+  | 'respondeu_objeto'
+  | 'respondeu_objeto_nota'
+  | 'respondeu_quesitos'
+  | 'respondeu_quesitos_nota'
+  | 'considerou_documentos'
+  | 'considerou_documentos_nota'
+  | 'tem_omissoes'
+  | 'tem_omissoes_nota'
+  | 'tem_contradicoes'
+  | 'tem_contradicoes_nota'
+  | 'tem_erros_tecnicos'
+  | 'tem_erros_tecnicos_nota'
+  | 'tem_erros_conceituais'
+  | 'tem_erros_conceituais_nota'
+  | 'extrapolou_objeto'
+  | 'extrapolou_objeto_nota'
+  | 'conclusoes_sem_fundamentacao'
+  | 'conclusoes_sem_fundamentacao_nota'
+  | 'divergencia_literatura'
+  | 'divergencia_literatura_nota'
+  | 'tem_fato_novo'
+  | 'tem_fato_novo_nota'
+  | 'favorece_tese'
+  | 'favorece_tese_nota'
+  | 'prejudica_tese'
+  | 'prejudica_tese_nota'
+  | 'impacto_processual'
+  | 'created_at'
+  | 'updated_at'
+>
+export type PosLaudoAtAnaliseUpdate = Partial<PosLaudoAtAnaliseRow>
+
+// ============================================================================
 // pos_laudo_quesitos
 // ============================================================================
 export type PosLaudoQuesitosRow = {
@@ -892,6 +983,12 @@ export interface Database {
         Row: PosLaudoComplementacaoRow
         Insert: PosLaudoComplementacaoInsert
         Update: PosLaudoComplementacaoUpdate
+        Relationships: []
+      }
+      pos_laudo_at_analise: {
+        Row: PosLaudoAtAnaliseRow
+        Insert: PosLaudoAtAnaliseInsert
+        Update: PosLaudoAtAnaliseUpdate
         Relationships: []
       }
       pos_laudo_quesitos: {
