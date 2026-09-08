@@ -137,6 +137,13 @@ export type PosLaudoQuesitoTipo = 'suplementar' | 'esclarecimento'
 export type PosLaudoQuesitoStatus = 'rascunho' | 'revisado' | 'aprovado' | 'excluido'
 
 /**
+ * pos_laudo_quesitos.origem — de quem é o quesito suplementar (seção V dos
+ * Esclarecimentos / VIII da Complementação: A parte autora / B parte ré / C
+ * Juízo / D outros). Coluna é `text` livre no banco — validado na aplicação.
+ */
+export type PosLaudoQuesitoOrigemParte = 'autor' | 'reu' | 'juizo' | 'outro'
+
+/**
  * pos_laudo_ciclos.repercussao_laudo — síntese de nível de ciclo da
  * repercussão sobre o laudo original (migration 20260906120000). Os três
  * últimos valores exigem "Nova Conclusão Vigente" (trava de aplicação).

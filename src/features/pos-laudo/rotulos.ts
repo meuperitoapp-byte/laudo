@@ -18,6 +18,8 @@ import type {
   PosLaudoComplementacaoMotivo,
   PosLaudoComplementacaoImpacto,
   PosLaudoElementoCentralSituacao,
+  PosLaudoQuesitoTipo,
+  PosLaudoQuesitoOrigemParte,
 } from "@/types/enums";
 
 export const FLUXO_ROTULOS: Record<PosLaudoFluxo, string> = {
@@ -273,4 +275,23 @@ export const ELEMENTO_CENTRAL_ROTULOS: Record<(typeof ELEMENTO_CENTRAL_ORDENADA)
   dano: "Dano",
   incapacidade: "Incapacidade / funcionalidade",
   prognostico: "Prognóstico",
+};
+
+// ---------------------------------------------------------------------------
+// Quesitos do ciclo (fatia 9) — pos_laudo_quesitos
+// ---------------------------------------------------------------------------
+
+export const QUESITO_TIPO_ROTULOS: Record<PosLaudoQuesitoTipo, string> = {
+  suplementar: "Quesito suplementar",
+  esclarecimento: "Quesito de esclarecimento",
+};
+
+/** pos_laudo_quesitos.origem — grupos A/B/C/D do modelo, nesta ordem de exibição. */
+export const QUESITO_ORIGEM_ORDENADA: readonly PosLaudoQuesitoOrigemParte[] = ["autor", "reu", "juizo", "outro"];
+
+export const QUESITO_ORIGEM_ROTULOS: Record<PosLaudoQuesitoOrigemParte, string> = {
+  autor: "Parte autora",
+  reu: "Parte ré",
+  juizo: "Juízo",
+  outro: "Outros",
 };

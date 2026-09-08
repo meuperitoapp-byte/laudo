@@ -16,6 +16,7 @@ import type {
   PosLaudoConclusoesVigentesInsert,
   PosLaudoDocumentosInsert,
   PosLaudoPontosInsert,
+  PosLaudoQuesitosInsert,
   PosLaudoRetificacaoItensInsert,
 } from "@/types/database";
 import type {
@@ -32,6 +33,8 @@ import type {
   PosLaudoOrigem,
   PosLaudoOrigemIdentificacao,
   PosLaudoPotencialConclusao,
+  PosLaudoQuesitoOrigemParte,
+  PosLaudoQuesitoTipo,
   PosLaudoRepercussaoLaudo,
   PosLaudoRepercussaoPonto,
 } from "@/types/enums";
@@ -1523,4 +1526,92 @@ export async function gerarComplementacao(
 
   revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
   return { success: true, versao };
+}
+
+// ============================================================================
+// Fatia 9 — quesitos suplementares do ciclo
+// ============================================================================
+
+const QUESITO_TIPO_VALIDOS: readonly PosLaudoQuesitoTipo[] = ["suplementar", "esclarecimento"];
+const QUESITO_ORIGEM_VALIDAS: readonly PosLaudoQuesitoOrigemParte[] = ["autor", "reu", "juizo", "outro"];
+
+/**
+ * Cria um quesito suplementar em branco no fim da lista do ciclo. `numero` é
+ * a MAIOR ordem já usada NESTE CICLO + 1 — a numeração REINICIA do 1 a cada
+ * ciclo, nunca continua a contagem do laudo original (decisão da Dra.,
+ * pergunta (c)). Fica só no ciclo de pós-laudo: NUNCA entra na aba Quesitos
+ * do laudo (Dra. confirmou).
+ */
+export async function adicionarQuesitoCiclo(cicloId: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const { data: ultimo, error: erroUltimo } = await supabase
+    .from("pos_laudo_quesitos")
+    .select("numero")
+    .eq("ciclo_id", cicloId)
+    .order("numero", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroUltimo) return { error: erroUltimo.message };
+
+  const insert: PosLaudoQuesitosInsert = {
+    ciclo_id: cicloId,
+    tipo: "suplementar",
+    numero: (ultimo?.numero ?? 0) + 1,
+    pergunta: "",
+  };
+  const { error } = await supabase.from("pos_laudo_quesitos").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true };
+}
+
+/** Salva um quesito do ciclo (origem, tipo, pergunta, resposta). O texto e a resposta ficam livres até a geração. */
+export async function salvarQuesitoCiclo(input: {
+  quesitoId: string;
+  cicloId: string;
+  processoId: string;
+  origem: string | null;
+  tipo: string;
+  pergunta: string;
+  resposta: string | null;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const tipo: PosLaudoQuesitoTipo = (QUESITO_TIPO_VALIDOS as readonly string[]).includes(input.tipo)
+    ? (input.tipo as PosLaudoQuesitoTipo)
+    : "suplementar";
+  const origem: PosLaudoQuesitoOrigemParte | null =
+    input.origem && (QUESITO_ORIGEM_VALIDAS as readonly string[]).includes(input.origem)
+      ? (input.origem as PosLaudoQuesitoOrigemParte)
+      : null;
+
+  const { error } = await supabase
+    .from("pos_laudo_quesitos")
+    .update({ origem, tipo, pergunta: input.pergunta, resposta: input.resposta })
+    .eq("id", input.quesitoId)
+    .eq("ciclo_id", input.cicloId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
+  return { success: true };
+}
+
+/** Remove um quesito do ciclo. */
+export async function removerQuesitoCiclo(
+  quesitoId: string,
+  cicloId: string,
+  processoId: string,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("pos_laudo_quesitos")
+    .delete()
+    .eq("id", quesitoId)
+    .eq("ciclo_id", cicloId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true };
 }
