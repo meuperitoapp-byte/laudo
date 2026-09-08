@@ -17,9 +17,10 @@ import { createClient } from "@/lib/supabase/server";
 import { montarCabecalhoFormal, type CabecalhoFormal } from "@/features/geracao-laudo/cabecalho";
 import { rodapeTexto } from "@/features/geracao-laudo/contatos";
 import type { ModeloLaudo, SecaoCompilada, BlocoConteudo } from "@/features/geracao-laudo/modelo";
-import type { SnapshotPosLaudo, SnapshotPosLaudoPonto } from "@/types/json-fields";
-import type { PosLaudoCiclosRow, PosLaudoPontosRow } from "@/types/database";
+import type { SnapshotPosLaudo, SnapshotPosLaudoPonto, SnapshotPosLaudoQuesito } from "@/types/json-fields";
+import type { PosLaudoCiclosRow, PosLaudoPontosRow, PosLaudoQuesitosRow } from "@/types/database";
 import { podeGerarSaida, type PendenciaGeracaoPosLaudo } from "./regras";
+import { montarSecaoQuesitos } from "./compilar-quesitos-secao";
 import {
   FLUXO_ROTULOS,
   NATUREZA_ROTULOS,
@@ -323,13 +324,15 @@ export async function compilarEsclarecimentos(
   const cabecalhoBase = montarCabecalhoFormal(processo, partesDb ?? []);
   if ("erro" in cabecalhoBase) return { status: "erro", mensagem: cabecalhoBase.erro };
 
-  const [{ data: pontosDb }, { data: pldDb }, { data: config }] = await Promise.all([
+  const [{ data: pontosDb }, { data: pldDb }, { data: quesitosDb }, { data: config }] = await Promise.all([
     supabase.from("pos_laudo_pontos").select("*").eq("ciclo_id", cicloId).order("ordem"),
     supabase.from("pos_laudo_documentos").select("*").eq("ciclo_id", cicloId).order("created_at"),
+    supabase.from("pos_laudo_quesitos").select("*").eq("ciclo_id", cicloId).order("numero"),
     supabase.from("configuracoes").select("*").maybeSingle(),
   ]);
   const pontos = pontosDb ?? [];
   const pld = pldDb ?? [];
+  const quesitos = (quesitosDb ?? []) as PosLaudoQuesitosRow[];
 
   const { data: laudoBase } = ciclo.laudo_base_id
     ? await supabase.from("laudos_gerados").select("protocolo_id, protocolado_em").eq("id", ciclo.laudo_base_id).maybeSingle()
@@ -367,6 +370,15 @@ export async function compilarEsclarecimentos(
     }
     if (!p.repercussao) {
       pendencias.push({ id: `ponto-${p.id}-repercussao`, label: `Ponto ${i + 1} — sem repercussão declarada.`, href: `#ponto-${p.id}` });
+    }
+  });
+  quesitos.forEach((q, i) => {
+    if (!q.pergunta.trim() || !q.resposta?.trim()) {
+      pendencias.push({
+        id: `quesito-${q.id}`,
+        label: `Quesito ${i + 1} do ciclo — pergunta e resposta precisam estar preenchidas.`,
+        href: `#quesito-${q.id}`,
+      });
     }
   });
   if (!ciclo.repercussao_laudo) {
@@ -428,7 +440,12 @@ export async function compilarEsclarecimentos(
     montarSecaoII(pld.length > 0),
     montarSecaoIII(documentosSuperveniente),
     montarSecaoIV(pontos, elementosPorPonto),
-    // Seção V (quesitos suplementares do ciclo) — sempre ausente por ora, ver nota acima de montarSecaoVI.
+    montarSecaoQuesitos(quesitos, {
+      secaoId: "esclarecimentos-v",
+      codigo: "esclarecimentos_quesitos",
+      titulo: "V — RESPOSTAS AOS QUESITOS SUPLEMENTARES",
+      ordem: 5,
+    }),
     montarSecaoVI(repercussaoLaudo),
     montarSecaoVII(repercussaoLaudo, conclusaoVigenteTexto),
     montarSecaoVIII(paginasTexto, dataAssinaturaIso),
@@ -464,7 +481,15 @@ export async function compilarEsclarecimentos(
         repercussao: p.repercussao,
       }),
     ),
-    quesitos_ciclo: [],
+    quesitos_ciclo: quesitos.map(
+      (q): SnapshotPosLaudoQuesito => ({
+        numero: q.numero,
+        tipo: q.tipo,
+        origem: q.origem,
+        pergunta: q.pergunta,
+        resposta: q.resposta,
+      }),
+    ),
     retificacao_itens: [],
     repercussao_ciclo: repercussaoLaudo,
     classificacao_global: ciclo.classificacao_global,

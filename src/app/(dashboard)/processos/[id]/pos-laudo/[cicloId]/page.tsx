@@ -12,6 +12,7 @@ import {
 import { GerarPosLaudoPanel, type VersaoPosLaudo } from "@/features/pos-laudo/gerar-pos-laudo-panel";
 import { RetificacaoPanel } from "@/features/pos-laudo/retificacao-panel";
 import { ComplementacaoPanel } from "@/features/pos-laudo/complementacao-panel";
+import { QuesitosCicloPanel } from "@/features/pos-laudo/quesitos-ciclo-panel";
 import { EncerramentoCiclo, type ResumoSaida } from "@/features/pos-laudo/encerramento-ciclo";
 import { compilarEsclarecimentos, type PendenciaGeracaoPosLaudo } from "@/features/pos-laudo/compilar-esclarecimentos";
 import { compilarRetificacao } from "@/features/pos-laudo/compilar-retificacao";
@@ -233,14 +234,17 @@ export default async function PosLaudoCicloPage({
     resultadoComplementacao,
     { data: itensRetificacaoDb },
     { data: complementacaoDb },
+    { data: quesitosCicloDb },
   ] = await Promise.all([
     compilarEsclarecimentos(processoId, cicloId),
     compilarRetificacao(processoId, cicloId),
     compilarComplementacao(processoId, cicloId),
     supabase.from("pos_laudo_retificacao_itens").select("*").eq("ciclo_id", cicloId).order("ordem"),
     supabase.from("pos_laudo_complementacao").select("*").eq("ciclo_id", cicloId).maybeSingle(),
+    supabase.from("pos_laudo_quesitos").select("*").eq("ciclo_id", cicloId).order("numero"),
   ]);
   const itensRetificacao = itensRetificacaoDb ?? [];
+  const quesitosCiclo = quesitosCicloDb ?? [];
 
   const pontosLista = pontos ?? [];
   let evidenciasPorPonto: Record<string, EvidenciaVinculo[]> = {};
@@ -320,6 +324,8 @@ export default async function PosLaudoCicloPage({
         evidenciasPorPonto={evidenciasPorPonto}
         documentos={documentos ?? []}
       />
+
+      <QuesitosCicloPanel processoId={processoId} cicloId={ciclo.id} quesitos={quesitosCiclo} />
 
       <div className="space-y-3">
         <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-50">

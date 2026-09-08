@@ -21,9 +21,10 @@ import { createClient } from "@/lib/supabase/server";
 import { montarCabecalhoFormal, type CabecalhoFormal } from "@/features/geracao-laudo/cabecalho";
 import { rodapeTexto } from "@/features/geracao-laudo/contatos";
 import type { ModeloLaudo, SecaoCompilada, BlocoConteudo } from "@/features/geracao-laudo/modelo";
-import type { SnapshotPosLaudo, SnapshotPosLaudoRetificacaoItem } from "@/types/json-fields";
-import type { PosLaudoComplementacaoRow, PosLaudoRetificacaoItensRow } from "@/types/database";
+import type { SnapshotPosLaudo, SnapshotPosLaudoQuesito, SnapshotPosLaudoRetificacaoItem } from "@/types/json-fields";
+import type { PosLaudoComplementacaoRow, PosLaudoQuesitosRow, PosLaudoRetificacaoItensRow } from "@/types/database";
 import { podeGerarSaida, type PendenciaGeracaoPosLaudo } from "./regras";
+import { montarSecaoQuesitos } from "./compilar-quesitos-secao";
 import {
   COMPLEMENTACAO_IMPACTO_ROTULOS,
   COMPLEMENTACAO_MOTIVO_ROTULOS,
@@ -348,15 +349,18 @@ export async function compilarComplementacao(
   const cabecalhoBase = montarCabecalhoFormal(processo, partesDb ?? []);
   if ("erro" in cabecalhoBase) return { status: "erro", mensagem: cabecalhoBase.erro };
 
-  const [{ data: complementacaoDb }, { data: pldDb }, { data: itensRetDb }, { data: config }] = await Promise.all([
-    supabase.from("pos_laudo_complementacao").select("*").eq("ciclo_id", cicloId).maybeSingle(),
-    supabase.from("pos_laudo_documentos").select("*").eq("ciclo_id", cicloId).order("created_at"),
-    supabase.from("pos_laudo_retificacao_itens").select("*").eq("ciclo_id", cicloId).order("ordem"),
-    supabase.from("configuracoes").select("*").maybeSingle(),
-  ]);
+  const [{ data: complementacaoDb }, { data: pldDb }, { data: itensRetDb }, { data: quesitosDb }, { data: config }] =
+    await Promise.all([
+      supabase.from("pos_laudo_complementacao").select("*").eq("ciclo_id", cicloId).maybeSingle(),
+      supabase.from("pos_laudo_documentos").select("*").eq("ciclo_id", cicloId).order("created_at"),
+      supabase.from("pos_laudo_retificacao_itens").select("*").eq("ciclo_id", cicloId).order("ordem"),
+      supabase.from("pos_laudo_quesitos").select("*").eq("ciclo_id", cicloId).order("numero"),
+      supabase.from("configuracoes").select("*").maybeSingle(),
+    ]);
   const c = complementacaoDb;
   const pld = pldDb ?? [];
   const itensRetificacao = itensRetDb ?? [];
+  const quesitos = (quesitosDb ?? []) as PosLaudoQuesitosRow[];
 
   const { data: laudoBase } = ciclo.laudo_base_id
     ? await supabase.from("laudos_gerados").select("protocolo_id, protocolado_em").eq("id", ciclo.laudo_base_id).maybeSingle()
@@ -401,6 +405,15 @@ export async function compilarComplementacao(
       href: "#complementacao-v",
     });
   }
+  quesitos.forEach((q, i) => {
+    if (!q.pergunta.trim() || !q.resposta?.trim()) {
+      pendencias.push({
+        id: `quesito-${q.id}`,
+        label: `Quesito ${i + 1} do ciclo — pergunta e resposta precisam estar preenchidas.`,
+        href: `#quesito-${q.id}`,
+      });
+    }
+  });
   if (pendencias.length > 0) return { status: "pendencias", itens: pendencias };
 
   const repercussaoLaudo = ciclo.repercussao_laudo as PosLaudoRepercussaoLaudo;
@@ -442,7 +455,13 @@ export async function compilarComplementacao(
     montarSecaoV(comp),
     montarSecaoVI(comp, itensRetificacao),
     montarSecaoVII(comp),
-    // Seção VIII (quesitos do ciclo) — sempre ausente por ora (fatia 9).
+    montarSecaoQuesitos(quesitos, {
+      secaoId: "complementacao-viii",
+      codigo: "complementacao_quesitos",
+      titulo: "VIII — RESPOSTAS COMPLEMENTARES AOS QUESITOS",
+      ordem: 8,
+      introComplementar: true,
+    }),
     montarSecaoIX(repercussaoLaudo),
     montarSecaoX(repercussaoLaudo, conclusaoVigenteTexto),
     montarSecaoXI(paginasTexto, dataAssinaturaIso),
@@ -468,7 +487,15 @@ export async function compilarComplementacao(
     numero_ciclo: ciclo.numero_ciclo,
     fluxo: ciclo.fluxo,
     pontos: [],
-    quesitos_ciclo: [],
+    quesitos_ciclo: quesitos.map(
+      (q): SnapshotPosLaudoQuesito => ({
+        numero: q.numero,
+        tipo: q.tipo,
+        origem: q.origem,
+        pergunta: q.pergunta,
+        resposta: q.resposta,
+      }),
+    ),
     retificacao_itens: itensRetificacao.map(
       (i): SnapshotPosLaudoRetificacaoItem => ({
         ordem: i.ordem,
