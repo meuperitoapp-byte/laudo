@@ -12,6 +12,7 @@ import {
 import { GerarPosLaudoPanel, type VersaoPosLaudo } from "@/features/pos-laudo/gerar-pos-laudo-panel";
 import { RetificacaoPanel } from "@/features/pos-laudo/retificacao-panel";
 import { ComplementacaoPanel } from "@/features/pos-laudo/complementacao-panel";
+import { EncerramentoCiclo, type ResumoSaida } from "@/features/pos-laudo/encerramento-ciclo";
 import { compilarEsclarecimentos, type PendenciaGeracaoPosLaudo } from "@/features/pos-laudo/compilar-esclarecimentos";
 import { compilarRetificacao } from "@/features/pos-laudo/compilar-retificacao";
 import { compilarComplementacao } from "@/features/pos-laudo/compilar-complementacao";
@@ -67,6 +68,16 @@ function BlocoPendencias({ itens }: { itens: PendenciaGeracaoPosLaudo[] }) {
         </div>
       )}
     </>
+  );
+}
+
+/** Aviso curto nos blocos de geração quando o ciclo está encerrado (o botão de gerar fica desabilitado). */
+function CicloEncerradoAviso() {
+  return (
+    <p className="text-sm rounded-lg border border-nevoa-300/60 dark:border-nevoa-700/40 bg-nevoa-50 dark:bg-nevoa-900/60 px-4 py-3 text-nevoa-700 dark:text-nevoa-300">
+      Ciclo encerrado — reabra no bloco &ldquo;Encerramento da rodada&rdquo;, no fim da página, para gerar
+      novos documentos. Protocolar os já gerados continua liberado.
+    </p>
   );
 }
 
@@ -196,6 +207,23 @@ export default async function PosLaudoCicloPage({
   const versoesRetificacao = versoesPosLaudo.filter((v) => v.tipo === "retificacao");
   const versoesComplementacao = versoesPosLaudo.filter((v) => v.tipo === "complementacao");
 
+  const cicloEncerrado = ciclo.status === "encerrado";
+  const resumoSaida = (nome: string, lista: VersaoPosLaudo[]): ResumoSaida => {
+    const protoc = lista.find((v) => v.protocolado);
+    return {
+      nome,
+      geradas: lista.length,
+      protocolada: protoc
+        ? { versao: protoc.versao, protocoloId: protoc.protocoloId, protocoladoEm: protoc.protocoladoEm }
+        : null,
+    };
+  };
+  const resumoSaidas: ResumoSaida[] = [
+    resumoSaida("Esclarecimentos", versoesEsclarecimentos),
+    resumoSaida("Retificação de Erro Material", versoesRetificacao),
+    resumoSaida("Complementação do Laudo", versoesComplementacao),
+  ];
+
   // Pendências pra gerar cada saída — mesmo cálculo que a geração de verdade
   // faz (compilarEsclarecimentos/compilarRetificacao), só que sem gastar as
   // duas passadas de paginação: aqui é preview de leitura, não geração.
@@ -252,8 +280,8 @@ export default async function PosLaudoCicloPage({
           {CICLO_STATUS_ROTULOS[ciclo.status as PosLaudoCicloStatus] ?? ciclo.status}
         </p>
         <p className="text-xs text-nevoa-400 dark:text-nevoa-600">
-          O fluxo vem do tipo de trabalho do processo e não muda. Quesitos suplementares do ciclo e o
-          encerramento formal entram nas fatias seguintes.
+          O fluxo vem do tipo de trabalho do processo e não muda. Os quesitos suplementares do ciclo
+          entram na fatia seguinte.
         </p>
       </div>
 
@@ -305,6 +333,7 @@ export default async function PosLaudoCicloPage({
         )}
 
         {resultadoEsclarecimentos.status === "pendencias" && <BlocoPendencias itens={resultadoEsclarecimentos.itens} />}
+        {cicloEncerrado && <CicloEncerradoAviso />}
 
         <GerarPosLaudoPanel
           processoId={processoId}
@@ -312,7 +341,7 @@ export default async function PosLaudoCicloPage({
           chave="esclarecimentos"
           nomeDocumento="Esclarecimentos ao Laudo Médico-Pericial"
           tituloBotao="Gerar Esclarecimentos"
-          podeGerar={resultadoEsclarecimentos.status === "ok"}
+          podeGerar={resultadoEsclarecimentos.status === "ok" && !cicloEncerrado}
           versoes={versoesEsclarecimentos}
           gerar={gerarEsclarecimentos}
         />
@@ -341,6 +370,7 @@ export default async function PosLaudoCicloPage({
         )}
 
         {resultadoRetificacao.status === "pendencias" && <BlocoPendencias itens={resultadoRetificacao.itens} />}
+        {cicloEncerrado && <CicloEncerradoAviso />}
 
         <GerarPosLaudoPanel
           processoId={processoId}
@@ -348,7 +378,7 @@ export default async function PosLaudoCicloPage({
           chave="retificacao"
           nomeDocumento="Retificação de Erro Material"
           tituloBotao="Gerar Retificação"
-          podeGerar={resultadoRetificacao.status === "ok"}
+          podeGerar={resultadoRetificacao.status === "ok" && !cicloEncerrado}
           versoes={versoesRetificacao}
           gerar={gerarRetificacao}
         />
@@ -374,6 +404,7 @@ export default async function PosLaudoCicloPage({
         )}
 
         {resultadoComplementacao.status === "pendencias" && <BlocoPendencias itens={resultadoComplementacao.itens} />}
+        {cicloEncerrado && <CicloEncerradoAviso />}
 
         <GerarPosLaudoPanel
           processoId={processoId}
@@ -381,11 +412,20 @@ export default async function PosLaudoCicloPage({
           chave="complementacao"
           nomeDocumento="Complementação ao Laudo Médico-Pericial"
           tituloBotao="Gerar Complementação"
-          podeGerar={resultadoComplementacao.status === "ok"}
+          podeGerar={resultadoComplementacao.status === "ok" && !cicloEncerrado}
           versoes={versoesComplementacao}
           gerar={gerarComplementacao}
         />
       </div>
+
+      <EncerramentoCiclo
+        processoId={processoId}
+        cicloId={ciclo.id}
+        numeroCiclo={ciclo.numero_ciclo}
+        encerrado={cicloEncerrado}
+        encerradoEm={ciclo.encerrado_em}
+        resumo={resumoSaidas}
+      />
     </main>
   );
 }

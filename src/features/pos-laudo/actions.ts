@@ -222,6 +222,43 @@ export async function salvarRegistroDemanda(input: {
   return { success: true };
 }
 
+/**
+ * Encerra a rodada do ciclo (fatia 8): `status` = 'encerrado' + carimba
+ * `encerrado_em`. Não exige nenhum documento gerado — uma rodada pode
+ * terminar com 0, 1, 2 ou as 3 saídas, conforme a perita precisou (decisão
+ * da Dra., confirmada em áudio). Encerrar NÃO congela nada de forma
+ * irreversível (ao contrário de protocolar): é só o estado organizacional da
+ * rodada. `reabrirCiclo` desfaz.
+ */
+export async function encerrarCiclo(cicloId: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("pos_laudo_ciclos")
+    .update({ status: "encerrado", encerrado_em: new Date().toISOString() })
+    .eq("id", cicloId)
+    .eq("processo_id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/pos-laudo`);
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true };
+}
+
+/** Reabre um ciclo encerrado — volta `status` = 'aberto' e limpa `encerrado_em`. */
+export async function reabrirCiclo(cicloId: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("pos_laudo_ciclos")
+    .update({ status: "aberto", encerrado_em: null })
+    .eq("id", cicloId)
+    .eq("processo_id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/pos-laudo`);
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true };
+}
+
 // ============================================================================
 // Fatia 2 — triagem + matriz de pontos
 // ============================================================================
