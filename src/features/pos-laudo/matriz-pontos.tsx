@@ -15,6 +15,8 @@ import { Botao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
 import {
+  CATEGORIA_PROBLEMA_ORDENADA,
+  CATEGORIA_PROBLEMA_ROTULOS,
   CLASSIFICACAO_TRIAGEM_ORDENADA,
   CLASSIFICACAO_TRIAGEM_ROTULOS,
   POTENCIAL_CONCLUSAO_ORDENADA,
@@ -60,6 +62,7 @@ export function MatrizPontos({
   pontos,
   evidenciasPorPonto,
   documentos,
+  modoAt = false,
 }: {
   processoId: string;
   cicloId: string;
@@ -71,6 +74,13 @@ export function MatrizPontos({
   pontos: PosLaudoPontosRow[];
   evidenciasPorPonto: Record<string, EvidenciaVinculo[]>;
   documentos: DocumentoOpcao[];
+  /**
+   * Fluxo AT: esconde os controles ligados à "Nova Conclusão Vigente"
+   * (Repercussão sobre o laudo original, sugestão de complementação) — o AT
+   * não mexe numa conclusão própria — e troca, por ponto, "Repercussão deste
+   * ponto" por "Categoria do problema".
+   */
+  modoAt?: boolean;
 }) {
   const router = useRouter();
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
@@ -97,7 +107,7 @@ export function MatrizPontos({
         onErro={(t) => setMensagem({ tipo: "erro", texto: t })}
       />
 
-      {rascunhoComplementacao && (
+      {!modoAt && rascunhoComplementacao && (
         <div className="flex items-start gap-2 rounded-lg border border-ambar-400/60 dark:border-ambar-600/40 bg-ambar-100 dark:bg-ambar-950/30 px-4 py-3 text-sm">
           <Selo variante="atencao">Sugestão</Selo>
           <p className="text-nevoa-800 dark:text-nevoa-200">
@@ -128,6 +138,7 @@ export function MatrizPontos({
                 ponto={ponto}
                 evidencias={evidenciasPorPonto[ponto.id] ?? []}
                 documentos={documentos}
+                modoAt={modoAt}
                 onErro={(t) => setMensagem({ tipo: "erro", texto: t })}
                 onOk={(t) => setMensagem({ tipo: "ok", texto: t })}
               />
@@ -140,16 +151,18 @@ export function MatrizPontos({
         Adicionar ponto
       </Botao>
 
-      <RepercussaoCicloControl
-        processoId={processoId}
-        cicloId={cicloId}
-        repercussaoInicial={repercussaoLaudo}
-        conclusaoNovaInicial={conclusaoVigenteNova}
-        conclusaoVigente={conclusaoVigente}
-        pontos={pontos}
-        onErro={(t) => setMensagem({ tipo: "erro", texto: t })}
-        onOk={(t) => setMensagem({ tipo: "ok", texto: t })}
-      />
+      {!modoAt && (
+        <RepercussaoCicloControl
+          processoId={processoId}
+          cicloId={cicloId}
+          repercussaoInicial={repercussaoLaudo}
+          conclusaoNovaInicial={conclusaoVigenteNova}
+          conclusaoVigente={conclusaoVigente}
+          pontos={pontos}
+          onErro={(t) => setMensagem({ tipo: "erro", texto: t })}
+          onOk={(t) => setMensagem({ tipo: "ok", texto: t })}
+        />
+      )}
 
       {mensagem && <Toast tipo={mensagem.tipo} texto={mensagem.texto} onClose={() => setMensagem(null)} />}
     </div>
@@ -409,6 +422,7 @@ function PontoCard({
   ponto,
   evidencias,
   documentos,
+  modoAt,
   onErro,
   onOk,
 }: {
@@ -418,6 +432,7 @@ function PontoCard({
   ponto: PosLaudoPontosRow;
   evidencias: EvidenciaVinculo[];
   documentos: DocumentoOpcao[];
+  modoAt: boolean;
   onErro: (texto: string) => void;
   onOk: (texto: string) => void;
 }) {
@@ -433,6 +448,7 @@ function PontoCard({
     fundamentacao: ponto.fundamentacao_adicional ?? "",
     respostaTecnica: ponto.resposta_tecnica ?? "",
     repercussao: ponto.repercussao ?? "",
+    categoriaProblema: ponto.categoria_problema ?? "",
   };
 
   const [f, setF] = useState(doBanco);
@@ -472,7 +488,8 @@ function PontoCard({
       classificacaoTriagem: f.classificacao || null,
       fundamentacaoAdicional: f.fundamentacao || null,
       respostaTecnica: f.respostaTecnica || null,
-      repercussao: f.repercussao || null,
+      repercussao: modoAt ? null : f.repercussao || null,
+      categoriaProblema: modoAt ? f.categoriaProblema || null : null,
     });
     setSalvando(false);
     if ("error" in r) {
@@ -608,21 +625,39 @@ function PontoCard({
             className={inputClass}
           />
         </div>
-        <div>
-          <label className={labelClass}>Repercussão deste ponto sobre o laudo</label>
-          <select
-            value={f.repercussao}
-            onChange={(e) => set("repercussao", e.target.value)}
-            className={inputClass}
-          >
-            <option value="">—</option>
-            {REPERCUSSAO_PONTO_ORDENADA.map((r) => (
-              <option key={r} value={r}>
-                {REPERCUSSAO_PONTO_ROTULOS[r]}
-              </option>
-            ))}
-          </select>
-        </div>
+        {modoAt ? (
+          <div>
+            <label className={labelClass}>Categoria do problema no laudo</label>
+            <select
+              value={f.categoriaProblema}
+              onChange={(e) => set("categoriaProblema", e.target.value)}
+              className={inputClass}
+            >
+              <option value="">—</option>
+              {CATEGORIA_PROBLEMA_ORDENADA.map((c) => (
+                <option key={c} value={c}>
+                  {CATEGORIA_PROBLEMA_ROTULOS[c]}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div>
+            <label className={labelClass}>Repercussão deste ponto sobre o laudo</label>
+            <select
+              value={f.repercussao}
+              onChange={(e) => set("repercussao", e.target.value)}
+              className={inputClass}
+            >
+              <option value="">—</option>
+              {REPERCUSSAO_PONTO_ORDENADA.map((r) => (
+                <option key={r} value={r}>
+                  {REPERCUSSAO_PONTO_ROTULOS[r]}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <EvidenciasPonto
