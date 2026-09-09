@@ -13,6 +13,8 @@ import { GerarPosLaudoPanel, type VersaoPosLaudo } from "@/features/pos-laudo/ge
 import { RetificacaoPanel } from "@/features/pos-laudo/retificacao-panel";
 import { ComplementacaoPanel } from "@/features/pos-laudo/complementacao-panel";
 import { QuesitosCicloPanel } from "@/features/pos-laudo/quesitos-ciclo-panel";
+import { RegistroDemandaAt } from "@/features/pos-laudo/registro-demanda-at";
+import { AtAnalisePanel } from "@/features/pos-laudo/at-analise-panel";
 import { EncerramentoCiclo, type ResumoSaida } from "@/features/pos-laudo/encerramento-ciclo";
 import { compilarEsclarecimentos, type PendenciaGeracaoPosLaudo } from "@/features/pos-laudo/compilar-esclarecimentos";
 import { compilarRetificacao } from "@/features/pos-laudo/compilar-retificacao";
@@ -164,6 +166,123 @@ export default async function PosLaudoCicloPage({
     }
   }
 
+  // Pontos + evidências + quesitos do ciclo — comuns aos dois fluxos.
+  const pontosLista = pontos ?? [];
+  let evidenciasPorPonto: Record<string, EvidenciaVinculo[]> = {};
+  if (pontosLista.length > 0) {
+    const { data: evidencias } = await supabase
+      .from("pos_laudo_ponto_evidencias")
+      .select("id, ponto_id, documento_id, observacao")
+      .in(
+        "ponto_id",
+        pontosLista.map((p) => p.id),
+      );
+    evidenciasPorPonto = (evidencias ?? []).reduce<Record<string, EvidenciaVinculo[]>>((acc, e) => {
+      (acc[e.ponto_id] ??= []).push({
+        id: e.id,
+        documento_id: e.documento_id,
+        observacao: e.observacao,
+      });
+      return acc;
+    }, {});
+  }
+
+  const { data: quesitosCicloDb } = await supabase
+    .from("pos_laudo_quesitos")
+    .select("*")
+    .eq("ciclo_id", cicloId)
+    .order("numero");
+  const quesitosCiclo = quesitosCicloDb ?? [];
+
+  // ---- Fluxo Assistência Técnica (fatia 10): tela própria. Não usa conclusão
+  // vigente, nem os compiladores judiciais; a geração é a fatia 10c. ----
+  if (ciclo.fluxo === "assistencia_tecnica") {
+    const { data: atAnalise } = await supabase
+      .from("pos_laudo_at_analise")
+      .select("*")
+      .eq("ciclo_id", cicloId)
+      .maybeSingle();
+
+    return (
+      <main className="p-8 max-w-2xl space-y-8">
+        <Link
+          href={`/processos/${processoId}/pos-laudo`}
+          className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400"
+        >
+          ← Voltar para os ciclos
+        </Link>
+
+        <div className="space-y-1">
+          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">
+            Ciclo {ciclo.numero_ciclo} — pós-laudo (Assistência Técnica)
+          </h1>
+          <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
+            Fluxo: {FLUXO_ROTULOS[ciclo.fluxo as PosLaudoFluxo] ?? ciclo.fluxo} · Status:{" "}
+            {CICLO_STATUS_ROTULOS[ciclo.status as PosLaudoCicloStatus] ?? ciclo.status}
+          </p>
+          <p className="text-xs text-nevoa-400 dark:text-nevoa-600">
+            A geração dos pareceres (Concordância / Impugnação / Divergente) e o documento de Quesitos
+            Suplementares entram na fatia seguinte.
+          </p>
+        </div>
+
+        <RegistroDemandaForm
+          processoId={processoId}
+          ciclo={{
+            id: ciclo.id,
+            data_intimacao: ciclo.data_intimacao,
+            prazo: ciclo.prazo,
+            origem: ciclo.origem,
+            natureza: ciclo.natureza as string[] | null,
+            documento_intimacao_id: ciclo.documento_intimacao_id,
+          }}
+          documentos={documentos ?? []}
+        />
+
+        <RegistroDemandaAt
+          processoId={processoId}
+          cicloId={ciclo.id}
+          registro={{
+            objeto_analise: ciclo.objeto_analise,
+            tese_assistida: ciclo.tese_assistida,
+            classificacao_global: ciclo.classificacao_global,
+            providencia_recomendada: ciclo.providencia_recomendada as string[] | null,
+            posicao_pericons_sintese: ciclo.posicao_pericons_sintese,
+          }}
+        />
+
+        <DocumentosSupervenientes processoId={processoId} cicloId={ciclo.id} docs={docsSupervenientes} />
+
+        <AtAnalisePanel processoId={processoId} cicloId={ciclo.id} analise={atAnalise ?? null} />
+
+        <MatrizPontos
+          processoId={processoId}
+          cicloId={ciclo.id}
+          podeModificarConclusao={ciclo.pode_modificar_conclusao}
+          rascunhoComplementacao={ciclo.rascunho_complementacao}
+          repercussaoLaudo={null}
+          conclusaoVigenteNova={null}
+          conclusaoVigente={null}
+          pontos={pontosLista}
+          evidenciasPorPonto={evidenciasPorPonto}
+          documentos={documentos ?? []}
+          modoAt
+        />
+
+        <QuesitosCicloPanel processoId={processoId} cicloId={ciclo.id} quesitos={quesitosCiclo} />
+
+        <EncerramentoCiclo
+          processoId={processoId}
+          cicloId={ciclo.id}
+          numeroCiclo={ciclo.numero_ciclo}
+          encerrado={ciclo.status === "encerrado"}
+          encerradoEm={ciclo.encerrado_em}
+          resumo={[]}
+        />
+      </main>
+    );
+  }
+
   const conclusaoVigente = await conclusaoVigenteAtual(supabase, processoId);
 
   // Versões de Esclarecimentos já geradas NESTE ciclo — o aviso de "não é a
@@ -234,37 +353,14 @@ export default async function PosLaudoCicloPage({
     resultadoComplementacao,
     { data: itensRetificacaoDb },
     { data: complementacaoDb },
-    { data: quesitosCicloDb },
   ] = await Promise.all([
     compilarEsclarecimentos(processoId, cicloId),
     compilarRetificacao(processoId, cicloId),
     compilarComplementacao(processoId, cicloId),
     supabase.from("pos_laudo_retificacao_itens").select("*").eq("ciclo_id", cicloId).order("ordem"),
     supabase.from("pos_laudo_complementacao").select("*").eq("ciclo_id", cicloId).maybeSingle(),
-    supabase.from("pos_laudo_quesitos").select("*").eq("ciclo_id", cicloId).order("numero"),
   ]);
   const itensRetificacao = itensRetificacaoDb ?? [];
-  const quesitosCiclo = quesitosCicloDb ?? [];
-
-  const pontosLista = pontos ?? [];
-  let evidenciasPorPonto: Record<string, EvidenciaVinculo[]> = {};
-  if (pontosLista.length > 0) {
-    const { data: evidencias } = await supabase
-      .from("pos_laudo_ponto_evidencias")
-      .select("id, ponto_id, documento_id, observacao")
-      .in(
-        "ponto_id",
-        pontosLista.map((p) => p.id),
-      );
-    evidenciasPorPonto = (evidencias ?? []).reduce<Record<string, EvidenciaVinculo[]>>((acc, e) => {
-      (acc[e.ponto_id] ??= []).push({
-        id: e.id,
-        documento_id: e.documento_id,
-        observacao: e.observacao,
-      });
-      return acc;
-    }, {});
-  }
 
   return (
     <main className="p-8 max-w-2xl space-y-8">

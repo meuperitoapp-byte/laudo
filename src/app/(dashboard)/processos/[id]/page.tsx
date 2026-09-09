@@ -97,6 +97,10 @@ export default async function ProcessoDetalhePage({
     .limit(1)
     .maybeSingle();
   const temLaudoProtocolado = Boolean(laudoProtocolado);
+  // Fluxo AT: a aba Pós-laudo é a própria análise do laudo do perito JUDICIAL
+  // (externo) — não depende de a perita ter gerado e protocolado um laudo aqui.
+  const ehAssistenciaTecnica = processo.tipo_trabalho === "assistencia_tecnica";
+  const podeAbrirPosLaudo = temLaudoProtocolado || ehAssistenciaTecnica;
   const nomesPoloAtivo = partes.filter((p) => p.polo === "ativo").map((p) => p.nome);
   const nomesPoloPassivo = partes.filter((p) => p.polo === "passivo").map((p) => p.nome);
 
@@ -251,7 +255,7 @@ export default async function ProcessoDetalhePage({
         <Link href={`/processos/${processo.id}/laudo`} className={classesBotao("secundaria")}>
           Laudo final
         </Link>
-        {temLaudoProtocolado ? (
+        {podeAbrirPosLaudo ? (
           <Link href={`/processos/${processo.id}/pos-laudo`} className={classesBotao("secundaria")}>
             Pós-laudo
           </Link>

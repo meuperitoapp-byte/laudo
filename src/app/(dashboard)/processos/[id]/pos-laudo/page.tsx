@@ -36,17 +36,22 @@ export default async function PosLaudoIndexPage({
     notFound();
   }
 
-  // Gate (defesa em profundidade — alguém pode digitar a URL direto).
-  const { data: laudoProtocolado } = await supabase
-    .from("laudos_gerados")
-    .select("id")
-    .eq("processo_id", processoId)
-    .eq("tipo", "laudo")
-    .eq("protocolado", true)
-    .limit(1)
-    .maybeSingle();
-  if (!laudoProtocolado) {
-    notFound();
+  // Gate (defesa em profundidade — alguém pode digitar a URL direto). No fluxo
+  // AT não se exige laudo protocolado: a análise é do laudo do perito judicial
+  // (externo), e pode ser um caso avulso.
+  const ehAssistenciaTecnica = processo.tipo_trabalho === "assistencia_tecnica";
+  if (!ehAssistenciaTecnica) {
+    const { data: laudoProtocolado } = await supabase
+      .from("laudos_gerados")
+      .select("id")
+      .eq("processo_id", processoId)
+      .eq("tipo", "laudo")
+      .eq("protocolado", true)
+      .limit(1)
+      .maybeSingle();
+    if (!laudoProtocolado) {
+      notFound();
+    }
   }
 
   const { data: ciclos } = await supabase
