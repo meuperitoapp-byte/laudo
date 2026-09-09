@@ -11,6 +11,7 @@ import { renderizarPdfComPaginas } from "@/features/geracao-laudo/renderizar-pdf
 import type {
   DocumentosInsert,
   LaudosGeradosInsert,
+  PosLaudoAtAnaliseInsert,
   PosLaudoCiclosInsert,
   PosLaudoComplementacaoInsert,
   PosLaudoConclusoesVigentesInsert,
@@ -20,6 +21,7 @@ import type {
   PosLaudoRetificacaoItensInsert,
 } from "@/types/database";
 import type {
+  PosLaudoClassificacaoGlobal,
   PosLaudoClassificacaoTriagem,
   PosLaudoComplementacaoImpacto,
   PosLaudoComplementacaoMotivo,
@@ -33,6 +35,7 @@ import type {
   PosLaudoOrigem,
   PosLaudoOrigemIdentificacao,
   PosLaudoPotencialConclusao,
+  PosLaudoProvidenciaAt,
   PosLaudoQuesitoOrigemParte,
   PosLaudoQuesitoTipo,
   PosLaudoRepercussaoLaudo,
@@ -106,34 +109,42 @@ export async function abrirCicloPosLaudo(processoId: string): Promise<{ error: s
   const fluxo: PosLaudoFluxo =
     processo.tipo_trabalho === "assistencia_tecnica" ? "assistencia_tecnica" : "judicial";
 
-  // Gate + âncora do ciclo: precisa de um laudo protocolado.
-  const { data: laudoBase, error: erroLaudo } = await supabase
-    .from("laudos_gerados")
-    .select("id")
-    .eq("processo_id", processoId)
-    .eq("tipo", "laudo")
-    .eq("protocolado", true)
-    .order("versao", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (erroLaudo) {
-    return { error: erroLaudo.message };
-  }
-  if (!laudoBase) {
-    return {
-      error: "O laudo precisa estar marcado como protocolado antes de abrir um ciclo de pós-laudo.",
-    };
-  }
+  // Âncora do ciclo (só judicial). No fluxo AT o laudo analisado é do perito
+  // JUDICIAL — documento externo anexado DENTRO do ciclo (pos_laudo_documentos.
+  // papel = 'laudo_analisado'), então não dá pra exigir antes de o ciclo
+  // existir; e não há conclusão vigente própria (a perita não escreveu laudo).
+  // Análise de laudo em AT pode ser avulsa (resposta (e) da Dra.).
+  let laudoBaseId: string | null = null;
+  if (fluxo === "judicial") {
+    const { data: laudoBase, error: erroLaudo } = await supabase
+      .from("laudos_gerados")
+      .select("id")
+      .eq("processo_id", processoId)
+      .eq("tipo", "laudo")
+      .eq("protocolado", true)
+      .order("versao", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (erroLaudo) {
+      return { error: erroLaudo.message };
+    }
+    if (!laudoBase) {
+      return {
+        error: "O laudo precisa estar marcado como protocolado antes de abrir um ciclo de pós-laudo.",
+      };
+    }
+    laudoBaseId = laudoBase.id;
 
-  // Gate da conclusão vigente: um ciclo mede a repercussão sobre uma conclusão
-  // que precisa já existir como referência. Ela NÃO é semeada retroativamente —
-  // a perita a confirma uma vez, na tela do laudo final.
-  const vigente = await conclusaoVigenteAtual(supabase, processoId);
-  if (!vigente) {
-    return {
-      error:
-        "Antes de abrir um ciclo, confirme a conclusão vigente do laudo na tela do laudo final (aba Laudo → bloco “Conclusão vigente”).",
-    };
+    // Gate da conclusão vigente: um ciclo mede a repercussão sobre uma conclusão
+    // que precisa já existir como referência. Ela NÃO é semeada retroativamente —
+    // a perita a confirma uma vez, na tela do laudo final.
+    const vigente = await conclusaoVigenteAtual(supabase, processoId);
+    if (!vigente) {
+      return {
+        error:
+          "Antes de abrir um ciclo, confirme a conclusão vigente do laudo na tela do laudo final (aba Laudo → bloco “Conclusão vigente”).",
+      };
+    }
   }
 
   // Dedup: reaproveita um ciclo 'aberto' ainda em branco, se houver.
@@ -166,7 +177,7 @@ export async function abrirCicloPosLaudo(processoId: string): Promise<{ error: s
     processo_id: processoId,
     numero_ciclo: (ultimo?.numero_ciclo ?? 0) + 1,
     fluxo,
-    laudo_base_id: laudoBase.id,
+    laudo_base_id: laudoBaseId,
   };
   const { data: novo, error: erroInsert } = await supabase
     .from("pos_laudo_ciclos")
@@ -222,6 +233,132 @@ export async function salvarRegistroDemanda(input: {
 
   revalidatePath(`/processos/${input.processoId}/pos-laudo`);
   revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
+  return { success: true };
+}
+
+// ==========================================================================
+// Fluxo Assistência Técnica (fatia 10)
+// ==========================================================================
+
+const CLASSIFICACAO_GLOBAL_VALIDAS: readonly string[] = [
+  "favoravel",
+  "parc_favoravel",
+  "neutro",
+  "parc_desfavoravel",
+  "desfavoravel",
+];
+const PROVIDENCIA_AT_VALIDAS: readonly PosLaudoProvidenciaAt[] = [
+  "nenhuma",
+  "concordancia",
+  "quesitos_esclarecimento",
+  "quesitos_suplementares",
+  "manifestacao_tecnica",
+  "impugnacao_tecnica",
+  "solicitacao_complementacao",
+  "pedido_nova_pericia",
+  "parecer_divergente",
+  "outro",
+];
+
+/**
+ * Campos de nível de ciclo específicos do fluxo AT (colunas da migration
+ * 20260910120000): objeto da análise, tese da parte assistida, classificação
+ * global do laudo (obrigatória no AT — cobrada como pendência de geração na
+ * fatia 10c, não aqui) e providência recomendada. Não mexe no `status`.
+ */
+export async function salvarRegistroDemandaAt(input: {
+  cicloId: string;
+  processoId: string;
+  objetoAnalise: string | null;
+  teseAssistida: string | null;
+  classificacaoGlobal: string | null;
+  providenciaRecomendada: string[];
+  posicaoPericonsSintese: string | null;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const classificacaoGlobal: PosLaudoClassificacaoGlobal | null =
+    input.classificacaoGlobal && CLASSIFICACAO_GLOBAL_VALIDAS.includes(input.classificacaoGlobal)
+      ? (input.classificacaoGlobal as PosLaudoClassificacaoGlobal)
+      : null;
+  const providencia = input.providenciaRecomendada.filter((p): p is PosLaudoProvidenciaAt =>
+    (PROVIDENCIA_AT_VALIDAS as readonly string[]).includes(p),
+  );
+
+  const { error } = await supabase
+    .from("pos_laudo_ciclos")
+    .update({
+      objeto_analise: input.objetoAnalise?.trim() || null,
+      tese_assistida: input.teseAssistida?.trim() || null,
+      classificacao_global: classificacaoGlobal,
+      providencia_recomendada: providencia,
+      posicao_pericons_sintese: input.posicaoPericonsSintese?.trim() || null,
+    })
+    .eq("id", input.cicloId)
+    .eq("processo_id", input.processoId)
+    .eq("fluxo", "assistencia_tecnica");
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${input.processoId}/pos-laudo`);
+  revalidatePath(`/processos/${input.processoId}/pos-laudo/${input.cicloId}`);
+  return { success: true };
+}
+
+/** Chaves boolean|null da análise estruturada AT — cada uma tem o par `<chave>` + `<chave>_nota`. */
+const AT_ANALISE_EIXOS = [
+  "respondeu_objeto",
+  "respondeu_quesitos",
+  "considerou_documentos",
+  "tem_omissoes",
+  "tem_contradicoes",
+  "tem_erros_tecnicos",
+  "tem_erros_conceituais",
+  "extrapolou_objeto",
+  "conclusoes_sem_fundamentacao",
+  "divergencia_literatura",
+  "tem_fato_novo",
+  "favorece_tese",
+  "prejudica_tese",
+] as const;
+
+export type AtAnalisePatch = {
+  conclusaoDoPerito?: string | null;
+  impactoProcessual?: string | null;
+} & Partial<Record<(typeof AT_ANALISE_EIXOS)[number], boolean | null>> &
+  Partial<Record<`${(typeof AT_ANALISE_EIXOS)[number]}_nota`, string | null>>;
+
+/**
+ * UPSERT 1:1 (`onConflict: ciclo_id`) da "Análise estruturada do laudo
+ * judicial" (Gestão AT.pdf §12) — mesmo padrão de `salvarComplementacao`:
+ * o painel manda o objeto inteiro num clique só de "Salvar".
+ */
+export async function salvarAtAnalise(
+  cicloId: string,
+  processoId: string,
+  patch: AtAnalisePatch,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const p: Record<string, unknown> = { ciclo_id: cicloId };
+  const txt = (v: string | null | undefined) => (v === undefined ? undefined : v?.trim() || null);
+
+  if ("conclusaoDoPerito" in patch) p.conclusao_do_perito = txt(patch.conclusaoDoPerito);
+  if ("impactoProcessual" in patch) p.impacto_processual = txt(patch.impactoProcessual);
+  for (const eixo of AT_ANALISE_EIXOS) {
+    if (eixo in patch) {
+      const v = patch[eixo];
+      p[eixo] = v === undefined ? null : v;
+    }
+    const chaveNota = `${eixo}_nota` as const;
+    if (chaveNota in patch) p[chaveNota] = txt(patch[chaveNota]);
+  }
+
+  const { error } = await supabase
+    .from("pos_laudo_at_analise")
+    .upsert(p as PosLaudoAtAnaliseInsert, { onConflict: "ciclo_id" });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
   return { success: true };
 }
 
@@ -367,6 +504,20 @@ const REPERCUSSAO_PONTO_VALIDAS: readonly PosLaudoRepercussaoPonto[] = [
   "sem_repercussao",
 ];
 
+/** pos_laudo_pontos.categoria_problema — só fluxo AT (Gestão AT.pdf §14). Coluna text livre, validada aqui. */
+const CATEGORIA_PROBLEMA_VALIDAS: readonly string[] = [
+  "omissao",
+  "contradicao_interna",
+  "contradicao_documental",
+  "erro_tecnico",
+  "erro_conceitual",
+  "premissa_incorreta",
+  "ausencia_fundamentacao",
+  "extrapolacao_objeto",
+  "divergencia_literatura",
+  "outro",
+];
+
 /**
  * Salva um ponto: campos de triagem + os campos da matriz de enfrentamento
  * (resposta_tecnica, repercussao). Ponto sem resposta técnica é estado
@@ -386,6 +537,8 @@ export async function salvarPonto(input: {
   fundamentacaoAdicional: string | null;
   respostaTecnica: string | null;
   repercussao: string | null;
+  /** Só fluxo AT — categoria do problema no laudo judicial. Ignorado (null) no judicial. */
+  categoriaProblema?: string | null;
 }): Promise<ActionResult> {
   const supabase = await createClient();
 
@@ -397,6 +550,10 @@ export async function salvarPonto(input: {
   const repercussao: PosLaudoRepercussaoPonto | null =
     input.repercussao && (REPERCUSSAO_PONTO_VALIDAS as readonly string[]).includes(input.repercussao)
       ? (input.repercussao as PosLaudoRepercussaoPonto)
+      : null;
+  const categoriaProblema: string | null =
+    input.categoriaProblema && CATEGORIA_PROBLEMA_VALIDAS.includes(input.categoriaProblema)
+      ? input.categoriaProblema
       : null;
 
   const { error } = await supabase
@@ -411,6 +568,7 @@ export async function salvarPonto(input: {
       fundamentacao_adicional: input.fundamentacaoAdicional,
       resposta_tecnica: input.respostaTecnica,
       repercussao,
+      categoria_problema: categoriaProblema,
     })
     .eq("id", input.pontoId)
     .eq("ciclo_id", input.cicloId);

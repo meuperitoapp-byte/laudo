@@ -20,6 +20,9 @@ import type {
   PosLaudoElementoCentralSituacao,
   PosLaudoQuesitoTipo,
   PosLaudoQuesitoOrigemParte,
+  PosLaudoClassificacaoGlobal,
+  PosLaudoProvidenciaAt,
+  PosLaudoAtModalidade,
 } from "@/types/enums";
 
 export const FLUXO_ROTULOS: Record<PosLaudoFluxo, string> = {
@@ -294,4 +297,104 @@ export const QUESITO_ORIGEM_ROTULOS: Record<PosLaudoQuesitoOrigemParte, string> 
   reu: "Parte ré",
   juizo: "Juízo",
   outro: "Outros",
+};
+
+// ---------------------------------------------------------------------------
+// Fluxo Assistência Técnica (migration 20260910120000 — fatia 10)
+// ---------------------------------------------------------------------------
+
+/** pos_laudo_ciclos.classificacao_global — resultado global do laudo analisado (obrigatório no AT). */
+export const CLASSIFICACAO_GLOBAL_ORDENADA: readonly PosLaudoClassificacaoGlobal[] = [
+  "favoravel",
+  "parc_favoravel",
+  "neutro",
+  "parc_desfavoravel",
+  "desfavoravel",
+];
+
+export const CLASSIFICACAO_GLOBAL_ROTULOS: Record<PosLaudoClassificacaoGlobal, string> = {
+  favoravel: "Favorável",
+  parc_favoravel: "Parcialmente favorável",
+  neutro: "Neutro",
+  parc_desfavoravel: "Parcialmente desfavorável",
+  desfavoravel: "Desfavorável",
+};
+
+/** pos_laudo_ciclos.providencia_recomendada — "Decisão pós-laudo" (Gestão AT.pdf §13). */
+export const PROVIDENCIA_AT_ORDENADA: readonly PosLaudoProvidenciaAt[] = [
+  "nenhuma",
+  "concordancia",
+  "quesitos_esclarecimento",
+  "quesitos_suplementares",
+  "manifestacao_tecnica",
+  "impugnacao_tecnica",
+  "solicitacao_complementacao",
+  "pedido_nova_pericia",
+  "parecer_divergente",
+  "outro",
+];
+
+export const PROVIDENCIA_AT_ROTULOS: Record<PosLaudoProvidenciaAt, string> = {
+  nenhuma: "Nenhuma manifestação técnica",
+  concordancia: "Concordância",
+  quesitos_esclarecimento: "Quesitos de esclarecimento",
+  quesitos_suplementares: "Quesitos suplementares",
+  manifestacao_tecnica: "Manifestação técnica",
+  impugnacao_tecnica: "Impugnação técnica",
+  solicitacao_complementacao: "Solicitação de complementação",
+  pedido_nova_pericia: "Pedido de nova perícia",
+  parecer_divergente: "Parecer técnico divergente",
+  outro: "Outro",
+};
+
+/** laudos_gerados.at_modalidade — a modalidade concreta do parecer AT (usada na fatia 10c). */
+export const AT_MODALIDADE_ORDENADA: readonly PosLaudoAtModalidade[] = [
+  "concordancia",
+  "concordancia_ressalvas",
+  "impugnacao_parcial",
+  "impugnacao_integral",
+  "divergente",
+  "manifestacao",
+];
+
+export const AT_MODALIDADE_ROTULOS: Record<PosLaudoAtModalidade, string> = {
+  concordancia: "Parecer de Concordância",
+  concordancia_ressalvas: "Concordância com Ressalvas",
+  impugnacao_parcial: "Impugnação Técnica Parcial",
+  impugnacao_integral: "Impugnação Técnica Integral",
+  divergente: "Parecer Divergente",
+  manifestacao: "Manifestação Técnica",
+};
+
+/**
+ * pos_laudo_pontos.categoria_problema — categoria do problema identificado no
+ * laudo judicial (só AT; Gestão AT.pdf §14). Coluna `text` livre no banco,
+ * validada na aplicação (mesmo padrão de PosLaudoNatureza).
+ */
+export const CATEGORIA_PROBLEMA_ORDENADA = [
+  "omissao",
+  "contradicao_interna",
+  "contradicao_documental",
+  "erro_tecnico",
+  "erro_conceitual",
+  "premissa_incorreta",
+  "ausencia_fundamentacao",
+  "extrapolacao_objeto",
+  "divergencia_literatura",
+  "outro",
+] as const;
+
+export type CategoriaProblemaAt = (typeof CATEGORIA_PROBLEMA_ORDENADA)[number];
+
+export const CATEGORIA_PROBLEMA_ROTULOS: Record<CategoriaProblemaAt, string> = {
+  omissao: "Omissão",
+  contradicao_interna: "Contradição interna",
+  contradicao_documental: "Contradição com a prova documental",
+  erro_tecnico: "Erro técnico",
+  erro_conceitual: "Erro conceitual",
+  premissa_incorreta: "Premissa incorreta",
+  ausencia_fundamentacao: "Conclusão sem fundamentação",
+  extrapolacao_objeto: "Extrapolação do objeto",
+  divergencia_literatura: "Divergência com a literatura",
+  outro: "Outro",
 };
