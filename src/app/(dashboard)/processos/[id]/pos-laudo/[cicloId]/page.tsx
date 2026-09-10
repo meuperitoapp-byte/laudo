@@ -15,16 +15,28 @@ import { ComplementacaoPanel } from "@/features/pos-laudo/complementacao-panel";
 import { QuesitosCicloPanel } from "@/features/pos-laudo/quesitos-ciclo-panel";
 import { RegistroDemandaAt } from "@/features/pos-laudo/registro-demanda-at";
 import { AtAnalisePanel } from "@/features/pos-laudo/at-analise-panel";
+import { GerarSaidaAtPanel, type VersaoAtPosLaudo } from "@/features/pos-laudo/gerar-saida-at-panel";
 import { EncerramentoCiclo, type ResumoSaida } from "@/features/pos-laudo/encerramento-ciclo";
 import { compilarEsclarecimentos, type PendenciaGeracaoPosLaudo } from "@/features/pos-laudo/compilar-esclarecimentos";
 import { compilarRetificacao } from "@/features/pos-laudo/compilar-retificacao";
 import { compilarComplementacao } from "@/features/pos-laudo/compilar-complementacao";
-import { gerarEsclarecimentos, gerarRetificacao, gerarComplementacao } from "@/features/pos-laudo/actions";
+import { compilarParecerAt } from "@/features/pos-laudo/compilar-parecer-at";
+import { compilarQuesitosAt } from "@/features/pos-laudo/compilar-quesitos-at";
+import {
+  gerarEsclarecimentos,
+  gerarRetificacao,
+  gerarComplementacao,
+  gerarParecerAtViaPainel,
+  gerarQuesitosAtViaPainel,
+} from "@/features/pos-laudo/actions";
 import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
-import { CICLO_STATUS_ROTULOS, FLUXO_ROTULOS } from "@/features/pos-laudo/rotulos";
+import { AT_MODALIDADE_ORDENADA, AT_MODALIDADE_ROTULOS, CICLO_STATUS_ROTULOS, FLUXO_ROTULOS } from "@/features/pos-laudo/rotulos";
 import { Selo } from "@/components/ui/badge";
 import type { PosLaudoCicloStatus, PosLaudoFluxo } from "@/types/enums";
 import type { SnapshotPosLaudo } from "@/types/json-fields";
+
+/** `laudos_gerados.tipo` que contam como "o parecer AT" (a modalidade pode mudar sem virar documento novo). */
+const TIPOS_PARECER_AT = ["parecer_at", "manifestacao_at", "impugnacao_at", "parecer_divergente_at"];
 
 const URL_ASSINADA_VALIDADE_SEGUNDOS = 60 * 60;
 
@@ -195,13 +207,63 @@ export default async function PosLaudoCicloPage({
   const quesitosCiclo = quesitosCicloDb ?? [];
 
   // ---- Fluxo Assistência Técnica (fatia 10): tela própria. Não usa conclusão
-  // vigente, nem os compiladores judiciais; a geração é a fatia 10c. ----
+  // vigente, nem os compiladores judiciais. ----
   if (ciclo.fluxo === "assistencia_tecnica") {
-    const { data: atAnalise } = await supabase
-      .from("pos_laudo_at_analise")
-      .select("*")
-      .eq("ciclo_id", cicloId)
-      .maybeSingle();
+    const [{ data: atAnalise }, { data: versoesAtDb }] = await Promise.all([
+      supabase.from("pos_laudo_at_analise").select("*").eq("ciclo_id", cicloId).maybeSingle(),
+      supabase
+        .from("laudos_gerados")
+        .select("*")
+        .eq("pos_laudo_ciclo_id", cicloId)
+        .order("versao", { ascending: false }),
+    ]);
+    const versoesAtLista = versoesAtDb ?? [];
+    const caminhosAt = versoesAtLista.flatMap((v) =>
+      [v.storage_path_pdf, v.storage_path_docx].filter((p): p is string => Boolean(p)),
+    );
+    let urlPorCaminhoAt = new Map<string, string | null>();
+    if (caminhosAt.length > 0) {
+      const { data: assinadasAt } = await supabase.storage
+        .from(BUCKET_LAUDOS_GERADOS)
+        .createSignedUrls(caminhosAt, URL_ASSINADA_VALIDADE_SEGUNDOS);
+      if (assinadasAt) urlPorCaminhoAt = new Map(assinadasAt.map((a) => [a.path ?? "", a.signedUrl]));
+    }
+    const versoesAt: VersaoAtPosLaudo[] = versoesAtLista.map((v) => ({
+      id: v.id,
+      versao: v.versao,
+      tipo: v.tipo,
+      criadoEm: v.created_at,
+      urlPdf: v.storage_path_pdf ? (urlPorCaminhoAt.get(v.storage_path_pdf) ?? null) : null,
+      urlDocx: v.storage_path_docx ? (urlPorCaminhoAt.get(v.storage_path_docx) ?? null) : null,
+      protocolado: v.protocolado,
+      protocoladoEm: v.protocolado_em,
+      protocoloId: v.protocolo_id,
+      entregueAoAdvogadoEm: v.entregue_ao_advogado_em,
+    }));
+    const versoesParecer = versoesAt.filter((v) => TIPOS_PARECER_AT.includes(v.tipo));
+    const versoesQuesitosAt = versoesAt.filter((v) => v.tipo === "quesitos_at");
+
+    const cicloEncerradoAt = ciclo.status === "encerrado";
+    const resumoAt = (nome: string, lista: VersaoAtPosLaudo[]): ResumoSaida => {
+      const protoc = lista.find((v) => v.protocolado);
+      return {
+        nome,
+        geradas: lista.length,
+        protocolada: protoc
+          ? { versao: protoc.versao, protocoloId: protoc.protocoloId, protocoladoEm: protoc.protocoladoEm }
+          : null,
+      };
+    };
+
+    // Preview de pendências (mesmo espírito do fluxo judicial): a modalidade
+    // não muda a lista de pendências do parecer, então usamos a do rascunho
+    // atual (se houver) só pra rodar a checagem — qualquer modalidade serve.
+    const rascunhoParecerAtual = versoesAtLista.find((v) => TIPOS_PARECER_AT.includes(v.tipo) && !v.protocolado);
+    const modalidadePreview = rascunhoParecerAtual?.at_modalidade ?? AT_MODALIDADE_ORDENADA[0];
+    const [resultadoParecer, resultadoQuesitosAt] = await Promise.all([
+      compilarParecerAt(processoId, cicloId, modalidadePreview),
+      compilarQuesitosAt(processoId, cicloId),
+    ]);
 
     return (
       <main className="p-8 max-w-2xl space-y-8">
@@ -219,10 +281,6 @@ export default async function PosLaudoCicloPage({
           <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
             Fluxo: {FLUXO_ROTULOS[ciclo.fluxo as PosLaudoFluxo] ?? ciclo.fluxo} · Status:{" "}
             {CICLO_STATUS_ROTULOS[ciclo.status as PosLaudoCicloStatus] ?? ciclo.status}
-          </p>
-          <p className="text-xs text-nevoa-400 dark:text-nevoa-600">
-            A geração dos pareceres (Concordância / Impugnação / Divergente) e o documento de Quesitos
-            Suplementares entram na fatia seguinte.
           </p>
         </div>
 
@@ -271,13 +329,68 @@ export default async function PosLaudoCicloPage({
 
         <QuesitosCicloPanel processoId={processoId} cicloId={ciclo.id} quesitos={quesitosCiclo} />
 
+        <div className="space-y-3">
+          <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-50">
+            Gerar parecer
+          </h2>
+
+          {resultadoParecer.status === "erro" && (
+            <p className="text-sm rounded-lg border border-vinho-600/30 bg-vinho-100 text-vinho-700 dark:border-vinho-400/30 dark:bg-vinho-950 dark:text-vinho-400 px-4 py-3">
+              {resultadoParecer.mensagem}
+            </p>
+          )}
+          {resultadoParecer.status === "pendencias" && <BlocoPendencias itens={resultadoParecer.itens} />}
+          {cicloEncerradoAt && <CicloEncerradoAviso />}
+
+          <GerarSaidaAtPanel
+            processoId={processoId}
+            cicloId={ciclo.id}
+            chave="parecer-at"
+            nomeDocumento="Parecer / Manifestação de Assistência Técnica"
+            tituloBotao="Gerar parecer"
+            podeGerar={resultadoParecer.status === "ok" && !cicloEncerradoAt}
+            versoes={versoesParecer}
+            modalidades={AT_MODALIDADE_ORDENADA.map((m) => ({ valor: m, rotulo: AT_MODALIDADE_ROTULOS[m] }))}
+            gerar={gerarParecerAtViaPainel}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-50">
+            Gerar Quesitos Suplementares (documento isolado)
+          </h2>
+          <p className="text-xs text-nevoa-400 dark:text-nevoa-600">
+            Os mesmos quesitos do ciclo já saem embutidos no parecer acima — gere este documento à parte
+            só quando precisar entregar o quesito sem parecer nenhum.
+          </p>
+
+          {resultadoQuesitosAt.status === "erro" && (
+            <p className="text-sm rounded-lg border border-vinho-600/30 bg-vinho-100 text-vinho-700 dark:border-vinho-400/30 dark:bg-vinho-950 dark:text-vinho-400 px-4 py-3">
+              {resultadoQuesitosAt.mensagem}
+            </p>
+          )}
+          {resultadoQuesitosAt.status === "pendencias" && <BlocoPendencias itens={resultadoQuesitosAt.itens} />}
+          {cicloEncerradoAt && <CicloEncerradoAviso />}
+
+          <GerarSaidaAtPanel
+            processoId={processoId}
+            cicloId={ciclo.id}
+            chave="quesitos-at"
+            nomeDocumento="Quesitos Suplementares"
+            tituloBotao="Gerar Quesitos Suplementares"
+            podeGerar={resultadoQuesitosAt.status === "ok" && !cicloEncerradoAt}
+            versoes={versoesQuesitosAt}
+            gerar={gerarQuesitosAtViaPainel}
+          />
+        </div>
+
         <EncerramentoCiclo
           processoId={processoId}
           cicloId={ciclo.id}
           numeroCiclo={ciclo.numero_ciclo}
-          encerrado={ciclo.status === "encerrado"}
+          encerrado={cicloEncerradoAt}
           encerradoEm={ciclo.encerrado_em}
-          resumo={[]}
+          resumo={[resumoAt("Parecer / Manifestação", versoesParecer), resumoAt("Quesitos Suplementares", versoesQuesitosAt)]}
         />
       </main>
     );

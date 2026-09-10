@@ -21,6 +21,8 @@ import type {
   PosLaudoRetificacaoItensInsert,
 } from "@/types/database";
 import type {
+  LaudoGeradoTipo,
+  PosLaudoAtModalidade,
   PosLaudoClassificacaoGlobal,
   PosLaudoClassificacaoTriagem,
   PosLaudoComplementacaoImpacto,
@@ -46,6 +48,9 @@ import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
 import { compilarEsclarecimentos } from "@/features/pos-laudo/compilar-esclarecimentos";
 import { compilarRetificacao } from "@/features/pos-laudo/compilar-retificacao";
 import { compilarComplementacao } from "@/features/pos-laudo/compilar-complementacao";
+import { compilarParecerAt } from "@/features/pos-laudo/compilar-parecer-at";
+import { compilarQuesitosAt, TITULO_QUESITOS_AT } from "@/features/pos-laudo/compilar-quesitos-at";
+import { AT_ANALISE_EIXO_ORDEM } from "@/features/pos-laudo/rotulos";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -304,22 +309,8 @@ export async function salvarRegistroDemandaAt(input: {
   return { success: true };
 }
 
-/** Chaves boolean|null da análise estruturada AT — cada uma tem o par `<chave>` + `<chave>_nota`. */
-const AT_ANALISE_EIXOS = [
-  "respondeu_objeto",
-  "respondeu_quesitos",
-  "considerou_documentos",
-  "tem_omissoes",
-  "tem_contradicoes",
-  "tem_erros_tecnicos",
-  "tem_erros_conceituais",
-  "extrapolou_objeto",
-  "conclusoes_sem_fundamentacao",
-  "divergencia_literatura",
-  "tem_fato_novo",
-  "favorece_tese",
-  "prejudica_tese",
-] as const;
+/** Chaves boolean|null da análise estruturada AT — cada uma tem o par `<chave>` + `<chave>_nota`. Fonte única: rotulos.ts. */
+const AT_ANALISE_EIXOS = AT_ANALISE_EIXO_ORDEM;
 
 export type AtAnalisePatch = {
   conclusaoDoPerito?: string | null;
@@ -1768,6 +1759,323 @@ export async function removerQuesitoCiclo(
     .delete()
     .eq("id", quesitoId)
     .eq("ciclo_id", cicloId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true };
+}
+
+// ============================================================================
+// Fluxo Assistência Técnica — geração das saídas (fatia 10c)
+// ============================================================================
+
+const AT_MODALIDADE_VALIDAS: readonly PosLaudoAtModalidade[] = [
+  "concordancia",
+  "concordancia_ressalvas",
+  "impugnacao_parcial",
+  "impugnacao_integral",
+  "divergente",
+  "manifestacao",
+];
+
+const TIPOS_PARECER_AT: readonly LaudoGeradoTipo[] = [
+  "parecer_at",
+  "manifestacao_at",
+  "impugnacao_at",
+  "parecer_divergente_at",
+];
+
+/**
+ * Grava (insere OU sobrescreve in-place) uma saída de Assistência Técnica em
+ * `laudos_gerados` — o núcleo da mudança de arquitetura da fatia 10 (resposta
+ * (b) da Dra. Fernanda): o documento de AT NÃO é protocolado pelo sistema, é
+ * o advogado quem protocola, externamente, dias depois de receber. Enquanto
+ * `protocolado = false`, gerar de novo SOBRESCREVE a mesma linha (mesmo
+ * `id`/`versao`/caminho no Storage — "ela edita a mesma página e reentrega"),
+ * em vez de empilhar uma versão nova a cada clique. Só quando alguém registra
+ * que o patrono protocolou (`marcarPosLaudoProtocolado`, já genérico e
+ * reaproveitado) a linha congela — daí uma geração seguinte cria uma nova.
+ *
+ * Se a saída já tinha `entregue_ao_advogado_em` marcado, regenerar limpa esse
+ * carimbo: o conteúdo mudou, a entrega anterior deixou de valer.
+ *
+ * `tiposMesmoRascunho` define o que conta como "o rascunho atual desta saída":
+ * as 4 variações do parecer (a modalidade pode mudar de uma geração pra outra
+ * sem virar documento novo) ou só `quesitos_at` para o documento isolado.
+ */
+async function gravarSaidaAtInPlace(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  input: {
+    processoId: string;
+    cicloId: string;
+    tipo: LaudoGeradoTipo;
+    tiposMesmoRascunho: readonly LaudoGeradoTipo[];
+    titulo: string;
+    atModalidade: PosLaudoAtModalidade | null;
+    snapshot: SnapshotPosLaudo;
+    bufferPdf: Buffer;
+    bufferDocx: Buffer;
+    paginas: number;
+  },
+): Promise<{ error: string } | { success: true; versao: number }> {
+  const { data: rascunho, error: erroRascunho } = await supabase
+    .from("laudos_gerados")
+    .select("id, versao, storage_path_pdf, storage_path_docx")
+    .eq("pos_laudo_ciclo_id", input.cicloId)
+    .in("tipo", input.tiposMesmoRascunho)
+    .eq("protocolado", false)
+    .order("versao", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroRascunho) return { error: erroRascunho.message };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (rascunho) {
+    const caminhoPdf = rascunho.storage_path_pdf ?? `${input.processoId}/v${rascunho.versao}.pdf`;
+    const caminhoDocx = rascunho.storage_path_docx ?? `${input.processoId}/v${rascunho.versao}.docx`;
+    const [uploadPdf, uploadDocx] = await Promise.all([
+      supabase.storage
+        .from(BUCKET_LAUDOS_GERADOS)
+        .upload(caminhoPdf, input.bufferPdf, { contentType: "application/pdf", upsert: true }),
+      supabase.storage.from(BUCKET_LAUDOS_GERADOS).upload(caminhoDocx, input.bufferDocx, {
+        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        upsert: true,
+      }),
+    ]);
+    if (uploadPdf.error || uploadDocx.error) {
+      return { error: `Erro ao salvar os arquivos: ${uploadPdf.error?.message ?? uploadDocx.error?.message}` };
+    }
+    const { error: erroUpdate } = await supabase
+      .from("laudos_gerados")
+      .update({
+        tipo: input.tipo,
+        titulo: input.titulo,
+        at_modalidade: input.atModalidade,
+        storage_path_pdf: caminhoPdf,
+        storage_path_docx: caminhoDocx,
+        snapshot_respostas: input.snapshot,
+        paginas: input.paginas,
+        gerado_por: user?.id ?? null,
+        entregue_ao_advogado_em: null,
+      })
+      .eq("id", rascunho.id)
+      .eq("protocolado", false);
+    if (erroUpdate) return { error: erroUpdate.message };
+    return { success: true, versao: rascunho.versao };
+  }
+
+  const { data: ultimo, error: erroUltimo } = await supabase
+    .from("laudos_gerados")
+    .select("versao")
+    .eq("processo_id", input.processoId)
+    .order("versao", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroUltimo) return { error: erroUltimo.message };
+  const versao = (ultimo?.versao ?? 0) + 1;
+  const caminhoPdf = `${input.processoId}/v${versao}.pdf`;
+  const caminhoDocx = `${input.processoId}/v${versao}.docx`;
+
+  const [uploadPdf, uploadDocx] = await Promise.all([
+    supabase.storage
+      .from(BUCKET_LAUDOS_GERADOS)
+      .upload(caminhoPdf, input.bufferPdf, { contentType: "application/pdf" }),
+    supabase.storage.from(BUCKET_LAUDOS_GERADOS).upload(caminhoDocx, input.bufferDocx, {
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }),
+  ]);
+  if (uploadPdf.error || uploadDocx.error) {
+    await Promise.all([
+      uploadPdf.error ? Promise.resolve() : supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoPdf]),
+      uploadDocx.error ? Promise.resolve() : supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoDocx]),
+    ]);
+    return { error: `Erro ao salvar os arquivos: ${uploadPdf.error?.message ?? uploadDocx.error?.message}` };
+  }
+
+  const insert: LaudosGeradosInsert = {
+    processo_id: input.processoId,
+    versao,
+    tipo: input.tipo,
+    pos_laudo_ciclo_id: input.cicloId,
+    titulo: input.titulo,
+    at_modalidade: input.atModalidade,
+    substitui_conclusao: false,
+    storage_path_pdf: caminhoPdf,
+    storage_path_docx: caminhoDocx,
+    snapshot_respostas: input.snapshot,
+    paginas: input.paginas,
+    gerado_por: user?.id ?? null,
+  };
+  const { error: erroInsert } = await supabase.from("laudos_gerados").insert(insert);
+  if (erroInsert) {
+    await supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove([caminhoPdf, caminhoDocx]);
+    return { error: erroInsert.message };
+  }
+
+  return { success: true, versao };
+}
+
+/**
+ * Gera (ou regenera in-place, ver `gravarSaidaAtInPlace`) o parecer de
+ * Assistência Técnica do ciclo, na modalidade escolhida. Mesmo two-pass de
+ * paginação dos compiladores judiciais.
+ */
+export async function gerarParecerAt(
+  cicloId: string,
+  processoId: string,
+  modalidade: string,
+  dataAssinaturaIso: string,
+): Promise<{ error: string } | { success: true; versao: number }> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataAssinaturaIso)) {
+    return { error: "Informe a data da assinatura." };
+  }
+  if (!(AT_MODALIDADE_VALIDAS as readonly string[]).includes(modalidade)) {
+    return { error: "Modalidade de parecer inválida." };
+  }
+  const modalidadeValida = modalidade as PosLaudoAtModalidade;
+
+  const pass1 = await compilarParecerAt(processoId, cicloId, modalidadeValida, "—", dataAssinaturaIso);
+  if (pass1.status === "erro") return { error: pass1.mensagem };
+  if (pass1.status === "pendencias") {
+    return { error: `Geração bloqueada — pendências: ${pass1.itens.map((i) => i.label).join("; ")}.` };
+  }
+
+  const ativos = await buscarAtivosGlobais();
+  const medidaUm = await renderizarPdfComPaginas(pass1.modelo, ativos, []);
+
+  const pass2 = await compilarParecerAt(processoId, cicloId, modalidadeValida, String(medidaUm.paginas), dataAssinaturaIso);
+  if (pass2.status !== "ok") {
+    return { error: "O estado do ciclo mudou entre as duas passadas de paginação — tente gerar novamente." };
+  }
+  const medidaDois = await renderizarPdfComPaginas(pass2.modelo, ativos, []);
+  if (medidaDois.paginas !== medidaUm.paginas) {
+    return {
+      error: `Divergência de paginação ao inserir o número de páginas (1ª passada: ${medidaUm.paginas}; 2ª passada: ${medidaDois.paginas}). Geração abortada — tente novamente.`,
+    };
+  }
+  const bufferDocx = await renderizarDocx(pass2.modelo, ativos, []);
+
+  const supabase = await createClient();
+  const resultado = await gravarSaidaAtInPlace(supabase, {
+    processoId,
+    cicloId,
+    tipo: pass2.tipo,
+    tiposMesmoRascunho: TIPOS_PARECER_AT,
+    titulo: pass2.titulo,
+    atModalidade: modalidadeValida,
+    snapshot: pass2.snapshot,
+    bufferPdf: medidaDois.buffer,
+    bufferDocx,
+    paginas: medidaDois.paginas,
+  });
+  if ("error" in resultado) return resultado;
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return resultado;
+}
+
+/**
+ * Gera (ou regenera in-place) o documento isolado de Quesitos Suplementares
+ * do ciclo AT — item 7 da aprovação da fatia 10 (Jeferson): os mesmos
+ * quesitos do ciclo já saem embutidos no parecer; este é o documento próprio
+ * pros casos em que ela só precisa entregar o quesito, sem parecer nenhum.
+ */
+export async function gerarQuesitosAt(
+  cicloId: string,
+  processoId: string,
+  dataAssinaturaIso: string,
+): Promise<{ error: string } | { success: true; versao: number }> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataAssinaturaIso)) {
+    return { error: "Informe a data da assinatura." };
+  }
+
+  const pass1 = await compilarQuesitosAt(processoId, cicloId, "—", dataAssinaturaIso);
+  if (pass1.status === "erro") return { error: pass1.mensagem };
+  if (pass1.status === "pendencias") {
+    return { error: `Geração bloqueada — pendências: ${pass1.itens.map((i) => i.label).join("; ")}.` };
+  }
+
+  const ativos = await buscarAtivosGlobais();
+  const medidaUm = await renderizarPdfComPaginas(pass1.modelo, ativos, []);
+
+  const pass2 = await compilarQuesitosAt(processoId, cicloId, String(medidaUm.paginas), dataAssinaturaIso);
+  if (pass2.status !== "ok") {
+    return { error: "O estado do ciclo mudou entre as duas passadas de paginação — tente gerar novamente." };
+  }
+  const medidaDois = await renderizarPdfComPaginas(pass2.modelo, ativos, []);
+  if (medidaDois.paginas !== medidaUm.paginas) {
+    return {
+      error: `Divergência de paginação ao inserir o número de páginas (1ª passada: ${medidaUm.paginas}; 2ª passada: ${medidaDois.paginas}). Geração abortada — tente novamente.`,
+    };
+  }
+  const bufferDocx = await renderizarDocx(pass2.modelo, ativos, []);
+
+  const supabase = await createClient();
+  const resultado = await gravarSaidaAtInPlace(supabase, {
+    processoId,
+    cicloId,
+    tipo: "quesitos_at",
+    tiposMesmoRascunho: ["quesitos_at"],
+    titulo: TITULO_QUESITOS_AT,
+    atModalidade: null,
+    snapshot: pass2.snapshot,
+    bufferPdf: medidaDois.buffer,
+    bufferDocx,
+    paginas: medidaDois.paginas,
+  });
+  if ("error" in resultado) return resultado;
+
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return resultado;
+}
+
+/**
+ * Adaptadores de assinatura uniforme pra `GerarSaidaAtPanel` (o mesmo
+ * componente serve o parecer e os Quesitos isolados, mas só o parecer tem
+ * seletor de modalidade) — `gerarParecerAt`/`gerarQuesitosAt` continuam sendo
+ * as ações "de verdade", com a assinatura própria de cada uma.
+ */
+export async function gerarParecerAtViaPainel(
+  cicloId: string,
+  processoId: string,
+  dataAssinaturaIso: string,
+  modalidade: string | null,
+): Promise<{ error: string } | { success: true; versao: number }> {
+  if (!modalidade) return { error: "Selecione a modalidade do parecer." };
+  return gerarParecerAt(cicloId, processoId, modalidade, dataAssinaturaIso);
+}
+
+export async function gerarQuesitosAtViaPainel(
+  cicloId: string,
+  processoId: string,
+  dataAssinaturaIso: string,
+): Promise<{ error: string } | { success: true; versao: number }> {
+  return gerarQuesitosAt(cicloId, processoId, dataAssinaturaIso);
+}
+
+/**
+ * Registra que a saída AT foi entregue ao advogado — estado intermediário
+ * ANTES do protocolo (que é do patrono, externo ao sistema). Reversível e
+ * NÃO congela nada (ao contrário de `marcarPosLaudoProtocolado`): ela pode
+ * seguir regenerando a mesma peça normalmente, o que limpa este carimbo de
+ * novo (ver `gravarSaidaAtInPlace`).
+ */
+export async function registrarEntregaAoAdvogado(
+  laudoGeradoId: string,
+  processoId: string,
+  cicloId: string,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("laudos_gerados")
+    .update({ entregue_ao_advogado_em: new Date().toISOString() })
+    .eq("id", laudoGeradoId)
+    .eq("processo_id", processoId)
+    .eq("pos_laudo_ciclo_id", cicloId)
+    .eq("protocolado", false);
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
