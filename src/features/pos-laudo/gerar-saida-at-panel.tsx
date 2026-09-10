@@ -74,6 +74,12 @@ export function GerarSaidaAtPanel({
   const [dataAssinatura, setDataAssinatura] = useState(() => hojeIsoLocal());
   const [modalidade, setModalidade] = useState(modalidades?.[0]?.valor ?? "");
 
+  // A dica sobre "sobrescreve x cria versão nova" depende do rascunho aberto
+  // mais recente (não protocolado): sem entrega registrada ainda sobrescreve;
+  // com entrega registrada, uma nova geração passa a criar versão nova (ver
+  // gravarSaidaAtInPlace, actions.ts) — o que já saiu do escritório fica.
+  const rascunhoAberto = versoes.filter((v) => !v.protocolado).sort((a, b) => b.versao - a.versao)[0] ?? null;
+
   function gerar() {
     setToast(null);
     startTransition(async () => {
@@ -130,10 +136,11 @@ export function GerarSaidaAtPanel({
         <Botao onClick={gerar} disabled={!podeGerar || !dataAssinatura} carregando={isPending} textoCarregando="Gerando…">
           {tituloBotao}
         </Botao>
-        {versoes.some((v) => !v.protocolado) && (
+        {rascunhoAberto && (
           <p className="text-xs text-nevoa-400 dark:text-nevoa-600 max-w-md">
-            Enquanto não houver confirmação de que o advogado protocolou, gerar de novo substitui o
-            rascunho atual — não cria uma versão nova a cada clique.
+            {rascunhoAberto.entregueAoAdvogadoEm
+              ? `A Versão ${rascunhoAberto.versao} já foi entregue ao advogado — gerar de novo cria uma versão nova, sem apagar esta.`
+              : "Ainda não há entrega registrada — gerar de novo substitui este rascunho, não cria uma versão nova a cada clique."}
           </p>
         )}
       </div>
@@ -299,8 +306,7 @@ function EntregaEProtocoloAt({
             Use esta opção quando o(a) advogado(a) confirmar que já protocolou a Versão {versao} —{" "}
             {nomeDocumento} — nos autos. A partir daqui o conteúdo dessa versão fica{" "}
             <strong>congelado</strong>, e <strong>não há como desfazer</strong>: se for preciso mudar algo
-            depois, será uma versão nova. Antes de o patrono confirmar o protocolo, siga editando e gerando
-            normalmente — cada geração substitui esta mesma versão.
+            depois, será uma versão nova.
           </p>
           <div>
             <label

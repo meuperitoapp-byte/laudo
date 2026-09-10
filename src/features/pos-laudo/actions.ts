@@ -1789,15 +1789,24 @@ const TIPOS_PARECER_AT: readonly LaudoGeradoTipo[] = [
  * Grava (insere OU sobrescreve in-place) uma saída de Assistência Técnica em
  * `laudos_gerados` — o núcleo da mudança de arquitetura da fatia 10 (resposta
  * (b) da Dra. Fernanda): o documento de AT NÃO é protocolado pelo sistema, é
- * o advogado quem protocola, externamente, dias depois de receber. Enquanto
- * `protocolado = false`, gerar de novo SOBRESCREVE a mesma linha (mesmo
- * `id`/`versao`/caminho no Storage — "ela edita a mesma página e reentrega"),
- * em vez de empilhar uma versão nova a cada clique. Só quando alguém registra
- * que o patrono protocolou (`marcarPosLaudoProtocolado`, já genérico e
- * reaproveitado) a linha congela — daí uma geração seguinte cria uma nova.
+ * o advogado quem protocola, externamente, dias depois de receber.
  *
- * Se a saída já tinha `entregue_ao_advogado_em` marcado, regenerar limpa esse
- * carimbo: o conteúdo mudou, a entrega anterior deixou de valer.
+ * A régua tem DOIS estados de "já saiu daqui", não um só:
+ *
+ *   RASCUNHO (nunca entregue) --regera--> RASCUNHO (mesma linha, sobrescrita)
+ *   RASCUNHO --entrega registrada--> ENTREGUE --regera--> RASCUNHO NOVO (versão nova)
+ *   qualquer um --protocolo registrado--> PROTOCOLADO (congelado, trg_laudos_gerados_congela)
+ *
+ * Enquanto a saída NUNCA foi entregue (`entregue_ao_advogado_em IS NULL` E
+ * `protocolado = false`), gerar de novo SOBRESCREVE a mesma linha (mesmo
+ * `id`/`versao`/caminho no Storage — "ela edita a mesma página e reentrega",
+ * ainda sem ninguém ter recebido nada). A partir do momento em que a entrega é
+ * registrada, existe um PDF na mão de outra pessoa: regenerar não pode mais
+ * apagar esse conteúdo, então passa a criar uma VERSÃO NOVA (próximo bloco),
+ * preservando a versão entregue — e a data de cada entrega — no histórico.
+ * Ela continua livre pra editar e reentregar quantas vezes quiser (não muda
+ * nada da resposta (b) da Dra.); o que muda é que cada entrega vira um
+ * registro permanente, não uma fase transitória apagável.
  *
  * `tiposMesmoRascunho` define o que conta como "o rascunho atual desta saída":
  * as 4 variações do parecer (a modalidade pode mudar de uma geração pra outra
@@ -1824,6 +1833,7 @@ async function gravarSaidaAtInPlace(
     .eq("pos_laudo_ciclo_id", input.cicloId)
     .in("tipo", input.tiposMesmoRascunho)
     .eq("protocolado", false)
+    .is("entregue_ao_advogado_em", null)
     .order("versao", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -1848,6 +1858,8 @@ async function gravarSaidaAtInPlace(
     if (uploadPdf.error || uploadDocx.error) {
       return { error: `Erro ao salvar os arquivos: ${uploadPdf.error?.message ?? uploadDocx.error?.message}` };
     }
+    // entregue_ao_advogado_em não entra no update: a linha só chega até aqui
+    // quando já está null (filtro da consulta acima) — nunca há o que limpar.
     const { error: erroUpdate } = await supabase
       .from("laudos_gerados")
       .update({
@@ -1859,13 +1871,16 @@ async function gravarSaidaAtInPlace(
         snapshot_respostas: input.snapshot,
         paginas: input.paginas,
         gerado_por: user?.id ?? null,
-        entregue_ao_advogado_em: null,
       })
       .eq("id", rascunho.id)
-      .eq("protocolado", false);
+      .eq("protocolado", false)
+      .is("entregue_ao_advogado_em", null);
     if (erroUpdate) return { error: erroUpdate.message };
     return { success: true, versao: rascunho.versao };
   }
+
+  // Não há rascunho sobrescrevível: ou é a 1ª geração, ou o rascunho mais
+  // recente já foi entregue e/ou protocolado — nos dois casos, versão nova.
 
   const { data: ultimo, error: erroUltimo } = await supabase
     .from("laudos_gerados")
@@ -2059,9 +2074,12 @@ export async function gerarQuesitosAtViaPainel(
 /**
  * Registra que a saída AT foi entregue ao advogado — estado intermediário
  * ANTES do protocolo (que é do patrono, externo ao sistema). Reversível e
- * NÃO congela nada (ao contrário de `marcarPosLaudoProtocolado`): ela pode
- * seguir regenerando a mesma peça normalmente, o que limpa este carimbo de
- * novo (ver `gravarSaidaAtInPlace`).
+ * NÃO congela nada (ao contrário de `marcarPosLaudoProtocolado`): o campo em
+ * si pode ser corrigido depois se preciso. Mas a partir daqui existe um PDF
+ * na mão de outra pessoa — `gravarSaidaAtInPlace` para de sobrescrever esta
+ * linha: a próxima geração vira uma VERSÃO NOVA, preservando esta (e a data
+ * desta entrega) no histórico. Ela segue livre pra editar e reentregar; o que
+ * já saiu do escritório é que fica rastreável.
  */
 export async function registrarEntregaAoAdvogado(
   laudoGeradoId: string,
