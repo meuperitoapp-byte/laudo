@@ -145,7 +145,7 @@ export function RegistroDemandaAt({
         />
       </div>
 
-      <div>
+      <div id="classificacao-global-campo" className="scroll-mt-24">
         <div className="flex items-center justify-between mb-1">
           <label htmlFor="classificacao_global" className={labelClass}>
             Classificação global do laudo
@@ -170,7 +170,7 @@ export function RegistroDemandaAt({
         </p>
       </div>
 
-      <fieldset>
+      <fieldset id="providencia-recomendada" className="scroll-mt-24">
         <legend className={labelClass}>Providência recomendada (pode marcar mais de uma)</legend>
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-1">
           {PROVIDENCIA_AT_ORDENADA.map((codigo) => (

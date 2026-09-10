@@ -398,3 +398,43 @@ export const CATEGORIA_PROBLEMA_ROTULOS: Record<CategoriaProblemaAt, string> = {
   divergencia_literatura: "Divergência com a literatura",
   outro: "Outro",
 };
+
+/**
+ * pos_laudo_at_analise — os 13 eixos boolean|null da "Análise estruturada do
+ * laudo judicial" (Gestão AT.pdf §12), com a pergunta que cada um representa.
+ * Fonte única usada por at-analise-panel.tsx, actions.ts (validação) e
+ * compilar-parecer-at.ts (seção III do documento) — ordem = a do PDF.
+ */
+export const AT_ANALISE_EIXO_ORDEM = [
+  "respondeu_objeto",
+  "respondeu_quesitos",
+  "considerou_documentos",
+  "tem_omissoes",
+  "tem_contradicoes",
+  "tem_erros_tecnicos",
+  "tem_erros_conceituais",
+  "extrapolou_objeto",
+  "conclusoes_sem_fundamentacao",
+  "divergencia_literatura",
+  "tem_fato_novo",
+  "favorece_tese",
+  "prejudica_tese",
+] as const;
+
+export type AtAnaliseEixo = (typeof AT_ANALISE_EIXO_ORDEM)[number];
+
+export const AT_ANALISE_EIXO_ROTULOS: Record<AtAnaliseEixo, string> = {
+  respondeu_objeto: "Respondeu ao objeto da perícia?",
+  respondeu_quesitos: "Respondeu a todos os quesitos?",
+  considerou_documentos: "Considerou todos os documentos?",
+  tem_omissoes: "Há omissões?",
+  tem_contradicoes: "Há contradições?",
+  tem_erros_tecnicos: "Há erros técnicos?",
+  tem_erros_conceituais: "Há erros conceituais?",
+  extrapolou_objeto: "Houve extrapolação do objeto?",
+  conclusoes_sem_fundamentacao: "Há conclusões sem fundamentação?",
+  divergencia_literatura: "Há divergência com a literatura?",
+  tem_fato_novo: "Há fato novo?",
+  favorece_tese: "Favorece a tese da parte assistida?",
+  prejudica_tese: "Prejudica a tese da parte assistida?",
+};

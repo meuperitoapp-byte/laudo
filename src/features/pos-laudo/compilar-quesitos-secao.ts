@@ -16,7 +16,15 @@ import { QUESITO_ORIGEM_ORDENADA, QUESITO_ORIGEM_ROTULOS } from "./rotulos";
 /** `null` quando não há quesito no ciclo — a seção não entra no documento. */
 export function montarSecaoQuesitos(
   quesitos: PosLaudoQuesitosRow[],
-  opts: { secaoId: string; codigo: string; titulo: string; ordem: number; introComplementar?: boolean },
+  opts: {
+    secaoId: string;
+    codigo: string;
+    titulo: string;
+    ordem: number;
+    introComplementar?: boolean;
+    /** Fluxo AT: os quesitos são elaborados para o advogado, não respondidos aqui — omite a linha de resposta. */
+    semResposta?: boolean;
+  },
 ): SecaoCompilada | null {
   if (quesitos.length === 0) return null;
 
@@ -51,6 +59,7 @@ export function montarSecaoQuesitos(
     blocos.push({ tipo: "paragrafo", texto: `Quesitos — ${QUESITO_ORIGEM_ROTULOS[chave]}` });
     blocos.push({
       tipo: "quesitos",
+      semResposta: opts.semResposta,
       itens: doGrupo.map((q, i) => ({
         numero: i + 1,
         origem: null, // o grupo já identifica a parte; não repetir "(origem)" no item

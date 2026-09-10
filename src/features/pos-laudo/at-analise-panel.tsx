@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { salvarAtAnalise, type AtAnalisePatch } from "./actions";
 import { Botao } from "@/components/ui/button";
 import { Toast } from "@/components/ui/toast";
+import { AT_ANALISE_EIXO_ORDEM, AT_ANALISE_EIXO_ROTULOS, type AtAnaliseEixo } from "./rotulos";
 import type { PosLaudoAtAnaliseRow } from "@/types/database";
 
 const inputClass =
@@ -12,24 +13,7 @@ const inputClass =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500";
 const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1";
 
-/** Cada eixo: a coluna boolean e a pergunta que a acompanha. A ordem é a do PDF §12. */
-const EIXOS = [
-  ["respondeu_objeto", "Respondeu ao objeto da perícia?"],
-  ["respondeu_quesitos", "Respondeu a todos os quesitos?"],
-  ["considerou_documentos", "Considerou todos os documentos?"],
-  ["tem_omissoes", "Há omissões?"],
-  ["tem_contradicoes", "Há contradições?"],
-  ["tem_erros_tecnicos", "Há erros técnicos?"],
-  ["tem_erros_conceituais", "Há erros conceituais?"],
-  ["extrapolou_objeto", "Houve extrapolação do objeto?"],
-  ["conclusoes_sem_fundamentacao", "Há conclusões sem fundamentação?"],
-  ["divergencia_literatura", "Há divergência com a literatura?"],
-  ["tem_fato_novo", "Há fato novo?"],
-  ["favorece_tese", "Favorece a tese da parte assistida?"],
-  ["prejudica_tese", "Prejudica a tese da parte assistida?"],
-] as const;
-
-type EixoChave = (typeof EIXOS)[number][0];
+type EixoChave = AtAnaliseEixo;
 
 type Estado = {
   conclusaoDoPerito: string;
@@ -45,7 +29,7 @@ function estadoInicial(row: PosLaudoAtAnaliseRow | null): Estado {
     conclusaoDoPerito: row?.conclusao_do_perito ?? "",
     impactoProcessual: row?.impacto_processual ?? "",
   } as Estado;
-  for (const [chave] of EIXOS) {
+  for (const chave of AT_ANALISE_EIXO_ORDEM) {
     base[chave] = boolParaSelect(row ? row[chave] : null);
     base[`${chave}_nota`] = (row ? row[`${chave}_nota`] : null) ?? "";
   }
@@ -102,7 +86,7 @@ export function AtAnalisePanel({
       conclusaoDoPerito: f.conclusaoDoPerito || null,
       impactoProcessual: f.impactoProcessual || null,
     };
-    for (const [chave] of EIXOS) {
+    for (const chave of AT_ANALISE_EIXO_ORDEM) {
       patch[chave] = selectParaBool(f[chave]);
       patch[`${chave}_nota`] = f[`${chave}_nota`] || null;
     }
@@ -137,7 +121,9 @@ export function AtAnalisePanel({
       </div>
 
       <div className="space-y-4">
-        {EIXOS.map(([chave, pergunta]) => (
+        {AT_ANALISE_EIXO_ORDEM.map((chave) => {
+          const pergunta = AT_ANALISE_EIXO_ROTULOS[chave];
+          return (
           <div key={chave} className="border-t border-nevoa-200 dark:border-nevoa-800 pt-3">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm text-nevoa-800 dark:text-nevoa-200">{pergunta}</span>
@@ -161,7 +147,8 @@ export function AtAnalisePanel({
               aria-label={`${pergunta} — nota`}
             />
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="border-t border-nevoa-200 dark:border-nevoa-800 pt-3">
