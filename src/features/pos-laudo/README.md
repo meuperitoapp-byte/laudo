@@ -12,7 +12,7 @@ por **botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload
 Fernanda já usa a tela de Quesitos; mudar o comportamento de salvamento dela no meio do
 Pós-Laudo é risco sem ganho. **Padronizar quando o Módulo Pós-Laudo fechar.**
 
-## Estado atual — fatias 1 a 9
+## Estado atual — fatias 1 a 10
 
 O que já existe:
 
@@ -303,9 +303,77 @@ a numeração REINICIA do 1 a cada ciclo** (nunca continua a contagem do laudo o
   texto do quesito fica editável até a geração; o snapshot do documento é que congela
   (não há lock por quesito — a garantia de imutabilidade é a mesma do resto do módulo).
 
-Inerte, esperando as próximas fatias: fluxo AT (fatia 10 — precisa de desenho próprio: doc
-de AT não é protocolado pelo sistema, fica editável até o advogado protocolar), mudança da
-situação do processo (fatia 11), linha do tempo de versões (fatia 12, opcional).
+### Fatia 10 — fluxo Assistência Técnica
+
+Ativa `fluxo='assistencia_tecnica'` no mesmo módulo, reusando as fatias 1-9. Migration
+`20260910120000_pos_laudo_at.sql`. Mudança de arquitetura central: **resposta (b) da Dra.
+Fernanda** — o documento de AT não é protocolado pelo sistema, é o advogado quem protocola,
+externamente, dias depois. Enquanto isso, ela reedita "a mesma página" e reentrega.
+
+- **`abrirCicloPosLaudo`** ganhou um branch AT: não exige laudo protocolado nem conclusão
+  vigente (o laudo analisado é do perito judicial, externo, anexado DENTRO do ciclo — não
+  dá pra exigir antes de o ciclo existir); `laudo_base_id` fica `null`. Análise de laudo em
+  AT pode ser **avulsa** (resposta (e)) — o caso avulso é só um processo AT comum cujo
+  único movimento é o ciclo de pós-laudo, sem entidade "caso" nova.
+- **Registro da demanda AT** (`registro-demanda-at.tsx` + `salvarRegistroDemandaAt`):
+  objeto da análise, tese da parte assistida, **classificação global do laudo**
+  (`pos_laudo_ciclos.classificacao_global`, coluna da fatia 0 — obrigatória no AT, cobrada
+  como pendência de geração, não como CHECK), providência recomendada (multi), e a
+  **posição da PERICONS sobre o laudo** — resposta (a) da Dra.: **sem log versionado**,
+  entra verbatim no documento; a "Nova Conclusão Vigente" do judicial não tem equivalente
+  aqui.
+- **Análise estruturada do laudo** (`pos_laudo_at_analise`, 1:1 com o ciclo — tabela nova):
+  13 eixos boolean|null + nota cada (`respondeu_objeto`, `tem_omissoes`, `favorece_tese`
+  etc. — Gestão AT.pdf §12), fonte única em `rotulos.ts`
+  (`AT_ANALISE_EIXO_ORDEM`/`_ROTULOS`, usada pelo painel, pela action de validação e pelo
+  compilador). `AtAnalisePanel` — formulário único, um botão "Salvar" (padrão
+  `ComplementacaoPanel`).
+- **`MatrizPontos` ganhou a prop `modoAt`**: esconde "Repercussão sobre o laudo original" e
+  a sugestão de complementação (AT não mexe em conclusão própria); por ponto, troca
+  "Repercussão deste ponto" por **"Categoria do problema"**
+  (`pos_laudo_pontos.categoria_problema`, coluna da fatia 0).
+- **`consultas-at.ts`** (não "use server"): `carregarContextoAt` — um único ponto de
+  leitura (ciclo, processo, laudo analisado via `pos_laudo_documentos.papel=
+  'laudo_analisado'`, pontos, quesitos, análise estruturada, config) reusado pelos dois
+  compiladores AT. `pendenciasComunsAt` — classificação global, laudo analisado anexado,
+  pontos sem resposta técnica, quesito sem pergunta.
+- **`compilar-parecer-at.ts`** — **um compilador só**, parametrizado por `at_modalidade`
+  (6 valores: concordância / concordância com ressalvas / impugnação parcial / integral /
+  divergente / manifestação → 4 `laudos_gerados.tipo`). Seções I–VIII (identificação,
+  síntese do laudo analisado, análise estruturada, análise ponto a ponto, quesitos
+  embutidos, posição da PERICONS, providência recomendada, encerramento).
+- **`compilar-quesitos-at.ts`** — documento **isolado** "Quesitos Suplementares" (item 7 da
+  aprovação da fatia 10, Jeferson: os mesmos quesitos saem DOS DOIS jeitos — embutidos no
+  parecer E como peça própria, porque às vezes ela só precisa entregar o quesito, sem
+  parecer nenhum). Pendências **deliberadamente mais leves** que as do parecer: só exige
+  quesito com pergunta preenchida — exigir classificação global/laudo anexado/pontos
+  respondidos obrigaria a fazer a análise completa só pra entregar uma pergunta.
+- **`BlocoQuesitos.semResposta`** (`geracao-laudo/modelo.ts` + os dois renderers): os
+  quesitos AT são elaborados para o advogado apresentar, `resposta` fica sempre `null` de
+  propósito — `semResposta: true` omite a linha em vez do fallback "Sem resposta
+  registrada." (que soaria como pendência, não como decisão de design).
+  `montarSecaoQuesitos` ganhou o mesmo parâmetro.
+- **`gravarSaidaAtInPlace`** (`actions.ts`) — o núcleo da mudança de arquitetura: enquanto
+  `protocolado=false`, gerar de novo **sobrescreve a mesma linha** `laudos_gerados` (mesmo
+  `id`/`versao`/caminho no Storage, upload com `upsert:true`) em vez de empilhar uma versão
+  nova a cada clique; limpa `entregue_ao_advogado_em` (a entrega anterior deixou de valer).
+  Só cria versão nova quando não há rascunho ou o último já foi protocolado.
+  `tiposMesmoRascunho` define o que conta como "o rascunho atual" — as 4 variações do
+  parecer juntas (a modalidade pode mudar sem virar documento novo), ou só `quesitos_at`.
+- **`entregue_ao_advogado_em`** (`laudos_gerados`, coluna da fatia 0) — estado
+  intermediário reversível ANTES do protocolo, via `registrarEntregaAoAdvogado`.
+  `marcarPosLaudoProtocolado` (já genérico) é **reaproveitado** como "registrar protocolo
+  do patrono" — o `conclusao_vigente_texto` do snapshot AT é sempre `null`, então o branch
+  que gravaria Nova Conclusão Vigente nunca executa para AT.
+- **`gerar-saida-at-panel.tsx`** (client) — mesmo padrão visual de `GerarPosLaudoPanel`,
+  com seletor de modalidade opcional (só o painel do parecer) e as 2 ações de estado
+  (entrega ao advogado / protocolo do patrono) no lugar do único "Marcar como protocolado"
+  do judicial. `gerarParecerAtViaPainel`/`gerarQuesitosAtViaPainel` (adaptadores de
+  assinatura uniforme pro painel — `gerarParecerAt`/`gerarQuesitosAt` continuam com a
+  assinatura própria de cada um).
+
+Inerte, esperando as próximas fatias: mudança da situação do processo (fatia 11), linha do
+tempo de versões (fatia 12, opcional).
 
 ## Arquivos
 
@@ -317,29 +385,39 @@ situação do processo (fatia 11), linha do tempo de versões (fatia 12, opciona
   `marcarPosLaudoProtocolado`, `adicionarItemRetificacao`, `salvarItemRetificacao`,
   `removerItemRetificacao`, `salvarIdentificacaoRetificacao`, `salvarAnaliseRetificacao`,
   `gerarRetificacao`, `salvarComplementacao`, `gerarComplementacao`, `encerrarCiclo`,
-  `reabrirCiclo`, `adicionarQuesitoCiclo`, `salvarQuesitoCiclo`, `removerQuesitoCiclo`
-  (+ helper `recomputarRascunhoComplementacao`).
+  `reabrirCiclo`, `adicionarQuesitoCiclo`, `salvarQuesitoCiclo`, `removerQuesitoCiclo`,
+  `salvarRegistroDemandaAt`, `salvarAtAnalise`, `gerarParecerAt`, `gerarQuesitosAt`,
+  `gerarParecerAtViaPainel`, `gerarQuesitosAtViaPainel`, `registrarEntregaAoAdvogado`
+  (+ helpers `recomputarRascunhoComplementacao`, `gravarSaidaAtInPlace`).
 - `consultas.ts` — **não** "use server": `conclusaoVigenteAtual`,
   `extrairConclusaoDoLaudo` (recebem o client do Supabase; usadas por páginas e por
   `actions.ts`).
+- `consultas-at.ts` — **não** "use server": `carregarContextoAt`, `pendenciasComunsAt`
+  (fluxo AT; um único ponto de leitura pros dois compiladores AT).
 - `regras.ts` — **não** "use server": `podeGerarSaida` + o tipo compartilhado
   `PendenciaGeracaoPosLaudo` (com `tom?: "bloqueio" | "orientacao"`).
 - `compilar-esclarecimentos.ts` / `compilar-retificacao.ts` / `compilar-complementacao.ts`
-  — **não** "use server": `compilar*` (busca no banco + monta o `ModeloLaudo` +
-  `SnapshotPosLaudo` de cada saída, reusando os renderers de `geracao-laudo`).
+  / `compilar-parecer-at.ts` / `compilar-quesitos-at.ts` — **não** "use server": `compilar*`
+  (busca no banco + monta o `ModeloLaudo` + `SnapshotPosLaudo` de cada saída, reusando os
+  renderers de `geracao-laudo`).
 - `compilar-quesitos-secao.ts` — **não** "use server": `montarSecaoQuesitos`, helper
-  compartilhado pelas seções V (Esclarecimentos) e VIII (Complementação).
+  compartilhado pelas seções V (Esclarecimentos), VIII (Complementação) e a seção de
+  quesitos dos dois documentos AT (`semResposta: true`).
 - `abrir-ciclo-button.tsx` — client, botão do índice.
 - `registro-demanda-form.tsx` — client, etapa Registro da Demanda (botão explícito).
+- `registro-demanda-at.tsx` — client, bloco AT do Registro da Demanda.
+- `at-analise-panel.tsx` — client, análise estruturada do laudo judicial (fluxo AT).
 - `matriz-pontos.tsx` — client, campo de ciclo + matriz de pontos + enfrentamento +
-  `RepercussaoCicloControl` + evidências.
+  `RepercussaoCicloControl` + evidências. Prop `modoAt` pro fluxo AT.
 - `documentos-supervenientes.tsx` — client, upload + metadados dos supervenientes.
 - `retificacao-panel.tsx` — client, itens onde-se-lê/leia-se + Análise da Repercussão.
 - `complementacao-panel.tsx` — client, formulário das seções II–VII da Complementação.
 - `quesitos-ciclo-panel.tsx` — client, quesitos suplementares do ciclo (card por quesito).
-- `encerramento-ciclo.tsx` — client, resumo das 3 saídas + encerrar/reabrir a rodada.
+- `encerramento-ciclo.tsx` — client, resumo das saídas + encerrar/reabrir a rodada.
 - `conclusao-vigente-inicial.tsx` — client, bloco "Conclusão vigente" do laudo final.
-- `gerar-pos-laudo-panel.tsx` — client, geração + protocolar (genérico por saída).
+- `gerar-pos-laudo-panel.tsx` — client, geração + protocolar (genérico por saída judicial).
+- `gerar-saida-at-panel.tsx` — client, geração AT (seletor de modalidade opcional + entrega
+  ao advogado / protocolo do patrono).
 - `rotulos.ts` — rótulos pt-BR das colunas `text` + CHECK do módulo.
 
 O anti-join vive em `src/features/geracao-laudo/compilar.ts` (não neste diretório). O
