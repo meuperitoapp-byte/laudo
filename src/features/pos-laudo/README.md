@@ -6,13 +6,16 @@ Schema: `supabase/migrations/20260905120000_pos_laudo_schema.sql`.
 
 ## Dívida técnica
 
-`src/features/quesitos/quesitos-panel.tsx` salva com **autosave debounced** (~1,2s),
-enquanto o resto do sistema (motor de preenchimento, e agora todo o Pós-Laudo) salva
-por **botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload`). A Dra.
-Fernanda já usa a tela de Quesitos; mudar o comportamento de salvamento dela no meio do
-Pós-Laudo é risco sem ganho. **Padronizar quando o Módulo Pós-Laudo fechar.**
+O módulo fechou (fatias 0-12) — este item passou de "esperar o módulo fechar" pra
+"decidir agora":
 
-## Estado atual — fatias 1 a 11
+`src/features/quesitos/quesitos-panel.tsx` salva com **autosave debounced** (~1,2s),
+enquanto o resto do sistema (motor de preenchimento, e todo o Pós-Laudo) salva por
+**botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload`). Era risco
+sem ganho mudar o comportamento de salvamento dela no meio do módulo — não é mais. Falta
+o Jeferson decidir se padroniza pra explícito agora ou continua adiando.
+
+## Estado atual — fatias 1 a 12 (módulo completo)
 
 O que já existe:
 
@@ -387,7 +390,29 @@ nunca muda sozinho**.
   fechado antes de gravar `processos.situacao_processo`.
 - Renderizado logo após o cabeçalho da tela do ciclo, nos dois fluxos (judicial e AT).
 
-Inerte, esperando a próxima fatia: linha do tempo de versões (fatia 12, opcional).
+### Fatia 12 — linha do tempo de versões
+
+Sem migration — só leitura sobre `laudos_gerados` + `pos_laudo_conclusoes_vigentes`.
+Deixou de ser opcional: motivo do Jeferson — a tela do laudo final filtra por
+`tipo='laudo'` e as saídas do pós-laudo vivem dentro de cada ciclo, então não existe
+lugar único pra ver tudo que já saiu do processo sem abrir ciclo por ciclo.
+
+- `/processos/[id]/pos-laudo/linha-do-tempo` — todas as versões do processo (Laudo V1 +
+  toda saída de pós-laudo, judicial ou AT) em ordem cronológica (`versao` é monotônica
+  por processo, nunca reusada — é a própria ordem de criação). Por linha: tipo/título
+  (`v.titulo || TIPO_DOCUMENTO_ROTULOS[v.tipo]` — prefere o título próprio porque ele já
+  carrega a modalidade exata do parecer AT), data, estado (Gerado / Entregue ao advogado
+  / Protocolado) e o ciclo de origem com link (ou "Laudo original" quando
+  `pos_laudo_ciclo_id` é null).
+- Bloco de topo com a **conclusão vigente atual** + a partir de qual documento ela passou
+  a valer (`conclusaoVigenteAtual` ganhou `origem_laudo_gerado_id` no select); a mesma
+  linha, na lista, ganha o selo "Conclusão vigente atual" — a mesma informação aparece
+  nos dois lugares.
+- `TIPO_DOCUMENTO_ROTULOS` (`rotulos.ts`) — mapa único por `LaudoGeradoTipo`, usado tanto
+  aqui quanto em `gerar-laudo-panel.tsx` (que antes tinha um mapa local incompleto, sem
+  `quesitos_at` — corrigido de passagem).
+- Links de entrada: "Ver linha do tempo" no índice de ciclos, "Ver linha do tempo
+  completa" na tela do laudo final.
 
 ## Arquivos
 
