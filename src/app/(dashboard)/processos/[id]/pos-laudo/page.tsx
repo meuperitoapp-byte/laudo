@@ -87,13 +87,20 @@ export default async function PosLaudoIndexPage({
       >
         ← Voltar para o processo
       </Link>
-      <div>
-        <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Pós-laudo</h1>
-        <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">
-          {titulo} · {FLUXO_ROTULOS[fluxo as PosLaudoFluxo]}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Pós-laudo</h1>
+          <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">
+            {titulo} · {FLUXO_ROTULOS[fluxo as PosLaudoFluxo]}
+          </p>
+        </div>
+        <Link
+          href={`/processos/${processoId}/pos-laudo/linha-do-tempo`}
+          className="text-sm text-petroleo-600 hover:underline dark:text-petroleo-400 whitespace-nowrap"
+        >
+          Ver linha do tempo →
+        </Link>
       </div>
-
       {!ciclos || ciclos.length === 0 ? (
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
           Nenhum ciclo de pós-laudo ainda. Abra um quando o processo receber manifestação, pedido de

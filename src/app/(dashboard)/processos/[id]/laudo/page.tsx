@@ -71,7 +71,17 @@ export default async function LaudoPage({
       >
         ← Voltar para o processo
       </Link>
-      <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Laudo final</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Laudo final</h1>
+        {lista.length > 0 && (
+          <Link
+            href={`/processos/${processoId}/pos-laudo/linha-do-tempo`}
+            className="text-sm text-petroleo-600 hover:underline dark:text-petroleo-400"
+          >
+            Ver linha do tempo completa →
+          </Link>
+        )}
+      </div>
 
       {resultado.status === "erro" && (
         <p className="text-sm rounded-lg border border-vinho-600/30 bg-vinho-100 text-vinho-700 dark:border-vinho-400/30 dark:bg-vinho-950 dark:text-vinho-400 px-4 py-3">
