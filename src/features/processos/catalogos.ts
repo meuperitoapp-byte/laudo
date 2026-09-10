@@ -21,6 +21,9 @@
  * exata. A ordem AQUI é a ordem de exibição no formulário — não usar
  * mesclarSugestoes (ordena alfabético) em cima desta constante.
  */
+/** Situação sugerida (Módulo Pós-Laudo, fatia 11) ao abrir um ciclo de pós-laudo — nunca setada sozinha, sempre com confirmação explícita da perita. */
+export const SITUACAO_PROCESSO_POS_LAUDO = "Manifestação/complementação/esclarecimentos/novos quesitos";
+
 export const SITUACOES_PROCESSO_ORDENADA = [
   "Sem processo",
   "Aceite",
@@ -30,7 +33,7 @@ export const SITUACOES_PROCESSO_ORDENADA = [
   "Novo agendamento",
   "Elaboração de laudo",
   "Laudo protocolado",
-  "Manifestação/complementação/esclarecimentos/novos quesitos",
+  SITUACAO_PROCESSO_POS_LAUDO,
   "Pagamento",
   "Finalizado",
 ] as const;

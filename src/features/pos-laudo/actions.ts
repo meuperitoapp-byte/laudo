@@ -44,6 +44,7 @@ import type {
   PosLaudoRepercussaoPonto,
 } from "@/types/enums";
 import type { ComplementacaoElementosCentrais, SnapshotPosLaudo } from "@/types/json-fields";
+import { SITUACOES_PROCESSO_ORDENADA } from "@/features/processos/catalogos";
 import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
 import { compilarEsclarecimentos } from "@/features/pos-laudo/compilar-esclarecimentos";
 import { compilarRetificacao } from "@/features/pos-laudo/compilar-retificacao";
@@ -2097,5 +2098,40 @@ export async function registrarEntregaAoAdvogado(
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  return { success: true };
+}
+
+// ============================================================================
+// Fatia 11 — ciclo × situação do processo
+// ============================================================================
+
+/**
+ * Atualiza `processos.situacao_processo` a partir de uma sugestão mostrada na
+ * tela do ciclo (`SituacaoProcessoSugestao`) — ao abrir um ciclo, sugere
+ * `SITUACAO_PROCESSO_POS_LAUDO`; ao encerrar, sugere voltar pra alguma
+ * situação do catálogo. **Nunca automático**: só existe pra dar um clique a
+ * mais numa mudança que a perita já decidiu — "o sistema sugere, não muda
+ * sozinho" (decisão confirmada com o Jeferson em 03/09/2026). Vale um valor
+ * qualquer do catálogo (`SITUACOES_PROCESSO_ORDENADA`), validado aqui contra
+ * a lista fechada — mesma regra do formulário de edição do processo.
+ */
+export async function sugerirSituacaoProcesso(
+  processoId: string,
+  cicloId: string,
+  novaSituacao: string,
+): Promise<ActionResult> {
+  if (!(SITUACOES_PROCESSO_ORDENADA as readonly string[]).includes(novaSituacao)) {
+    return { error: "Situação do processo inválida." };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("processos")
+    .update({ situacao_processo: novaSituacao })
+    .eq("id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}`);
+  revalidatePath(`/processos/${processoId}/pos-laudo/${cicloId}`);
+  revalidatePath("/processos");
   return { success: true };
 }

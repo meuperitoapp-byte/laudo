@@ -17,6 +17,7 @@ import { RegistroDemandaAt } from "@/features/pos-laudo/registro-demanda-at";
 import { AtAnalisePanel } from "@/features/pos-laudo/at-analise-panel";
 import { GerarSaidaAtPanel, type VersaoAtPosLaudo } from "@/features/pos-laudo/gerar-saida-at-panel";
 import { EncerramentoCiclo, type ResumoSaida } from "@/features/pos-laudo/encerramento-ciclo";
+import { SituacaoProcessoSugestao } from "@/features/pos-laudo/situacao-processo-sugestao";
 import { compilarEsclarecimentos, type PendenciaGeracaoPosLaudo } from "@/features/pos-laudo/compilar-esclarecimentos";
 import { compilarRetificacao } from "@/features/pos-laudo/compilar-retificacao";
 import { compilarComplementacao } from "@/features/pos-laudo/compilar-complementacao";
@@ -114,7 +115,7 @@ export default async function PosLaudoCicloPage({
     notFound();
   }
 
-  const [{ data: documentos }, { data: pontos }] = await Promise.all([
+  const [{ data: documentos }, { data: pontos }, { data: processoSituacao }] = await Promise.all([
     supabase
       .from("documentos")
       .select("id, nome_arquivo")
@@ -126,6 +127,7 @@ export default async function PosLaudoCicloPage({
       .select("*")
       .eq("ciclo_id", cicloId)
       .order("ordem", { ascending: true }),
+    supabase.from("processos").select("situacao_processo").eq("id", processoId).maybeSingle(),
   ]);
 
   // Documentos supervenientes do ciclo. Metadados em pos_laudo_documentos, o
@@ -283,6 +285,13 @@ export default async function PosLaudoCicloPage({
             {CICLO_STATUS_ROTULOS[ciclo.status as PosLaudoCicloStatus] ?? ciclo.status}
           </p>
         </div>
+
+        <SituacaoProcessoSugestao
+          processoId={processoId}
+          cicloId={ciclo.id}
+          situacaoAtual={processoSituacao?.situacao_processo ?? null}
+          cicloEncerrado={cicloEncerradoAt}
+        />
 
         <RegistroDemandaForm
           processoId={processoId}
@@ -493,10 +502,16 @@ export default async function PosLaudoCicloPage({
           {CICLO_STATUS_ROTULOS[ciclo.status as PosLaudoCicloStatus] ?? ciclo.status}
         </p>
         <p className="text-xs text-nevoa-400 dark:text-nevoa-600">
-          O fluxo vem do tipo de trabalho do processo e não muda. Os quesitos suplementares do ciclo
-          entram na fatia seguinte.
+          O fluxo vem do tipo de trabalho do processo e não muda.
         </p>
       </div>
+
+      <SituacaoProcessoSugestao
+        processoId={processoId}
+        cicloId={ciclo.id}
+        situacaoAtual={processoSituacao?.situacao_processo ?? null}
+        cicloEncerrado={cicloEncerrado}
+      />
 
       <RegistroDemandaForm
         processoId={processoId}
