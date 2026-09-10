@@ -23,6 +23,7 @@ import type {
   PosLaudoClassificacaoGlobal,
   PosLaudoProvidenciaAt,
   PosLaudoAtModalidade,
+  LaudoGeradoTipo,
 } from "@/types/enums";
 
 export const FLUXO_ROTULOS: Record<PosLaudoFluxo, string> = {
@@ -437,4 +438,28 @@ export const AT_ANALISE_EIXO_ROTULOS: Record<AtAnaliseEixo, string> = {
   tem_fato_novo: "Há fato novo?",
   favorece_tese: "Favorece a tese da parte assistida?",
   prejudica_tese: "Prejudica a tese da parte assistida?",
+};
+
+// ---------------------------------------------------------------------------
+// Linha do tempo de versões (fatia 12) — laudos_gerados.tipo
+// ---------------------------------------------------------------------------
+
+/**
+ * Rótulo genérico por `tipo` — usado só como QUEDA quando a linha não tem
+ * `titulo` próprio (hoje só o Laudo V1, cujo `gerarLaudo` nunca grava
+ * `titulo`). Toda saída de pós-laudo grava `titulo` na geração — prefira
+ * `linha.titulo || TIPO_DOCUMENTO_ROTULOS[linha.tipo]` a usar isto sozinho,
+ * porque `titulo` já traz a modalidade exata do parecer AT (ex.: "IMPUGNAÇÃO
+ * TÉCNICA PARCIAL"), que este mapa não distingue.
+ */
+export const TIPO_DOCUMENTO_ROTULOS: Record<LaudoGeradoTipo, string> = {
+  laudo: "Laudo Médico-Pericial",
+  esclarecimentos: "Esclarecimentos ao Laudo Médico-Pericial",
+  retificacao: "Retificação de Erro Material",
+  complementacao: "Complementação do Laudo",
+  parecer_at: "Parecer Técnico (AT)",
+  manifestacao_at: "Manifestação Técnica (AT)",
+  impugnacao_at: "Impugnação Técnica (AT)",
+  parecer_divergente_at: "Parecer Divergente (AT)",
+  quesitos_at: "Quesitos Suplementares (AT)",
 };

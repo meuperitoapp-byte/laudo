@@ -14,6 +14,7 @@ export type ConclusaoVigente = {
   id: string;
   texto: string;
   origem_tipo: PosLaudoConclusaoOrigem;
+  origem_laudo_gerado_id: string | null;
   ciclo_id: string | null;
   vigente_desde: string;
 };
@@ -22,7 +23,8 @@ export type ConclusaoVigente = {
  * A conclusão vigente do processo AGORA: a linha de
  * `pos_laudo_conclusoes_vigentes` com `substituida_em IS NULL` (o índice
  * parcial único garante no máximo uma). Retorna `null` quando ainda não foi
- * semeada.
+ * semeada (ou no fluxo AT, que não tem conclusão vigente própria — resposta
+ * (a) da Dra. Fernanda, fatia 10).
  */
 export async function conclusaoVigenteAtual(
   supabase: SupabaseServer,
@@ -30,7 +32,7 @@ export async function conclusaoVigenteAtual(
 ): Promise<ConclusaoVigente | null> {
   const { data } = await supabase
     .from("pos_laudo_conclusoes_vigentes")
-    .select("id, texto, origem_tipo, ciclo_id, vigente_desde")
+    .select("id, texto, origem_tipo, origem_laudo_gerado_id, ciclo_id, vigente_desde")
     .eq("processo_id", processoId)
     .is("substituida_em", null)
     .maybeSingle();
