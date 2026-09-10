@@ -47,6 +47,16 @@ export interface QuesitoCompilado {
 export interface BlocoQuesitos {
   tipo: "quesitos";
   itens: QuesitoCompilado[];
+  /**
+   * Módulo Pós-Laudo, fluxo AT: os quesitos suplementares/de esclarecimento
+   * são ELABORADOS para o advogado apresentar, não respondidos pela perita —
+   * `resposta` fica sempre null nesse caso, de propósito, e não é ausência a
+   * sinalizar. `true` omite a linha de resposta em vez do fallback "Sem
+   * resposta registrada." (que soaria como pendência). `undefined`/`false` =
+   * comportamento inalterado (laudo principal e Esclarecimentos/Complementação
+   * judiciais).
+   */
+  semResposta?: boolean;
 }
 
 /**

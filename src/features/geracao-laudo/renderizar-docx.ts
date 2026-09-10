@@ -110,7 +110,9 @@ function blocoParaDocx(bloco: BlocoConteudo): Bloco[] {
   // bloco.tipo === "quesitos"
   return bloco.itens.flatMap((q) => {
     const cabecalhoQuesito = q.origem ? `${q.numero}. (${q.origem}) ${q.pergunta}` : `${q.numero}. ${q.pergunta}`;
-    return [paragrafo(cabecalhoQuesito, { negrito: true }), paragrafo(q.resposta?.trim() || "Sem resposta registrada.")];
+    const linhas = [paragrafo(cabecalhoQuesito, { negrito: true })];
+    if (!bloco.semResposta) linhas.push(paragrafo(q.resposta?.trim() || "Sem resposta registrada."));
+    return linhas;
   });
 }
 

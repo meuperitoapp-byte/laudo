@@ -215,6 +215,8 @@ export interface SnapshotPosLaudoPonto {
   classificacao_triagem: string | null
   resposta_tecnica: string | null
   repercussao: string | null
+  /** Só fluxo AT (pos_laudo_pontos.categoria_problema). Ausente/null no judicial. */
+  categoria_problema?: string | null
 }
 
 /** Um quesito do ciclo, congelado. O objetivo estratégico interno (só AT) NUNCA entra no snapshot externo. */

@@ -84,10 +84,11 @@ function blocoParaPdf(bloco: BlocoConteudo): Content[] {
   // bloco.tipo === "quesitos"
   return bloco.itens.flatMap((q): Content[] => {
     const cabecalhoQuesito = q.origem ? `${q.numero}. (${q.origem}) ${q.pergunta}` : `${q.numero}. ${q.pergunta}`;
-    return [
-      { text: cabecalhoQuesito, bold: true, margin: [0, 8, 0, 2] },
-      { text: q.resposta?.trim() || "Sem resposta registrada.", margin: [0, 0, 0, 6] },
-    ];
+    const linhas: Content[] = [{ text: cabecalhoQuesito, bold: true, margin: [0, 8, 0, 2] }];
+    if (!bloco.semResposta) {
+      linhas.push({ text: q.resposta?.trim() || "Sem resposta registrada.", margin: [0, 0, 0, 6] });
+    }
+    return linhas;
   });
 }
 
