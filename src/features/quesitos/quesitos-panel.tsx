@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { atualizarQuesito, criarQuesito, excluirQuesito, moverQuesito } from "./actions";
 import { Botao } from "@/components/ui/button";
@@ -69,17 +69,19 @@ function QuesitoCard({
   const [erro, setErro] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Último conteúdo confirmado como salvo (autosave ou botão). Começa igual ao
-  // que veio do banco; passa a divergir enquanto a perita digita e volta a
-  // bater quando o salvamento conclui.
+  // Último conteúdo confirmado como salvo. Começa igual ao que veio do banco;
+  // passa a divergir enquanto a perita digita e volta a bater quando o
+  // salvamento conclui — mesma gramática do resto do sistema (botão
+  // explícito, "Salvar" enquanto houver alteração pendente, "Salvo" quando
+  // não houver).
   const [salvo, setSalvo] = useState({
     origem: quesito.origem ?? "",
     pergunta: quesito.pergunta,
     resposta: quesito.resposta ?? "",
   });
-  const alterado = origem !== salvo.origem || pergunta !== salvo.pergunta || resposta !== salvo.resposta;
+  const dirty = origem !== salvo.origem || pergunta !== salvo.pergunta || resposta !== salvo.resposta;
 
-  const salvar = useCallback(() => {
+  function salvar() {
     setErro(null);
     startTransition(async () => {
       const alvo = { origem, pergunta, resposta };
@@ -97,24 +99,26 @@ function QuesitoCard({
       setSalvo(alvo);
       router.refresh();
     });
-  }, [origem, pergunta, resposta, quesito.id, processoId, router]);
+  }
 
-  // Salvamento automático: ~1,2s depois de parar de digitar (pedido da Dra.
-  // Fernanda — não perder texto numa queda de energia). O botão continua como
-  // reforço manual. Só dispara com pergunta preenchida, que é o único campo
-  // que o servidor exige.
+  // Avisa antes de fechar/atualizar a aba com alterações não salvas — mesmo
+  // guard do motor de preenchimento e do resto do Pós-Laudo.
   useEffect(() => {
-    if (!alterado || isPending || !pergunta.trim()) return;
-    const t = setTimeout(() => salvar(), 1200);
-    return () => clearTimeout(t);
-  }, [alterado, isPending, pergunta, salvar]);
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
 
   // Sem edições pendentes nesta aba, adota o conteúdo que veio do servidor
   // (ex.: a secretária editou este mesmo quesito noutra aba) — ajuste de
   // estado derivado de prop, feito no render conforme a doc do React
   // ("You Might Not Need an Effect"), não num efeito.
   const [quesitoSincronizado, setQuesitoSincronizado] = useState(quesito);
-  if (quesito !== quesitoSincronizado && !alterado && !isPending) {
+  if (quesito !== quesitoSincronizado && !dirty && !isPending) {
     setQuesitoSincronizado(quesito);
     setOrigem(quesito.origem ?? "");
     setPergunta(quesito.pergunta);
@@ -232,20 +236,13 @@ function QuesitoCard({
       <div className="flex flex-wrap items-center gap-3">
         <Botao
           onClick={salvar}
-          disabled={!alterado || isPending}
+          disabled={!dirty && !isPending}
           carregando={isPending}
           textoCarregando="Salvando…"
         >
-          Salvar agora
+          {dirty ? "Salvar" : "Salvo"}
         </Botao>
-        <span className="text-xs text-nevoa-500 dark:text-nevoa-400">
-          {isPending
-            ? "Salvando…"
-            : alterado
-              ? "Alterações não salvas — salvam sozinhas em instantes"
-              : "Salvo automaticamente"}
-        </span>
-        {!salvo.resposta.trim() && !alterado && !isPending && (
+        {!salvo.resposta.trim() && !dirty && !isPending && (
           <Selo variante="atencao">Sem resposta ainda</Selo>
         )}
         {erro && <span className="text-sm text-vinho-600 dark:text-vinho-400">{erro}</span>}
