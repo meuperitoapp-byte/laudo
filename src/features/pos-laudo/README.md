@@ -12,7 +12,7 @@ por **botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload
 Fernanda já usa a tela de Quesitos; mudar o comportamento de salvamento dela no meio do
 Pós-Laudo é risco sem ganho. **Padronizar quando o Módulo Pós-Laudo fechar.**
 
-## Estado atual — fatias 1 a 10
+## Estado atual — fatias 1 a 11
 
 O que já existe:
 
@@ -372,8 +372,22 @@ externamente, dias depois. Enquanto isso, ela reedita "a mesma página" e reentr
   assinatura uniforme pro painel — `gerarParecerAt`/`gerarQuesitosAt` continuam com a
   assinatura própria de cada um).
 
-Inerte, esperando as próximas fatias: mudança da situação do processo (fatia 11), linha do
-tempo de versões (fatia 12, opcional).
+### Fatia 11 — ciclo × situação do processo
+
+Sem migration — `processos.situacao_processo` já existe (`text` livre, catálogo fechado
+em `src/features/processos/catalogos.ts`). Decisão de 03/09/2026: **o sistema só sugere,
+nunca muda sozinho**.
+
+- `situacao-processo-sugestao.tsx` (client) — um componente pros 2 momentos: ciclo
+  **aberto** sugere marcar `SITUACAO_PROCESSO_POS_LAUDO` (some sozinha quando já está
+  nela); ciclo **encerrado** sugere voltar, com `<select>` da lista fechada
+  (`SITUACOES_PROCESSO_ORDENADA`) pra ela escolher — o sistema não decide pra qual volta.
+  "Agora não" dispensa só na sessão de tela (estado local, não persiste).
+- `sugerirSituacaoProcesso(processoId, cicloId, novaSituacao)` — valida contra o catálogo
+  fechado antes de gravar `processos.situacao_processo`.
+- Renderizado logo após o cabeçalho da tela do ciclo, nos dois fluxos (judicial e AT).
+
+Inerte, esperando a próxima fatia: linha do tempo de versões (fatia 12, opcional).
 
 ## Arquivos
 
@@ -387,7 +401,8 @@ tempo de versões (fatia 12, opcional).
   `gerarRetificacao`, `salvarComplementacao`, `gerarComplementacao`, `encerrarCiclo`,
   `reabrirCiclo`, `adicionarQuesitoCiclo`, `salvarQuesitoCiclo`, `removerQuesitoCiclo`,
   `salvarRegistroDemandaAt`, `salvarAtAnalise`, `gerarParecerAt`, `gerarQuesitosAt`,
-  `gerarParecerAtViaPainel`, `gerarQuesitosAtViaPainel`, `registrarEntregaAoAdvogado`
+  `gerarParecerAtViaPainel`, `gerarQuesitosAtViaPainel`, `registrarEntregaAoAdvogado`,
+  `sugerirSituacaoProcesso`
   (+ helpers `recomputarRascunhoComplementacao`, `gravarSaidaAtInPlace`).
 - `consultas.ts` — **não** "use server": `conclusaoVigenteAtual`,
   `extrairConclusaoDoLaudo` (recebem o client do Supabase; usadas por páginas e por
@@ -418,6 +433,8 @@ tempo de versões (fatia 12, opcional).
 - `gerar-pos-laudo-panel.tsx` — client, geração + protocolar (genérico por saída judicial).
 - `gerar-saida-at-panel.tsx` — client, geração AT (seletor de modalidade opcional + entrega
   ao advogado / protocolo do patrono).
+- `situacao-processo-sugestao.tsx` — client, sugestão (nunca automática) de mudar
+  `processos.situacao_processo` ao abrir/encerrar o ciclo.
 - `rotulos.ts` — rótulos pt-BR das colunas `text` + CHECK do módulo.
 
 O anti-join vive em `src/features/geracao-laudo/compilar.ts` (não neste diretório). O
