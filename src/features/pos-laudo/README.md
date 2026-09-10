@@ -6,14 +6,12 @@ Schema: `supabase/migrations/20260905120000_pos_laudo_schema.sql`.
 
 ## Dívida técnica
 
-O módulo fechou (fatias 0-12) — este item passou de "esperar o módulo fechar" pra
-"decidir agora":
-
-`src/features/quesitos/quesitos-panel.tsx` salva com **autosave debounced** (~1,2s),
-enquanto o resto do sistema (motor de preenchimento, e todo o Pós-Laudo) salva por
-**botão explícito** (`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload`). Era risco
-sem ganho mudar o comportamento de salvamento dela no meio do módulo — não é mais. Falta
-o Jeferson decidir se padroniza pra explícito agora ou continua adiando.
+**Resolvida.** `src/features/quesitos/quesitos-panel.tsx` usava autosave debounced
+(~1,2s) enquanto o resto do sistema salva por botão explícito
+(`dirty ? "Salvar" : "Salvo"` + guard de `beforeunload`) — era a última tela nesse
+padrão antigo, deixado assim de propósito enquanto o Módulo Pós-Laudo estava em obra.
+Padronizado depois que o módulo fechou (pedido do Jeferson): mesmo botão, mesmo guard,
+sem lógica de autosave.
 
 ## Estado atual — fatias 1 a 12 (módulo completo)
 
