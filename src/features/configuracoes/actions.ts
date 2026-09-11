@@ -39,6 +39,35 @@ export async function salvarContato(formData: FormData): Promise<ActionResult> {
 }
 
 /**
+ * Salva os dados bancários da perita pra depósito de honorários periciais
+ * (tabela `configuracoes`, mesma linha única). Dado sensível — mora só
+ * aqui, atrás do login, nunca como constante no código. Usados pela seção
+ * de depósito do Fluxo Principal do Perito Judicial só com confirmação
+ * explícita na hora de gerar cada documento (nunca automaticamente).
+ */
+export async function salvarDadosBancarios(formData: FormData): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const dados: ConfiguracoesInsert = {
+    id: true,
+    dados_bancarios_titular: textoOuNull(formData.get("dados_bancarios_titular")),
+    dados_bancarios_cpf_cnpj: textoOuNull(formData.get("dados_bancarios_cpf_cnpj")),
+    dados_bancarios_banco: textoOuNull(formData.get("dados_bancarios_banco")),
+    dados_bancarios_codigo_banco: textoOuNull(formData.get("dados_bancarios_codigo_banco")),
+    dados_bancarios_agencia: textoOuNull(formData.get("dados_bancarios_agencia")),
+    dados_bancarios_conta: textoOuNull(formData.get("dados_bancarios_conta")),
+    dados_bancarios_tipo_conta: textoOuNull(formData.get("dados_bancarios_tipo_conta")),
+    dados_bancarios_chave_pix: textoOuNull(formData.get("dados_bancarios_chave_pix")),
+  };
+
+  const { error } = await supabase.from("configuracoes").upsert(dados, { onConflict: "id" });
+  if (error) return { error: error.message };
+
+  revalidatePath("/configuracoes");
+  return { success: true };
+}
+
+/**
  * Upload de um asset global da conta: assinatura da perita ou logomarca
  * (documentos.tipo, processo_id = null). Sobe pro bucket compartilhado sob o
  * prefixo `_global/` (ativos-globais.ts busca por tipo + processo_id null,

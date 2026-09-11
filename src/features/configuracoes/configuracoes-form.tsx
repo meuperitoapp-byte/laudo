@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { salvarAtivoGlobal, salvarContato } from "./actions";
+import { salvarAtivoGlobal, salvarContato, salvarDadosBancarios } from "./actions";
 import { Botao } from "@/components/ui/button";
 import type { ConfiguracoesRow } from "@/types/database";
 
@@ -154,6 +154,117 @@ function FormContato({ config }: { config: ConfiguracoesRow | null }) {
   );
 }
 
+function FormDadosBancarios({ config }: { config: ConfiguracoesRow | null }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function onSubmit(formData: FormData) {
+    setMsg(null);
+    startTransition(async () => {
+      const r = await salvarDadosBancarios(formData);
+      if ("error" in r) {
+        setMsg({ tipo: "erro", texto: r.error });
+        return;
+      }
+      setMsg({ tipo: "ok", texto: "Dados bancários salvos." });
+      router.refresh();
+    });
+  }
+
+  return (
+    <Cartao titulo="Dados bancários para depósito de honorários">
+      <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
+        Usados só quando você mesma confirmar, na hora de gerar cada documento de depósito, que
+        eles devem entrar naquela peça — nunca automaticamente. Quando o processo exigir depósito
+        exclusivamente em conta judicial, esses dados nunca aparecem no documento, mesmo que
+        estejam preenchidos aqui.
+      </p>
+      <form action={onSubmit} className="grid grid-cols-2 gap-4">
+        <div className="col-span-2">
+          <label htmlFor="dados_bancarios_titular" className={labelClass}>Titular</label>
+          <input
+            id="dados_bancarios_titular"
+            name="dados_bancarios_titular"
+            defaultValue={config?.dados_bancarios_titular ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="dados_bancarios_cpf_cnpj" className={labelClass}>CPF/CNPJ</label>
+          <input
+            id="dados_bancarios_cpf_cnpj"
+            name="dados_bancarios_cpf_cnpj"
+            defaultValue={config?.dados_bancarios_cpf_cnpj ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="dados_bancarios_banco" className={labelClass}>Banco</label>
+          <input
+            id="dados_bancarios_banco"
+            name="dados_bancarios_banco"
+            defaultValue={config?.dados_bancarios_banco ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="dados_bancarios_codigo_banco" className={labelClass}>Código do banco</label>
+          <input
+            id="dados_bancarios_codigo_banco"
+            name="dados_bancarios_codigo_banco"
+            defaultValue={config?.dados_bancarios_codigo_banco ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="dados_bancarios_agencia" className={labelClass}>Agência</label>
+          <input
+            id="dados_bancarios_agencia"
+            name="dados_bancarios_agencia"
+            defaultValue={config?.dados_bancarios_agencia ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="dados_bancarios_conta" className={labelClass}>Conta</label>
+          <input
+            id="dados_bancarios_conta"
+            name="dados_bancarios_conta"
+            defaultValue={config?.dados_bancarios_conta ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="dados_bancarios_tipo_conta" className={labelClass}>Tipo de conta</label>
+          <input
+            id="dados_bancarios_tipo_conta"
+            name="dados_bancarios_tipo_conta"
+            placeholder="Corrente, poupança..."
+            defaultValue={config?.dados_bancarios_tipo_conta ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="dados_bancarios_chave_pix" className={labelClass}>Chave PIX</label>
+          <input
+            id="dados_bancarios_chave_pix"
+            name="dados_bancarios_chave_pix"
+            defaultValue={config?.dados_bancarios_chave_pix ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div className="col-span-2 flex items-center gap-3">
+          <Botao type="submit" carregando={isPending} textoCarregando="Salvando…">
+            Salvar dados bancários
+          </Botao>
+          <Mensagem m={msg} />
+        </div>
+      </form>
+    </Cartao>
+  );
+}
+
 export function ConfiguracoesForm({
   config,
   urlAssinatura,
@@ -178,6 +289,7 @@ export function ConfiguracoesForm({
         urlAtual={urlLogomarca}
       />
       <FormContato config={config} />
+      <FormDadosBancarios config={config} />
     </div>
   );
 }
