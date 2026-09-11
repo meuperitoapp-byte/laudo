@@ -4,7 +4,13 @@
  * vocabulário canônico é o dos CHECKs / src/types/enums.ts.
  */
 
-import type { SituacaoDeposito, ResponsavelAdiantamentoDeposito, FormaDisponibilizacaoDeposito } from "@/types/enums";
+import type {
+  SituacaoDeposito,
+  ResponsavelAdiantamentoDeposito,
+  FormaDisponibilizacaoDeposito,
+  AgendamentoNecessidadeAcompanhante,
+  AgendamentoDepositoPrevioExigido,
+} from "@/types/enums";
 
 /** processos.deposito_situacao — vocabulário literal do Modelo de Dados para Depósito. */
 export const SITUACAO_DEPOSITO_ORDENADA: readonly SituacaoDeposito[] = [
@@ -60,4 +66,34 @@ export const FORMA_DISPONIBILIZACAO_ROTULOS: Record<FormaDisponibilizacaoDeposit
   conta_judicial: "Depósito em conta judicial vinculada ao processo",
   conforme_juizo: "Conforme procedimento específico do Juízo/Tribunal",
   outro: "Outro",
+};
+
+/** processos.agendamento_necessidade_acompanhante */
+export const AGENDAMENTO_NECESSIDADE_ACOMPANHANTE_ORDENADA: readonly AgendamentoNecessidadeAcompanhante[] = [
+  "nao",
+  "sim",
+  "conforme_condicao_clinica",
+];
+
+export const AGENDAMENTO_NECESSIDADE_ACOMPANHANTE_ROTULOS: Record<AgendamentoNecessidadeAcompanhante, string> = {
+  nao: "Não",
+  sim: "Sim",
+  conforme_condicao_clinica: "Conforme condição clínica / determinação",
+};
+
+/**
+ * processos.agendamento_deposito_previo_exigido — só os 3 valores respondidos;
+ * `null` (ainda não respondido) é tratado à parte na tela, nunca com um rótulo
+ * "silencioso" que pareça uma resposta (ver comentário da coluna).
+ */
+export const AGENDAMENTO_DEPOSITO_PREVIO_EXIGIDO_ORDENADA: readonly AgendamentoDepositoPrevioExigido[] = [
+  "sim",
+  "nao",
+  "nao_aplicavel",
+];
+
+export const AGENDAMENTO_DEPOSITO_PREVIO_EXIGIDO_ROTULOS: Record<AgendamentoDepositoPrevioExigido, string> = {
+  sim: "Sim, este processo exige depósito prévio à perícia",
+  nao: "Não exige",
+  nao_aplicavel: "Não aplicável",
 };

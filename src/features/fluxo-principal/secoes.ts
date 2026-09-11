@@ -1,7 +1,7 @@
 /**
- * Funções montadoras de seção do Fluxo Principal do Perito Judicial — fatia
- * 1 (docs/plano-modulo-fluxo-principal.md §2-3). Cada módulo (Aceite,
- * Depósito, e futuramente Honorários/Agendamento) vira UMA função pura que
+ * Funções montadoras de seção do Fluxo Principal do Perito Judicial — fatias
+ * 1-2 (docs/plano-modulo-fluxo-principal.md §2-3). Cada módulo (Aceite,
+ * Depósito, Agendamento, e futuramente Honorários) vira UMA função pura que
  * devolve `SecaoCompilada`, reaproveitada tanto por um documento standalone
  * quanto pela Manifestação Consolidada — mesmo padrão de
  * `pos-laudo/compilar-quesitos-secao.ts` (`montarSecaoQuesitos`).
@@ -9,14 +9,21 @@
  * Não é "use server": helper puro, sem acesso a banco — recebe o `processo`
  * já carregado por quem chama.
  *
- * Aceite e Depósito são os 2 módulos com schema pronto (migration
- * 20260911120000). Honorários e Agendamento ainda não têm schema — entram
- * quando esses campos existirem (ver plano §5, fatias seguintes).
+ * Aceite, Depósito e Agendamento são os 3 módulos com schema pronto
+ * (migrations 20260911120000 e 20260911130000). Honorários tem schema
+ * (20260911130000) mas ainda não tem `montarSecaoHonorarios` — de propósito:
+ * o modelo confirma que Honorários não tem petição avulsa, só existe
+ * embutido na Manifestação Consolidada (ver plano §2), então entra só quando
+ * a Consolidada for construída.
  */
 
 import type { BlocoConteudo, SecaoCompilada } from "@/features/geracao-laudo/modelo";
 import type { ConfiguracoesRow, ProcessosRow } from "@/types/database";
-import { RESPONSAVEL_ADIANTAMENTO_ROTULOS, SITUACAO_DEPOSITO_ROTULOS } from "./rotulos";
+import {
+  RESPONSAVEL_ADIANTAMENTO_ROTULOS,
+  SITUACAO_DEPOSITO_ROTULOS,
+  AGENDAMENTO_NECESSIDADE_ACOMPANHANTE_ROTULOS,
+} from "./rotulos";
 
 function paragrafo(texto: string): BlocoConteudo {
   return { tipo: "paragrafo", texto };
@@ -150,6 +157,87 @@ export function montarSecaoDeposito(
     secaoId: opts.secaoId,
     codigo: "fluxo_principal_deposito",
     titulo: "INFORMAÇÃO DE DADOS PARA DEPÓSITO DOS HONORÁRIOS",
+    ordem: opts.ordem,
+    blocos,
+  };
+}
+
+/** "HH:MM:SS" ou "HH:MM" do Postgres -> "HH:MM". */
+function formatarHorario(horario: string | null): string | null {
+  const m = horario?.match(/^(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : null;
+}
+
+/**
+ * Módulo COMUNICAÇÃO DE AGENDAMENTO DA PERÍCIA. A trava (alerta reversível de
+ * depósito prévio — `verificarAlertaAgendamento`, em regras.ts) é checada por
+ * quem CHAMA esta função — esta função monta a peça já assumindo que a
+ * geração pode prosseguir (com ou sem confirmação do alerta).
+ *
+ * "Orientações ao periciado" (seção IV do modelo) é uma lista fixa de
+ * documentos — igual às declarações fixas de `montarSecaoAceite`, não um
+ * dado do processo — porque o modelo não a trata como configurável por
+ * caso.
+ */
+export function montarSecaoAgendamento(
+  processo: Pick<
+    ProcessosRow,
+    | "agendamento_data"
+    | "agendamento_horario"
+    | "agendamento_modalidade"
+    | "agendamento_local"
+    | "agendamento_endereco"
+    | "agendamento_complemento"
+    | "agendamento_referencia_acesso"
+    | "agendamento_necessidade_acompanhante"
+    | "agendamento_orientacoes_especificas"
+  >,
+  opts: { secaoId: string; ordem: number },
+): SecaoCompilada {
+  const blocos: BlocoConteudo[] = [];
+
+  const linhas: [string, string][] = [
+    ["Data", processo.agendamento_data ? formatarDataPura(processo.agendamento_data) : "—"],
+    ["Horário", formatarHorario(processo.agendamento_horario) ?? "—"],
+    ["Modalidade", processo.agendamento_modalidade ?? "—"],
+    ["Local", processo.agendamento_local ?? "—"],
+    ["Endereço completo", processo.agendamento_endereco ?? "—"],
+    ["Complemento / sala", processo.agendamento_complemento ?? "—"],
+    ["Referência / orientações de acesso", processo.agendamento_referencia_acesso ?? "—"],
+  ];
+  blocos.push({ tipo: "tabela", colunas: ["Campo", "Informação"], linhas });
+
+  blocos.push(
+    paragrafo(
+      "Estando presentes as condições necessárias à realização do ato pericial, fica a perícia designada para a data, horário e local acima informados.",
+    ),
+  );
+  blocos.push(
+    paragrafo(
+      "Solicita-se a intimação das partes para ciência do ato pericial, bem como de seus assistentes técnicos, quando regularmente indicados nos autos, observadas as determinações do Juízo.",
+    ),
+  );
+
+  blocos.push(
+    paragrafo(
+      "O(a) periciado(a) deverá comparecer ao ato pericial munido(a) de documento oficial de identificação e, quando existentes e pertinentes ao objeto da perícia, dos seguintes documentos: exames de imagem e respectivos laudos, relatórios/atestados médicos, receitas e relação de medicamentos em uso, prontuários/documentos médicos e documentos trabalhistas/previdenciários pertinentes, quando ainda não disponíveis nos autos.",
+    ),
+  );
+  if (processo.agendamento_necessidade_acompanhante) {
+    blocos.push(
+      paragrafo(
+        `Necessidade de acompanhante: ${AGENDAMENTO_NECESSIDADE_ACOMPANHANTE_ROTULOS[processo.agendamento_necessidade_acompanhante]}.`,
+      ),
+    );
+  }
+  if (processo.agendamento_orientacoes_especificas?.trim()) {
+    blocos.push(paragrafo(`Orientações específicas: ${processo.agendamento_orientacoes_especificas.trim()}`));
+  }
+
+  return {
+    secaoId: opts.secaoId,
+    codigo: "fluxo_principal_agendamento",
+    titulo: "COMUNICAÇÃO DE AGENDAMENTO DA PERÍCIA",
     ordem: opts.ordem,
     blocos,
   };
