@@ -52,7 +52,7 @@ export async function updateSession(request: NextRequest) {
 
   if (user && isLoginRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = "/processos";
+    url.pathname = "/hoje"; // porta de entrada do sistema — Central de Prazos e Tarefas
     return NextResponse.redirect(url);
   }
 

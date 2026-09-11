@@ -10,7 +10,8 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/processos";
+  // /hoje é a porta de entrada do sistema (Central de Prazos e Tarefas).
+  const next = searchParams.get("next") ?? "/hoje";
 
   if (code) {
     const supabase = await createClient();

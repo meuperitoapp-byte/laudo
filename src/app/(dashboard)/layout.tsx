@@ -23,10 +23,22 @@ export default async function DashboardLayout({
       <header className="flex items-center justify-between border-b border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900 px-6 py-3.5">
         <div className="flex items-center gap-7">
           <Link
-            href="/processos"
+            href="/hoje"
             className="font-title text-[15px] font-semibold text-petroleo-600 dark:text-petroleo-400"
           >
             Sistema de Laudos Periciais
+          </Link>
+          <Link
+            href="/hoje"
+            className="text-sm text-nevoa-600 hover:text-nevoa-900 dark:text-nevoa-400 dark:hover:text-nevoa-100"
+          >
+            Hoje
+          </Link>
+          <Link
+            href="/processos"
+            className="text-sm text-nevoa-600 hover:text-nevoa-900 dark:text-nevoa-400 dark:hover:text-nevoa-100"
+          >
+            Processos
           </Link>
           <Link
             href="/respostas-reutilizaveis"
