@@ -48,6 +48,9 @@ import type {
   PosLaudoConclusaoEscopo,
   LaudoGeradoTipo,
   PosLaudoAtModalidade,
+  SituacaoDeposito,
+  ResponsavelAdiantamentoDeposito,
+  FormaDisponibilizacaoDeposito,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -186,6 +189,20 @@ export type ProcessosRow = {
   url_processo: string | null
   /** Ação / Objeto da Perícia ou Assistência (texto livre + catálogo). Separado de tipo_laudo_id. */
   acao_objeto: string | null
+  // --- Fluxo Principal do Perito Judicial (migration 20260911120000) ---
+  nomeacao_id: string | null
+  nomeacao_data: string | null
+  nomeacao_ciencia_data: string | null
+  nomeacao_prazo_manifestacao: string | null
+  aceite_impedimento_suspeicao: boolean | null
+  aceite_competencia_tecnica: boolean | null
+  aceite_necessita_especialista: boolean | null
+  deposito_situacao: SituacaoDeposito | null
+  deposito_valor: number | null
+  deposito_data: string | null
+  deposito_responsavel_adiantamento: ResponsavelAdiantamentoDeposito | null
+  deposito_comprovante_documento_id: string | null
+  deposito_forma_disponibilizacao: FormaDisponibilizacaoDeposito | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -218,6 +235,19 @@ export type ProcessosInsert = ComDefaults<
   | 'aceitou_nomeacao'
   | 'url_processo'
   | 'acao_objeto'
+  | 'nomeacao_id'
+  | 'nomeacao_data'
+  | 'nomeacao_ciencia_data'
+  | 'nomeacao_prazo_manifestacao'
+  | 'aceite_impedimento_suspeicao'
+  | 'aceite_competencia_tecnica'
+  | 'aceite_necessita_especialista'
+  | 'deposito_situacao'
+  | 'deposito_valor'
+  | 'deposito_data'
+  | 'deposito_responsavel_adiantamento'
+  | 'deposito_comprovante_documento_id'
+  | 'deposito_forma_disponibilizacao'
   | 'created_by'
   | 'created_at'
   | 'updated_at'
@@ -298,11 +328,35 @@ export type ConfiguracoesRow = {
   rodape_judicial_texto: string | null
   /** Linha exata do rodapé dos documentos de Assistência Técnica. */
   rodape_at_texto: string | null
+  // --- Dados bancários pra depósito de honorários periciais (migration 20260911120000) ---
+  // Dado sensível, de propósito FORA do código-fonte — mora só aqui, atrás do
+  // login. NUNCA entram num documento gerado sem confirmação explícita na
+  // hora de gerar; nunca entram quando o processo exigir depósito em conta
+  // judicial (ver processos.deposito_forma_disponibilizacao).
+  dados_bancarios_titular: string | null
+  dados_bancarios_cpf_cnpj: string | null
+  dados_bancarios_banco: string | null
+  dados_bancarios_codigo_banco: string | null
+  dados_bancarios_agencia: string | null
+  dados_bancarios_conta: string | null
+  dados_bancarios_tipo_conta: string | null
+  dados_bancarios_chave_pix: string | null
   updated_at: string
 }
 export type ConfiguracoesInsert = ComDefaults<
   ConfiguracoesRow,
-  'id' | 'rodape_judicial_texto' | 'rodape_at_texto' | 'updated_at'
+  | 'id'
+  | 'rodape_judicial_texto'
+  | 'rodape_at_texto'
+  | 'dados_bancarios_titular'
+  | 'dados_bancarios_cpf_cnpj'
+  | 'dados_bancarios_banco'
+  | 'dados_bancarios_codigo_banco'
+  | 'dados_bancarios_agencia'
+  | 'dados_bancarios_conta'
+  | 'dados_bancarios_tipo_conta'
+  | 'dados_bancarios_chave_pix'
+  | 'updated_at'
 >
 export type ConfiguracoesUpdate = Partial<ConfiguracoesRow>
 

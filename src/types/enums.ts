@@ -27,6 +27,36 @@ export type JusticaGratuita = 'sim' | 'nao'
 /** processos.aceitou_nomeacao (S/N/D — 'destituida' = destituída do cargo) */
 export type AceitouNomeacao = 'sim' | 'nao' | 'destituida'
 
+// ----------------------------------------------------------------------------
+// Fluxo Principal do Perito Judicial (migration 20260911120000) — nomeação,
+// aceite e depósito dos honorários. Ver docs/plano-modulo-fluxo-principal.md.
+// ----------------------------------------------------------------------------
+
+/**
+ * processos.deposito_situacao — vocabulário literal do Modelo de Informação
+ * de Dados para Depósito dos Honorários. Alimenta o alerta de agendamento
+ * (plano §4.2) — não é ela quem marca "depende de depósito prévio", é o
+ * próprio estado do depósito que decide se o alerta aparece.
+ */
+export type SituacaoDeposito =
+  | 'nao_realizado'
+  | 'parcial'
+  | 'integral'
+  | 'dispensado'
+  | 'justica_gratuita'
+  | 'aguardando_comprovacao'
+
+/** processos.deposito_responsavel_adiantamento — "Responsável pelo adiantamento" do modelo. */
+export type ResponsavelAdiantamentoDeposito = 'autor' | 'reu' | 'ambos' | 'outro'
+
+/**
+ * processos.deposito_forma_disponibilizacao — "Forma de disponibilização" do
+ * modelo. Trava de exposição dos dados bancários (configuracoes): só
+ * 'dados_bancarios' permite incluí-los num documento gerado; 'conta_judicial'
+ * os exclui sempre, em qualquer hipótese.
+ */
+export type FormaDisponibilizacaoDeposito = 'dados_bancarios' | 'conta_judicial' | 'conforme_juizo' | 'outro'
+
 /** documentos.tipo */
 export type TipoDocumento =
   | 'documento_processual'
