@@ -201,6 +201,13 @@ sozinho a partir do dado, sem pedir mais um campo pra ela preencher). Prefiro (b
 cadastro manual, no mesmo espírito da Central de Prazos — mas é uma escolha sua, não da
 Dra. Fernanda.
 
+**Resposta da Dra. Fernanda (repassada pelo Jeferson, 11/09/2026):** depósito prévio varia
+processo a processo — não é regra fixa de todo processo judicial, depende da decisão do
+juízo em cada caso. Isso confirma a opção (b) acima: o alerta nasce sozinho a partir de já
+existir um registro de depósito pendente/parcial pra aquele processo, sem exigir mais um
+campo manual pra ela marcar "este processo exige depósito prévio". Fatia 3 pode seguir com
+essa base quando entrar na fila.
+
 ---
 
 ## 5. Fatiamento testável
@@ -216,7 +223,7 @@ parte com material pronto e de baixo risco (ver alerta no topo). O resto fica de
 | 0 | Schema: colunas de impedimento/competência (aceite), colunas estruturadas de depósito, ajuste pontual no catálogo de `situacao_processo`. SQL pra sua revisão antes de aplicar, mesmo rito de sempre. | Sua confirmação do ponto aberto do §4.2 (opção a ou b) |
 | 1 | `compilar-aceite-pericial.ts` + geração + trava do §4.1 — documento standalone, testável sozinho | Não |
 | 2 | Estrutura de depósito (campos + `montarSecaoDeposito`) + `compilar-dados-deposito.ts` standalone | Não |
-| 3 | `compilar-agendamento-pericia.ts` standalone + trava do §4.2 | Sua confirmação do §4.2 |
+| 3 | `compilar-agendamento-pericia.ts` standalone + trava do §4.2 | Não mais — respondida em 11/09/2026 (ver §4.2 acima) |
 | 4 | `montarSecaoHonorarios` + Manifestação Consolidada (monta os 4 módulos, reaproveitando as seções das fatias 1-3) | Não |
 | 5 | Não Comparecimento do Periciando — documento + o pequeno subfluxo de status (não marca a perícia como realizada, mantém a data original na linha do tempo) | Não |
 | 6 | *(fora deste fatiamento, decisão maior)* O resto da régua de 30 passos, os papéis Assessor/Financeiro, a Central Judicial com 4 painéis, o botão de encaminhamento entre setores | **Sim — é decisão sua, não da Dra. Fernanda**, sobre como o escritório está de fato organizado hoje (ver alerta no topo) |
@@ -225,6 +232,135 @@ parte com material pronto e de baixo risco (ver alerta no topo). O resto fica de
 Nenhuma das fatias 0-5 depende de resposta da Dra. Fernanda no sentido em que Viabilidade
 dependia (hipótese clínica) — os documentos e as travas já vêm fechados no material. As
 duas confirmações que preciso são suas, de escopo/comportamento, não dela.
+
+---
+
+## Resposta da Dra. Fernanda sobre quem trabalha no sistema, e o que isso muda (11/09/2026)
+
+**Resposta dela (repassada pelo Jeferson):** hoje já são 3 pessoas, não 2 — Dra. Fernanda,
+secretária e **financeiro**. Em breve entram mais: uma **enfermeira** (coleta de dados e
+atualização de advogados), um **setor comercial** (acompanha os serviços mais pedidos e os
+advogados que mais indicam) e **outros médicos fazendo perícias por ela**.
+
+Isso não é mais uma pergunta em aberto — é um fato sobre o presente do escritório dela, e o
+Jeferson pediu uma avaliação em texto (sem código, sem migration) sobre 4 pontos. Segue.
+
+### a) O que isso derruba da premissa "2 perfis, sem separação de dado" — e o que muda no CLAUDE.md
+
+A premissa nunca foi tecnicamente "2 perfis" no sentido de permissão — é "2 perfis, ambos
+com acesso total a tudo" (`authenticated_full_access` em toda tabela, ver o ponto de dados
+bancários abaixo, que já era um sintoma disso). Essa resposta derruba a parte factual da
+frase do `CLAUDE.md` ("apenas 2 perfis de usuário... sem outros peritos ou assistentes
+técnicos usando o sistema") — ela já está desatualizada hoje: o financeiro já é uma terceira
+pessoa operando o sistema, independente de ter login próprio ou não.
+
+O que muda de fato na engenharia não é o número de perfis em si — é que a suposição
+"qualquer pessoa autenticada pode ver e mudar qualquer linha de qualquer tabela" deixa de
+ser segura. Com enfermeira, comercial e outros médicos entrando, existem pelo menos 3 tipos
+de dado que fazem sentido restringir por papel: dado bancário (já registrado como ponto em
+aberto abaixo), dado clínico completo do laudo (a enfermeira provavelmente não precisa ver
+o laudo inteiro pra só coletar dado e atualizar advogado) e a carteira de clientes/advogados
+que o comercial acompanha (que é dado comercial, não pericial).
+
+**O que eu mudaria no CLAUDE.md, quando você decidir seguir**: trocar a frase fixa "apenas 2
+perfis... sem outros peritos ou assistentes" por uma descrição do que existe de fato hoje
+(perita, secretária, financeiro, e os papéis a caminho) **mais** uma frase nova que hoje não
+existe em lugar nenhum do documento: que tipo de dado cada papel deveria ou não enxergar.
+Hoje o CLAUDE.md não tem essa frase porque nunca precisou — com 2 perfis "espelhados" (perita
+e secretária fazendo essencialmente o mesmo trabalho), a pergunta "quem vê o quê" nunca
+surgiu. Ela surge agora. **Não mexi no arquivo ainda** — é uma decisão sua, e a leitura certa
+do item (c) abaixo muda a forma como essa frase deveria ser escrita.
+
+### b) Caminho de menor risco pra sair de "2 perfis" pra papéis com permissão
+
+Dá pra fazer **incrementalmente** — não precisa de uma virada de RLS que toca tudo de uma
+vez, e eu não recomendaria essa virada mesmo se desse: o sistema está em produção, ela usa
+todo dia, e uma migração de política de acesso que erra a mão trava o trabalho dela na hora
+(ela fica de fora de uma tela que devia poder ver), o que é pior que o risco atual (acesso
+demais, mas nada quebra).
+
+O caminho que eu seguiria, em ordem:
+
+1. **Passo aditivo, zero risco**: criar uma tabela pequena que só registra "quem é quem" —
+   qual `auth.users.id` corresponde a qual papel (perita/secretária/financeiro/enfermeira/
+   comercial/médico associado). Isso não muda nenhuma policy existente, não restringe nada,
+   não pode quebrar nada que já funciona — é só passar a saber, dentro do banco, o que hoje
+   só existe na cabeça do Jeferson e da Dra. Fernanda.
+2. **Escolher UMA tabela de cada vez pra sair do `authenticated_full_access`**, começando
+   pela de maior sensibilidade e menor uso — os dados bancários de `configuracoes` (já
+   registrados como ponto em aberto logo abaixo) são o candidato natural pra primeira
+   restrição real: poucas pessoas leem aquilo, e já existe um pedido explícito da Dra.
+   Fernanda pra tratar esse dado com mais cuidado (a regra de nunca expor sem confirmação
+   explícita, e nunca quando o juízo exige conta judicial).
+3. **Cada tabela restringida é uma mudança isolada e reversível** — testa, confirma com
+   quem usa aquele dado no dia a dia, só then segue pra próxima. Nunca uma migration única
+   que troca a policy de todas as tabelas de uma vez.
+4. **O resto das tabelas (a maioria) continua em `authenticated_full_access` por tempo
+   indefinido** — não há necessidade de restringir catálogo de vara/comarca, rodapé de
+   documento, etc. só porque agora existem mais papéis. Restringe-se o que faz sentido
+   restringir, não tudo por princípio.
+
+Resposta direta à pergunta dela: **dá, sim, pra fazer aos poucos** — o "aos poucos" é
+inclusive a opção mais segura, não um meio-termo. A virada de uma vez só seria mais
+arriscada, não menos.
+
+### c) O que significa "outros médicos fazendo perícias para mim" — minha leitura e por quê
+
+**Minha leitura: são usuários do mesmo escritório dela, com casos atribuídos — não é o
+multi-tenant que estava adiado.** Três motivos pra essa leitura, na ordem que mais pesa:
+
+1. **A própria frase é subordinada a ela** — "fazendo perícias **para mim**", não "outros
+   médicos usando o sistema também" ou "outros médicos com o próprio consultório no
+   sistema". A construção descreve médicos trabalhando dentro do arranjo dela, não pares
+   independentes com negócio próprio.
+2. **Ela aparece na mesma frase que enfermeira e comercial** — as duas claramente pessoal
+   dela, expandindo a operação do escritório, não clientes de um produto. Ler "outros
+   médicos" como um salto repentino pra multi-tenant no meio da mesma resposta seria uma
+   mudança de escala que nada no resto da resposta sugere.
+3. **O comercial "acompanha os advogados que mais indicam" no singular, dela** — uma base
+   de clientes/advogados compartilhada é incompatível com multi-tenant de verdade (onde
+   cada médico teria sua própria carteira, separada, sem visibilidade cruzada). O jeito
+   como a resposta descreve o comercial só faz sentido se todo mundo — incluindo os outros
+   médicos — está operando dentro da mesma base de casos e clientes dela.
+
+Ponto técnico que reforça essa leitura, não fez parte da resposta dela mas é relevante: em
+perícia judicial, quem assina o laudo é sempre quem foi nomeada pelo juízo — então "outros
+médicos fazendo perícias por ela" muito provavelmente significa que ela distribui/coordena
+nomeações que caem sobre outros peritos, cada um assinando seu próprio laudo, mas todos
+operando dentro da mesma estrutura/sistema dela. Isso é exatamente o modelo "múltiplos
+usuários, um escritório só, caso atribuído a um usuário específico" — não duas empresas
+usando o mesmo software sem se ver.
+
+**Ressalva**: o único detalhe que inverteria essa leitura seria se esses médicos trouxessem
+clientes/casos totalmente próprios, com relação de contrato e cobrança independente da dela
+— aí sim seria multi-tenant de verdade (uma espécie de plataforma pra peritos independentes,
+não uma expansão do escritório dela). Nada na resposta aponta nisso, mas vale uma confirmação
+de uma linha antes de qualquer coisa que dependa 100% dessa leitura.
+
+### d) O que dá pra construir agora sem errar em nenhum dos dois cenários
+
+Só o que é **aditivo e não assume qual das duas leituras vale**:
+
+- **A tabela de "quem é quem" do item (b), passo 1** — mapear `auth.users.id` → papel/nome.
+  Correta nos dois cenários: mesmo multi-tenant precisaria saber quem é cada usuário; a
+  diferença entre os dois cenários entra depois, em COMO essa tabela é usada pra restringir
+  acesso, não em ela existir.
+- **Um campo "perito responsável" em `processos`** (referência a essa tabela de usuários,
+  opcional/nulo), pra registrar qual médico está de fato conduzindo aquele caso quando não
+  for a Dra. Fernanda. Certo nos dois cenários: no modelo de atribuição simples, é o próprio
+  mecanismo de atribuição; no modelo multi-tenant, viria a calhar do mesmo jeito, só que com
+  mais uma camada de isolamento por cima (não substitui, some ao lado).
+- **A primeira restrição real de RLS nos dados bancários** (item b, passo 2) — já está
+  registrada como ponto em aberto abaixo, é urgente independente da resposta de (c), e serve
+  de piloto pra validar o padrão "tabela de papéis + policy restrita" antes de aplicar em
+  qualquer outro lugar.
+
+**O que eu NÃO construiria ainda**: qualquer policy de RLS que assuma uma resposta de (c) —
+por exemplo, "médico só vê processos onde ele é o responsável" resolve certo o cenário de
+atribuição simples, mas seria a regra errada se o cenário for multi-tenant de verdade (ali o
+corte é por conta/tenant inteira, não por uma coluna de responsável dentro da mesma tabela
+compartilhada). Essa é a única peça que fica esperando a confirmação de uma linha sobre o
+detalhe da ressalva acima.
 
 ---
 

@@ -37,6 +37,22 @@ passam a ter data estruturada; a Central não precisa ser refeita quando isso ac
 visualmente com o que está vencendo — a ordenação por nível de urgência resolve isso
 estruturalmente (ver §6.1), não é um ajuste visual à parte.
 
+**Respostas da Dra. Fernanda (repassadas pelo Jeferson, 11/09/2026) — as 4 perguntas
+pendentes das fatias 2 e 3:**
+1. **Vocabulário de status por item não é fixo** — ela quer poder editar as opções, não uma
+   lista travada em código (mesmo espírito do catálogo de `situacao_processo`, editável).
+2. **"Evento" com hora marcada entra já**, não fica pra depois — a fatia 2 não precisa se
+   limitar a "tarefa" (granularidade de dia); "evento" nasce junto.
+3. **Correção manual do nível sempre vence o cálculo automático** — ela pode sobrescrever o
+   nível que o sistema calculou a qualquer momento, e essa correção manual tem prioridade
+   sobre a régua automática, nunca o contrário.
+4. **Recorrências do domínio pericial são ligadas a papel + estado do caso**, não uma lista
+   solta de lembretes soltos — ela deu exemplos concretos da rotina dela pra servirem de
+   base quando a fatia 3 for desenhada.
+
+Essas 4 respostas destravam as fatias 2 e 3 da tabela do §6 (deixam de depender dela) — falta
+o Jeferson priorizar e eu escrever o plano de cada uma antes de qualquer código.
+
 ---
 
 ## 1. Levantamento — o que já existe no banco com data, prazo ou estado pendente
@@ -202,8 +218,8 @@ que doa depois.
 | # | Fatia | Depende de resposta da Dra. Fernanda? |
 |---|---|---|
 | 1 | **Painel "o que fazer hoje"** — só leitura, zero tabela nova, zero cadastro. Cobre tudo do §1-5 acima. | **Não** — schema e regra de cor já são dados/decisões existentes. Só a costura do §2 (nível "Programada") e a política de promover itens do Grupo B (§2) valem uma confirmação rápida sua, não dela. |
-| 2 | **Cadastro manual de tarefa/evento avulso** — os campos que ela pediu (urgência, evento×tarefa, status próprio, Próxima Providência agora editável de verdade). Tabela nova aqui, pela primeira vez no módulo. | **Sim** — vocabulário de status por item, se "evento com hora" entra já ou fica pra depois, se ela quer poder sobrescrever o nível calculado ou só o texto da providência. |
-| 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Sim, imprescindível** — isso é 100% levantamento de requisito (quais recorrências fazem sentido pra rotina dela), não decisão técnica. |
+| 2 | **Cadastro manual de tarefa/evento avulso** — os campos que ela pediu (urgência, evento×tarefa, status próprio, Próxima Providência agora editável de verdade). Tabela nova aqui, pela primeira vez no módulo. | **Não mais — respondida em 11/09/2026** (ver bloco acima): vocabulário de status editável, evento entra já, correção manual sempre vence o cálculo. Falta só o Jeferson priorizar. |
+| 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Não mais — respondida em 11/09/2026** (ver bloco acima): recorrência ligada a papel + estado do caso, com exemplos concretos dela já levantados. |
 | 4 | **Edição da Próxima Providência dos itens automáticos** (fatia 1) — sobrescrever o texto fixo por item específico. Tabela pequena de ajustes. | **Não** — só depende de ela pedir, é incremento de conveniência. |
 | 5 | **Integração com o Fluxo Principal do Perito Judicial** — pluga a régua como mais uma fonte do agregador (§5), quando o Fluxo Principal existir. | Bloqueada pela construção do Fluxo Principal em si (frente própria, maior) — não é uma pergunta pra ela, é uma dependência de outro módulo. |
 
