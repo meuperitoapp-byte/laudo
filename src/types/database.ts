@@ -51,6 +51,10 @@ import type {
   SituacaoDeposito,
   ResponsavelAdiantamentoDeposito,
   FormaDisponibilizacaoDeposito,
+  HonorariosSituacao,
+  HonorariosComplexidade,
+  AgendamentoNecessidadeAcompanhante,
+  AgendamentoDepositoPrevioExigido,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -203,6 +207,22 @@ export type ProcessosRow = {
   deposito_responsavel_adiantamento: ResponsavelAdiantamentoDeposito | null
   deposito_comprovante_documento_id: string | null
   deposito_forma_disponibilizacao: FormaDisponibilizacaoDeposito | null
+  // --- Fluxo Principal do Perito Judicial — Honorários/Agendamento (migration 20260911130000) ---
+  honorarios_situacao: HonorariosSituacao | null
+  honorarios_complexidade: HonorariosComplexidade | null
+  honorarios_horas_tecnicas_estimadas: number | null
+  honorarios_valor_hora_tecnica: number | null
+  agendamento_data: string | null
+  /** time do Postgres, formato 'HH:MM' ou 'HH:MM:SS'. */
+  agendamento_horario: string | null
+  agendamento_modalidade: string | null
+  agendamento_local: string | null
+  agendamento_endereco: string | null
+  agendamento_complemento: string | null
+  agendamento_referencia_acesso: string | null
+  agendamento_necessidade_acompanhante: AgendamentoNecessidadeAcompanhante | null
+  agendamento_orientacoes_especificas: string | null
+  agendamento_deposito_previo_exigido: AgendamentoDepositoPrevioExigido | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -248,6 +268,20 @@ export type ProcessosInsert = ComDefaults<
   | 'deposito_responsavel_adiantamento'
   | 'deposito_comprovante_documento_id'
   | 'deposito_forma_disponibilizacao'
+  | 'honorarios_situacao'
+  | 'honorarios_complexidade'
+  | 'honorarios_horas_tecnicas_estimadas'
+  | 'honorarios_valor_hora_tecnica'
+  | 'agendamento_data'
+  | 'agendamento_horario'
+  | 'agendamento_modalidade'
+  | 'agendamento_local'
+  | 'agendamento_endereco'
+  | 'agendamento_complemento'
+  | 'agendamento_referencia_acesso'
+  | 'agendamento_necessidade_acompanhante'
+  | 'agendamento_orientacoes_especificas'
+  | 'agendamento_deposito_previo_exigido'
   | 'created_by'
   | 'created_at'
   | 'updated_at'

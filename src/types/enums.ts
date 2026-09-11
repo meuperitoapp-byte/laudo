@@ -57,6 +57,29 @@ export type ResponsavelAdiantamentoDeposito = 'autor' | 'reu' | 'ambos' | 'outro
  */
 export type FormaDisponibilizacaoDeposito = 'dados_bancarios' | 'conta_judicial' | 'conforme_juizo' | 'outro'
 
+/** processos.honorarios_situacao — vocabulário literal da seção III do Modelo de Manifestação Consolidada. */
+export type HonorariosSituacao =
+  | 'nao_fixados'
+  | 'arbitrados_concordancia'
+  | 'arbitrados_insuficiente_majoracao'
+  | 'impugnados'
+  | 'justica_gratuita_regime_especifico'
+
+/** processos.honorarios_complexidade. */
+export type HonorariosComplexidade = 'baixa' | 'media' | 'alta' | 'excepcional'
+
+/** processos.agendamento_necessidade_acompanhante. */
+export type AgendamentoNecessidadeAcompanhante = 'nao' | 'sim' | 'conforme_condicao_clinica'
+
+/**
+ * processos.agendamento_deposito_previo_exigido — "Confirmação do depósito
+ * exigida antes do agendamento?" do modelo. Fato do CASO, marcado uma vez
+ * pela perita; `null` (ainda não respondido) é um estado deliberadamente
+ * distinto de 'nao'/'nao_aplicavel' — ver comentário da coluna na migration
+ * 20260911130000 e verificarAlertaAgendamento em fluxo-principal/regras.ts.
+ */
+export type AgendamentoDepositoPrevioExigido = 'sim' | 'nao' | 'nao_aplicavel'
+
 /** documentos.tipo */
 export type TipoDocumento =
   | 'documento_processual'
@@ -278,6 +301,9 @@ export type LaudoGeradoTipo =
   | 'impugnacao_at'
   | 'parecer_divergente_at'
   | 'quesitos_at'
+  | 'aceite_pericial'
+  | 'dados_deposito'
+  | 'agendamento_pericia'
 
 // ----------------------------------------------------------------------------
 // Fluxo Assistência Técnica (migration 20260910120000_pos_laudo_at)
