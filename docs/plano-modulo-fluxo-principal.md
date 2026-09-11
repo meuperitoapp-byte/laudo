@@ -225,3 +225,25 @@ parte com material pronto e de baixo risco (ver alerta no topo). O resto fica de
 Nenhuma das fatias 0-5 depende de resposta da Dra. Fernanda no sentido em que Viabilidade
 dependia (hipótese clínica) — os documentos e as travas já vêm fechados no material. As
 duas confirmações que preciso são suas, de escopo/comportamento, não dela.
+
+---
+
+## Ponto em aberto registrado — acesso aos dados bancários (11/09/2026)
+
+Os dados bancários da perita (migration `20260911120000`, tabela `configuracoes`) ficam
+sob a mesma policy `authenticated_full_access` de todo o resto do sistema — ou seja, **a
+secretária também tem acesso a eles**, pelo mesmo login que já usa pra tudo. É a política
+padrão do projeto inteiro (2 perfis, ambos com acesso completo), não uma falha desta
+fatia — mas dado bancário é mais sensível que rodapé de documento, então o Jeferson achou
+que valia registrar como pergunta em aberto em vez de assumir que "sempre foi assim, então
+tudo bem aqui também".
+
+Jeferson vai confirmar com a Dra. Fernanda se ela quer separar esse acesso (só ela vendo os
+dados bancários, não a secretária) antes de qualquer mudança. **Se a resposta for sim**,
+restringir exigiria uma policy de RLS específica para essas colunas — o Postgres não
+restringe RLS por coluna diretamente (RLS é por linha), então a forma de fazer isso seria
+uma de duas: (a) mover os dados bancários pra uma tabela própria, com sua própria policy
+mais restrita (baseada em qual usuário está logado, não simplesmente "autenticado"); ou
+(b) uma `VIEW` sem essas colunas pra quem não deveria vê-las, com a tabela de baixo
+continuando full-access só pra quem precisa. Nenhuma das duas é feita agora — fica
+registrada aqui pra quando a resposta da Dra. Fernanda voltar.
