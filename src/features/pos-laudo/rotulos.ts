@@ -462,4 +462,7 @@ export const TIPO_DOCUMENTO_ROTULOS: Record<LaudoGeradoTipo, string> = {
   impugnacao_at: "Impugnação Técnica (AT)",
   parecer_divergente_at: "Parecer Divergente (AT)",
   quesitos_at: "Quesitos Suplementares (AT)",
+  aceite_pericial: "Manifestação de Aceite do Encargo Pericial",
+  dados_deposito: "Informação de Dados para Depósito dos Honorários",
+  agendamento_pericia: "Comunicação de Agendamento da Perícia",
 };

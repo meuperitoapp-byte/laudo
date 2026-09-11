@@ -252,6 +252,11 @@ export default async function ProcessoDetalhePage({
         <Link href={`/processos/${processo.id}/documentos`} className={classesBotao("secundaria")}>
           Documentos
         </Link>
+        {processo.tipo_trabalho === "pericia_judicial" && (
+          <Link href={`/processos/${processo.id}/fluxo-principal`} className={classesBotao("secundaria")}>
+            Fluxo Principal
+          </Link>
+        )}
         <Link href={`/processos/${processo.id}/laudo`} className={classesBotao("secundaria")}>
           Laudo final
         </Link>

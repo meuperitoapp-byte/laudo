@@ -158,6 +158,13 @@ export default async function LinhaDoTempoPage({
                     ) : (
                       <span className="text-nevoa-400 dark:text-nevoa-600">Ciclo removido</span>
                     )
+                  ) : v.tipo === "aceite_pericial" || v.tipo === "dados_deposito" || v.tipo === "agendamento_pericia" ? (
+                    <Link
+                      href={`/processos/${processoId}/fluxo-principal`}
+                      className="text-petroleo-600 hover:underline dark:text-petroleo-400"
+                    >
+                      Fluxo Principal
+                    </Link>
                   ) : (
                     <Link
                       href={`/processos/${processoId}/laudo`}
