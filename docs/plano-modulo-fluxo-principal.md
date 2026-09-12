@@ -220,18 +220,146 @@ parte com material pronto e de baixo risco (ver alerta no topo). O resto fica de
 
 | # | Fatia | Depende de quê |
 |---|---|---|
-| 0 | Schema: colunas de impedimento/competência (aceite), colunas estruturadas de depósito, ajuste pontual no catálogo de `situacao_processo`. SQL pra sua revisão antes de aplicar, mesmo rito de sempre. | Sua confirmação do ponto aberto do §4.2 (opção a ou b) |
-| 1 | `compilar-aceite-pericial.ts` + geração + trava do §4.1 — documento standalone, testável sozinho | Não |
-| 2 | Estrutura de depósito (campos + `montarSecaoDeposito`) + `compilar-dados-deposito.ts` standalone | Não |
-| 3 | `compilar-agendamento-pericia.ts` standalone + trava do §4.2 | Não mais — respondida em 11/09/2026 (ver §4.2 acima) |
-| 4 | `montarSecaoHonorarios` + Manifestação Consolidada (monta os 4 módulos, reaproveitando as seções das fatias 1-3) | Não |
+| 0 | Schema: colunas de impedimento/competência (aceite), colunas estruturadas de depósito, ajuste pontual no catálogo de `situacao_processo`. SQL pra sua revisão antes de aplicar, mesmo rito de sempre. | **FEITA (11/09/2026)** |
+| 1 | `compilar-aceite-pericial.ts` + geração + trava do §4.1 — documento standalone, testável sozinho | **FEITA (11/09/2026)** |
+| 2 | Estrutura de depósito (campos + `montarSecaoDeposito`) + `compilar-dados-deposito.ts` standalone | **FEITA (11/09/2026)** |
+| 3 | `compilar-agendamento-pericia.ts` standalone + trava do §4.2 | **FEITA (11/09/2026)** |
+| 4 | `montarSecaoHonorarios` + Manifestação Consolidada (monta os 4 módulos) **+ Impossibilidade de Assumir (nº12) e Escusa/Declínio (nº13), os 2 destinos da trava do Aceite** | **FEITA (11/09/2026)** |
 | 5 | Não Comparecimento do Periciando — documento + o pequeno subfluxo de status (não marca a perícia como realizada, mantém a data original na linha do tempo) | Não |
-| 6 | *(fora deste fatiamento, decisão maior)* O resto da régua de 30 passos, os papéis Assessor/Financeiro, a Central Judicial com 4 painéis, o botão de encaminhamento entre setores | **Sim — é decisão sua, não da Dra. Fernanda**, sobre como o escritório está de fato organizado hoje (ver alerta no topo) |
-| 7 | *(quando a fatia 6 existir)* Plugar a régua como mais uma fonte da Central de Prazos (fatia 5 daquele módulo) | Depende só da fatia 6 acima existir |
+| 6 | Trilho financeiro até liberação — schema (provavelmente pequeno, ver §5.1) + `compilar-pedido-liberacao.ts` (documento nº23 da biblioteca) | Não |
+| 7 | Régua enxuta — painel só-leitura lendo o que já está gravado (aceite/depósito/agendamento/laudo), sem papéis nem Central Judicial. **Opcional, por último.** | Não |
+| 8 | *(fora deste fatiamento, decisão maior)* O resto da régua de 30 passos, os papéis Assessor/Financeiro, a Central Judicial com 4 painéis, o botão de encaminhamento entre setores | **Sim — é decisão sua, não da Dra. Fernanda**, sobre como o escritório está de fato organizado hoje (ver alerta no topo) |
+| 9 | *(quando a fatia 8 existir)* Plugar a régua como mais uma fonte da Central de Prazos (fatia 5 daquele módulo) | Depende só da fatia 8 acima existir |
 
-Nenhuma das fatias 0-5 depende de resposta da Dra. Fernanda no sentido em que Viabilidade
+Nenhuma das fatias 0-7 depende de resposta da Dra. Fernanda no sentido em que Viabilidade
 dependia (hipótese clínica) — os documentos e as travas já vêm fechados no material. As
-duas confirmações que preciso são suas, de escopo/comportamento, não dela.
+confirmações que precisei até aqui foram suas, de escopo/comportamento, não dela.
+
+**Ordem de execução decidida pelo Jeferson (11/09/2026):** 4 (Consolidada, + Escusa/Declínio
+se ele confirmar) → 5 (Não Comparecimento) → 6 (trilho financeiro até liberação) → 7 (régua
+enxuta, opcional, por último). A fatia 6 só é fatiada de verdade depois de eu ler o modelo do
+Pedido de Liberação palavra por palavra (feito — ver §5.1) e reportar o que falta de schema.
+
+---
+
+## 5.1. Achado (11/09/2026) — a biblioteca tem 32 expedientes, não 5
+
+O material que guiou este plano inteiro até aqui (topo do documento, "Material lido") cobria
+**5 documentos**: os 4 modelos de petição da fase inicial (Aceite, Agendamento, Dados para
+Depósito, Manifestação Consolidada) e o módulo de Não Comparecimento. Ao procurar o modelo do
+Pedido de Liberação dos Honorários (pra fatiar a fatia 6), apareceu
+`Laudos e documentos/00_Indice_Biblioteca_Expedientes_Periciais.pdf` — um índice de **32
+expedientes periciais catalogados**, isto é, **27 documentos além dos 5 que orçaram a Fase
+2**. A lista completa (uma linha por documento, lida só pelo título — não abri o conteúdo dos
+30 que não são objeto desta fatia) está registrada na memória do projeto
+(`fluxo-principal-perito-judicial`), pra consulta rápida sem reabrir o PDF.
+
+**Disciplina de escopo, decidida pelo Jeferson:** material a mais não vira escopo automático.
+A Fase 2 foi orçada com base nos 5 documentos originais — os outros 27 são **conversa de
+escopo com a Dra. Fernanda antes de virarem trabalho**, mesmo tratamento que a Análise de
+Viabilidade e o resto do material PERICONS já receberam. Nenhum dos 27 entra nesta fatia nem
+no fatiamento do §5.
+
+**Uma exceção registrada:** o documento nº13, **Escusa/Declínio do Encargo Já Aceito**, não é
+tratado como um dos 27 "extras" — é o **destino que falta pra trava do Aceite** (§4.1). Hoje
+`verificarTravaAceite` bloqueia e orienta, mas não tem documento nenhum pra apontar — o mesmo
+buraco que a Retificação teria sem a Complementação do Laudo. Lido (11/09/2026): é uma peça
+**pequena**, uma página, um único campo livre de motivo (`[MOTIVO]`) e um campo livre
+opcional de pendências ("documentos, valores ou providências pendentes sob responsabilidade
+deste(a) Perito(a)"), sem nenhuma tabela/checklist de controle operacional — mais simples até
+que o Aceite. Não precisa de coluna nova em `processos`: os dois campos livres podem ser
+digitados na própria tela de geração e passados direto pro compilador, do jeito que
+`dataAssinatura` já funciona hoje — nada pra persistir fora do documento gerado.
+
+**Correção sobre qual dos dois documentos é o destino certo (11/09/2026):** o texto do nº13 é
+explícito — "**Após a aceitação do encargo**, sobreveio circunstância..." — ele pressupõe que
+ela **já tinha aceitado antes** (`aceitou_nomeacao = 'sim'`). O cenário que a trava do Aceite
+bloqueia hoje é o **oposto**: ela está preenchendo o Aceite pela primeira vez e descobre
+impedimento *antes* de aceitar. O documento certo pra esse caso, pela Biblioteca de 32, é o
+**nº12, Impossibilidade de Assumir o Encargo** — não o nº13. Lido também (11/09/2026): ainda
+mais simples que o nº13 (um único campo livre de motivo, sem o segundo campo de pendências).
+Decisão do Jeferson: **construir os dois**, e a tela escolhe qual mostrar conforme
+`processos.aceitou_nomeacao` já é `'sim'` (Escusa/Declínio) ou ainda não (Impossibilidade de
+Assumir) — entregar a peça errada ao juízo seria erro de conteúdo, não de sistema, exatamente
+o tipo de coisa que o módulo inteiro vem evitando.
+
+**Duas garantias pedidas pelo Jeferson, registradas:**
+1. Gerar o nº12 ou o nº13 entra em `laudos_gerados` com tipo próprio
+   (`impossibilidade_assumir`/`escusa_declinio_pericial`) — aparece na lista de versões da
+   tela e na linha do tempo do processo como qualquer outro documento, nunca um PDF avulso sem
+   rastro.
+2. Gerar qualquer um dos dois **não altera `aceitou_nomeacao` nem nenhum outro campo do
+   processo**. O único lugar onde isso poderia mudar é o protocolar — e mesmo lá, nesta fatia,
+   a decisão foi **não mexer em nada** (ver §5.2), até confirmação explícita.
+
+**Achado sobre a fatia 6 (trilho financeiro até liberação):** lido o modelo do Pedido de
+Liberação dos Honorários (nº23) palavra por palavra. Também é pequeno — uma página, sem
+checklist de controle operacional, só parágrafos com campos livres. O que ele pede:
+
+- Data/ID do laudo apresentado — **já existe**: vem de `laudos_gerados` (tipo='laudo',
+  `protocolado_em`/`protocolo_id`), sem coluna nova.
+- Valor a liberar — **já existe**: é o mesmo `deposito_valor` (valor já depositado) já gravado
+  pela fatia 2. Não é um valor novo a cadastrar.
+- "Mediante [alvará/transferência]" — a forma de liberação. **Decisão do Jeferson
+  (11/09/2026): coluna própria (`liberacao_forma`), não reaproveita
+  `deposito_forma_disponibilizacao`.** São momentos diferentes do processo (disponibilização
+  inicial do depósito vs. liberação final) e podem legitimamente divergir num caso real (ex.:
+  depósito em conta judicial, liberação final por transferência) — reaproveitar um campo só
+  porque o eixo parece o mesmo é o tipo de economia que cobra caro depois; uma coluna nullable
+  não custa nada.
+- "Permanece disponível para eventuais esclarecimentos" — parágrafo fixo, sem dado.
+
+**Conclusão da fatia 6:** 1 coluna nova (`liberacao_forma`) — bem menor que a fatia 0
+original. Nenhuma pendência de leitura, pode ser fatiada quando chegar a vez dela na ordem
+acima.
+
+---
+
+## 5.2. Fatia 4 — decisões de desenho, tomadas antes de codar (11/09/2026)
+
+Três perguntas do Jeferson, respondidas e aprovadas antes da fatia 4 ser escrita:
+
+**Como a Consolidada decide quais módulos entram:** ela marca — checkboxes desmarcados por
+padrão, nenhum pré-selecionado pelo sistema (leitura literal do modelo: "o sistema deve
+permitir qualquer combinação... sem obrigar a inclusão dos quatro"). Cada checkbox tem um Selo
+de contexto ao lado ("Dados prontos"/"Incompleto"), informação, não decisão. O checkbox do
+Aceite fica desabilitado com o motivo da trava (§4.1) ao lado quando ela bloqueia — não dá pra
+marcar um módulo que geraria peça inválida. O compilador (`compilar-manifestacao-
+consolidada.ts`) confere a trava de novo antes de montar o documento, não confia cegamente na
+tela.
+
+**Como funciona o protocolar por módulo:** a Consolidada é um documento só (uma linha em
+`laudos_gerados`, um PDF só) — protocolar é uma ação única nessa linha, não dá pra protocolar
+"só uma parte". `modulos_selecionados` fica gravado no `snapshot_respostas` daquela versão
+(jsonb já existente, sem coluna nova) — satisfaz a exigência do modelo de manter histórico de
+quais módulos compuseram cada versão. Único efeito colateral real em `processos`: protocolar
+um documento que inclui o módulo **Aceite** (standalone `aceite_pericial` OU
+`manifestacao_inicial` com "aceite" no snapshot) grava `aceitou_nomeacao = 'sim'` —
+consequência direta, não inferência: a trava já exigiu impedimento=não e competência=sim pra
+esse módulo ter sido incluído, protocolar só formaliza o que já estava comprovadamente
+correto. Isso fechou de brinde uma lacuna que existia desde a fatia 1: o Aceite standalone não
+gravava nada ao ser protocolado. Honorários/Depósito/Agendamento, quando marcados, não têm
+nenhuma gravação automática além do que a perita já edita direto nas telas deles — protocolar
+não inventa confirmação que ninguém deu. Módulos NÃO marcados continuam exatamente como
+estavam — nenhuma pendência nova, nenhum estado tocado; podem entrar numa Consolidada
+seguinte, ou nos documentos avulsos, sem relação com a que já foi protocolada (regra final
+#5 do modelo).
+
+**Onde o Escusa/Declínio aparece:** embutido dentro da própria tela do Aceite, não escondido
+em outra tela — exatamente onde a trava bloqueia (`aceite-panel.tsx` mostra o bloco quando
+`verificarTravaAceite` falha nos dados já salvos). A correção do nº12 vs. nº13 (ver §5.1) foi
+resolvida na mesma tela: `aceitou_nomeacao === 'sim'` mostra Escusa/Declínio, qualquer outro
+valor mostra Impossibilidade de Assumir — nunca os dois ao mesmo tempo, nunca o errado.
+
+**11/09/2026 — FATIA 4 FEITA E NO AR** (migration `20260911150000`; commits a registrar):
+`montarSecaoHonorarios` (secoes.ts), `compilar-manifestacao-consolidada.ts`,
+`compilar-impossibilidade-assumir.ts`, `compilar-escusa-declinio.ts`, 3 novos valores em
+`laudos_gerados.tipo`, `SnapshotManifestacaoInicial`/`SnapshotImpossibilidadeAssumir`/
+`SnapshotEscusaDeclinio` (extensão de `SnapshotLaudoGerado`, sem coluna nova), telas
+(`consolidada-panel.tsx`, `impossibilidade-escusa-panel.tsx` embutido no `aceite-panel.tsx`).
+`marcarFluxoPrincipalProtocolado` ganhou o efeito colateral do Aceite descrito acima; protocolar
+`impossibilidade_assumir`/`escusa_declinio_pericial` não mexe em nada em `processos`, decisão
+deliberada e pendente de confirmação explícita se algum dia precisar mudar.
 
 ---
 
