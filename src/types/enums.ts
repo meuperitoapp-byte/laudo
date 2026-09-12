@@ -304,6 +304,9 @@ export type LaudoGeradoTipo =
   | 'aceite_pericial'
   | 'dados_deposito'
   | 'agendamento_pericia'
+  | 'manifestacao_inicial'
+  | 'impossibilidade_assumir'
+  | 'escusa_declinio_pericial'
 
 // ----------------------------------------------------------------------------
 // Fluxo Assistência Técnica (migration 20260910120000_pos_laudo_at)

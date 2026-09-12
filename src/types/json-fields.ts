@@ -290,8 +290,58 @@ export interface SnapshotPosLaudo {
   at_posicao_pericons?: string | null
 }
 
+// ----------------------------------------------------------------------------
+// Fluxo Principal do Perito Judicial — Manifestação Consolidada e os 2
+// destinos da trava do Aceite (migration 20260911150000). Diferente do
+// Pós-Laudo, estes 3 tipos não têm "respostas editáveis" por trás — o
+// conteúdo (módulos marcados, ou o motivo/pendências digitados na hora de
+// gerar) só existe nesse momento, então o snapshot é o único registro de
+// verdade do que entrou naquela versão especificamente.
+// ----------------------------------------------------------------------------
+
+/** Módulo do documento — mesmo vocabulário usado na tela de seleção da Consolidada. */
+export type ModuloManifestacaoConsolidada = 'aceite' | 'honorarios' | 'deposito' | 'agendamento'
+
 /**
- * Forma de laudos_gerados.snapshot_respostas — união das duas naturezas.
+ * laudos_gerados.snapshot_respostas quando tipo = 'manifestacao_inicial'.
+ * `modulos_selecionados` é o registro histórico exigido pelo modelo ("manter
+ * histórico dos módulos que compuseram cada versão") — sem isso, reabrir uma
+ * versão antiga não deixaria claro o que ela cobria.
+ */
+export interface SnapshotManifestacaoInicial {
+  tipo: 'manifestacao_inicial'
+  gerado_em: string // ISO 8601
+  modulos_selecionados: ModuloManifestacaoConsolidada[]
+}
+
+/**
+ * laudos_gerados.snapshot_respostas quando tipo = 'impossibilidade_assumir'
+ * (nº12 da Biblioteca — ANTES de aceitar o encargo).
+ */
+export interface SnapshotImpossibilidadeAssumir {
+  tipo: 'impossibilidade_assumir'
+  gerado_em: string
+  motivo: string
+}
+
+/**
+ * laudos_gerados.snapshot_respostas quando tipo = 'escusa_declinio_pericial'
+ * (nº13 da Biblioteca — DEPOIS de já ter aceitado o encargo).
+ */
+export interface SnapshotEscusaDeclinio {
+  tipo: 'escusa_declinio_pericial'
+  gerado_em: string
+  motivo: string
+  pendencias: string | null
+}
+
+/**
+ * Forma de laudos_gerados.snapshot_respostas — união de todas as naturezas.
  * Narrow por `laudos_gerados.tipo` (ver acima).
  */
-export type SnapshotLaudoGerado = SnapshotRespostas | SnapshotPosLaudo
+export type SnapshotLaudoGerado =
+  | SnapshotRespostas
+  | SnapshotPosLaudo
+  | SnapshotManifestacaoInicial
+  | SnapshotImpossibilidadeAssumir
+  | SnapshotEscusaDeclinio
