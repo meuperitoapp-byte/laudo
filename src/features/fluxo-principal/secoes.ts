@@ -1,20 +1,17 @@
 /**
- * Funções montadoras de seção do Fluxo Principal do Perito Judicial — fatias
- * 1-2 (docs/plano-modulo-fluxo-principal.md §2-3). Cada módulo (Aceite,
- * Depósito, Agendamento, e futuramente Honorários) vira UMA função pura que
- * devolve `SecaoCompilada`, reaproveitada tanto por um documento standalone
- * quanto pela Manifestação Consolidada — mesmo padrão de
+ * Funções montadoras de seção do Fluxo Principal do Perito Judicial
+ * (docs/plano-modulo-fluxo-principal.md §2-3). Cada módulo (Aceite,
+ * Depósito, Agendamento, Honorários) vira UMA função pura que devolve
+ * `SecaoCompilada`, reaproveitada tanto por um documento standalone quanto
+ * pela Manifestação Consolidada — mesmo padrão de
  * `pos-laudo/compilar-quesitos-secao.ts` (`montarSecaoQuesitos`).
  *
  * Não é "use server": helper puro, sem acesso a banco — recebe o `processo`
  * já carregado por quem chama.
  *
- * Aceite, Depósito e Agendamento são os 3 módulos com schema pronto
- * (migrations 20260911120000 e 20260911130000). Honorários tem schema
- * (20260911130000) mas ainda não tem `montarSecaoHonorarios` — de propósito:
- * o modelo confirma que Honorários não tem petição avulsa, só existe
- * embutido na Manifestação Consolidada (ver plano §2), então entra só quando
- * a Consolidada for construída.
+ * `montarSecaoHonorarios` só é chamada pela Consolidada — Honorários não
+ * tem petição avulsa (o modelo confirma isso), então não existe um
+ * `compilar-honorarios.ts` standalone como os outros 3 módulos têm.
  */
 
 import type { BlocoConteudo, SecaoCompilada } from "@/features/geracao-laudo/modelo";
@@ -23,6 +20,7 @@ import {
   RESPONSAVEL_ADIANTAMENTO_ROTULOS,
   SITUACAO_DEPOSITO_ROTULOS,
   AGENDAMENTO_NECESSIDADE_ACOMPANHANTE_ROTULOS,
+  HONORARIOS_COMPLEXIDADE_ROTULOS,
 } from "./rotulos";
 
 function paragrafo(texto: string): BlocoConteudo {
@@ -238,6 +236,97 @@ export function montarSecaoAgendamento(
     secaoId: opts.secaoId,
     codigo: "fluxo_principal_agendamento",
     titulo: "COMUNICAÇÃO DE AGENDAMENTO DA PERÍCIA",
+    ordem: opts.ordem,
+    blocos,
+  };
+}
+
+/**
+ * Módulo HONORÁRIOS PERICIAIS (seção III da Manifestação Consolidada — não
+ * tem petição avulsa, só existe embutido aqui). O texto do corpo muda
+ * conforme `honorarios_situacao`: proposta (usa `honorario_apresentado`),
+ * concordância (usa `honorario_arbitrado`), ou — pra "valor insuficiente/
+ * majoração" e "impugnados" — o modelo pede o texto do expediente
+ * financeiro correspondente (nº 4 e nº 8 da Biblioteca de 32, fora desta
+ * fatia); nesses dois casos a seção só registra a situação e aponta pro
+ * expediente próprio, sem inventar um texto de negociação que não existe
+ * ainda no sistema.
+ */
+export function montarSecaoHonorarios(
+  processo: Pick<
+    ProcessosRow,
+    | "honorario_apresentado"
+    | "honorario_arbitrado"
+    | "honorarios_situacao"
+    | "honorarios_complexidade"
+    | "honorarios_horas_tecnicas_estimadas"
+    | "honorarios_valor_hora_tecnica"
+  >,
+  opts: { secaoId: string; ordem: number },
+): SecaoCompilada {
+  const blocos: BlocoConteudo[] = [];
+
+  if (processo.honorarios_complexidade) {
+    blocos.push(paragrafo(`Complexidade: ${HONORARIOS_COMPLEXIDADE_ROTULOS[processo.honorarios_complexidade]}`));
+  }
+  if (processo.honorarios_horas_tecnicas_estimadas != null) {
+    blocos.push(paragrafo(`Horas técnicas estimadas: ${processo.honorarios_horas_tecnicas_estimadas}`));
+  }
+  if (processo.honorarios_valor_hora_tecnica != null) {
+    blocos.push(paragrafo(`Valor da hora técnica: R$ ${formatarValor(processo.honorarios_valor_hora_tecnica)}`));
+  }
+
+  switch (processo.honorarios_situacao) {
+    case "nao_fixados":
+      blocos.push(
+        paragrafo(
+          processo.honorario_apresentado != null
+            ? `Considerando a natureza e a complexidade do objeto pericial, o volume documental e as atividades técnicas necessárias à adequada realização da prova, esta Perita apresenta proposta de honorários periciais no valor de R$ ${formatarValor(processo.honorario_apresentado)}.`
+            : "Esta Perita apresentará proposta de honorários periciais oportunamente.",
+        ),
+      );
+      blocos.push(
+        paragrafo(
+          "O valor proposto contempla as atividades técnicas ordinariamente necessárias à realização da perícia, sem prejuízo de eventual atividade extraordinária ou diligência superveniente não inicialmente previsível, cuja necessidade, se existente, será oportunamente submetida à apreciação do Juízo.",
+        ),
+      );
+      break;
+    case "arbitrados_concordancia":
+      blocos.push(
+        paragrafo(
+          `Quanto aos honorários periciais arbitrados por este Juízo${processo.honorario_arbitrado != null ? ` no valor de R$ ${formatarValor(processo.honorario_arbitrado)}` : ""}, esta Perita manifesta sua concordância, mantendo o aceite do encargo e aguardando as providências necessárias à etapa financeira subsequente.`,
+        ),
+      );
+      break;
+    case "arbitrados_insuficiente_majoracao":
+      blocos.push(
+        paragrafo(
+          "Os honorários periciais arbitrados neste caso mostram-se insuficientes diante da complexidade e do trabalho técnico exigido — o pedido de majoração correspondente é tratado em expediente próprio, não incluído nesta manifestação.",
+        ),
+      );
+      break;
+    case "impugnados":
+      blocos.push(
+        paragrafo(
+          "Os honorários periciais fixados neste caso foram objeto de impugnação por uma das partes — a manifestação sobre essa impugnação é tratada em expediente próprio, não incluído nesta manifestação.",
+        ),
+      );
+      break;
+    case "justica_gratuita_regime_especifico":
+      blocos.push(
+        paragrafo(
+          "Este processo está sob justiça gratuita ou regime específico de honorários periciais, observadas as regras aplicáveis a essa condição.",
+        ),
+      );
+      break;
+    default:
+      blocos.push(paragrafo("Situação dos honorários periciais ainda não informada."));
+  }
+
+  return {
+    secaoId: opts.secaoId,
+    codigo: "fluxo_principal_honorarios",
+    titulo: "HONORÁRIOS PERICIAIS",
     ordem: opts.ordem,
     blocos,
   };

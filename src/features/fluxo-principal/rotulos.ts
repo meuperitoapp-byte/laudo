@@ -10,6 +10,8 @@ import type {
   FormaDisponibilizacaoDeposito,
   AgendamentoNecessidadeAcompanhante,
   AgendamentoDepositoPrevioExigido,
+  HonorariosSituacao,
+  HonorariosComplexidade,
 } from "@/types/enums";
 
 /** processos.deposito_situacao — vocabulário literal do Modelo de Dados para Depósito. */
@@ -96,4 +98,35 @@ export const AGENDAMENTO_DEPOSITO_PREVIO_EXIGIDO_ROTULOS: Record<AgendamentoDepo
   sim: "Sim, este processo exige depósito prévio à perícia",
   nao: "Não exige",
   nao_aplicavel: "Não aplicável",
+};
+
+/** processos.honorarios_situacao — vocabulário literal da seção III do modelo de Manifestação Consolidada. */
+export const HONORARIOS_SITUACAO_ORDENADA: readonly HonorariosSituacao[] = [
+  "nao_fixados",
+  "arbitrados_concordancia",
+  "arbitrados_insuficiente_majoracao",
+  "impugnados",
+  "justica_gratuita_regime_especifico",
+];
+
+export const HONORARIOS_SITUACAO_ROTULOS: Record<HonorariosSituacao, string> = {
+  nao_fixados: "Honorários ainda não fixados — apresentar proposta",
+  arbitrados_concordancia: "Honorários já arbitrados — concordância",
+  arbitrados_insuficiente_majoracao: "Honorários arbitrados — valor insuficiente / solicitar majoração",
+  impugnados: "Honorários impugnados",
+  justica_gratuita_regime_especifico: "Justiça gratuita / regime específico",
+};
+
+export const HONORARIOS_COMPLEXIDADE_ORDENADA: readonly HonorariosComplexidade[] = [
+  "baixa",
+  "media",
+  "alta",
+  "excepcional",
+];
+
+export const HONORARIOS_COMPLEXIDADE_ROTULOS: Record<HonorariosComplexidade, string> = {
+  baixa: "Baixa",
+  media: "Média",
+  alta: "Alta",
+  excepcional: "Excepcional",
 };

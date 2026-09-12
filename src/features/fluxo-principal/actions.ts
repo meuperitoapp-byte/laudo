@@ -9,15 +9,21 @@ import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
 import { compilarAceitePericial } from "./compilar-aceite-pericial";
 import { compilarDadosDeposito } from "./compilar-dados-deposito";
 import { compilarAgendamentoPericia } from "./compilar-agendamento-pericia";
+import { compilarManifestacaoConsolidada, type ModulosSelecionados } from "./compilar-manifestacao-consolidada";
+import { compilarImpossibilidadeAssumir } from "./compilar-impossibilidade-assumir";
+import { compilarEscusaDeclinio } from "./compilar-escusa-declinio";
 import { verificarAlertaAgendamento } from "./regras";
 import type { ModeloLaudo } from "@/features/geracao-laudo/modelo";
 import type { LaudosGeradosInsert, ProcessosUpdate } from "@/types/database";
+import type { SnapshotLaudoGerado } from "@/types/json-fields";
 import type {
   ResponsavelAdiantamentoDeposito,
   SituacaoDeposito,
   FormaDisponibilizacaoDeposito,
   AgendamentoNecessidadeAcompanhante,
   AgendamentoDepositoPrevioExigido,
+  HonorariosSituacao,
+  HonorariosComplexidade,
   LaudoGeradoTipo,
 } from "@/types/enums";
 
@@ -172,6 +178,52 @@ export async function salvarDadosAgendamento(input: {
   return { success: true };
 }
 
+const HONORARIOS_SITUACAO_VALIDAS: readonly HonorariosSituacao[] = [
+  "nao_fixados", "arbitrados_concordancia", "arbitrados_insuficiente_majoracao", "impugnados", "justica_gratuita_regime_especifico",
+];
+const HONORARIOS_COMPLEXIDADE_VALIDAS: readonly HonorariosComplexidade[] = ["baixa", "media", "alta", "excepcional"];
+
+/**
+ * Honorários não tem petição avulsa (só existe embutido na Manifestação
+ * Consolidada) — por isso não tem tela própria, esse formulário mora dentro
+ * da tela da Consolidada (consolidada-panel.tsx).
+ */
+export async function salvarDadosHonorarios(input: {
+  processoId: string;
+  situacao: string | null;
+  complexidade: string | null;
+  horasTecnicasEstimadas: string | null;
+  valorHoraTecnica: string | null;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const situacao =
+    input.situacao && (HONORARIOS_SITUACAO_VALIDAS as readonly string[]).includes(input.situacao)
+      ? (input.situacao as HonorariosSituacao)
+      : null;
+  const complexidade =
+    input.complexidade && (HONORARIOS_COMPLEXIDADE_VALIDAS as readonly string[]).includes(input.complexidade)
+      ? (input.complexidade as HonorariosComplexidade)
+      : null;
+  const horas = input.horasTecnicasEstimadas?.trim() ? Number(input.horasTecnicasEstimadas) : null;
+  const valorHora = input.valorHoraTecnica?.trim() ? Number(input.valorHoraTecnica) : null;
+  if (horas !== null && !Number.isFinite(horas)) return { error: "Horas técnicas estimadas inválidas." };
+  if (valorHora !== null && !Number.isFinite(valorHora)) return { error: "Valor da hora técnica inválido." };
+
+  const dados: ProcessosUpdate = {
+    honorarios_situacao: situacao,
+    honorarios_complexidade: complexidade,
+    honorarios_horas_tecnicas_estimadas: horas,
+    honorarios_valor_hora_tecnica: valorHora,
+  };
+
+  const { error } = await supabase.from("processos").update(dados).eq("id", input.processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${input.processoId}/fluxo-principal`);
+  return { success: true };
+}
+
 // ============================================================================
 // Geração — Aceite / Depósito / Agendamento. Mesmo padrão de
 // geracao-laudo/actions.ts (gerarLaudo): compila, renderiza PDF+Word do MESMO
@@ -200,6 +252,7 @@ async function gerarERegistrar(
   tipo: LaudoGeradoTipo,
   titulo: string,
   modelo: ModeloLaudo,
+  snapshot: SnapshotLaudoGerado | null = null,
 ): Promise<GerarResult> {
   const supabase = await createClient();
   const {
@@ -237,7 +290,7 @@ async function gerarERegistrar(
     titulo,
     storage_path_pdf: caminhoPdf,
     storage_path_docx: caminhoDocx,
-    snapshot_respostas: null, // conteúdo vem direto de `processos`, sem forma de snapshot própria ainda
+    snapshot_respostas: snapshot,
     gerado_por: user?.id ?? null,
   };
   const { error: erroInsert } = await supabase.from("laudos_gerados").insert(insert);
@@ -314,10 +367,84 @@ export async function gerarAgendamentoPericia(
 }
 
 /**
- * Marca uma versão de documento do Fluxo Principal (Aceite/Depósito/
- * Agendamento) como PROTOCOLADA. Mesmo padrão de `marcarLaudoProtocolado` —
- * a partir daqui o conteúdo fica congelado pelo trigger de sempre; só
- * protocolo_id segue corrigível.
+ * A trava do Aceite (§4.1) é checada de novo dentro de `compilarManifestacaoConsolidada`
+ * quando `modulos.aceite` é true — não confia na tela ter desabilitado o
+ * checkbox corretamente.
+ */
+export async function gerarManifestacaoConsolidada(
+  processoId: string,
+  modulos: ModulosSelecionados,
+  confirmarExposicaoDadosBancarios: boolean,
+  dataAssinaturaIso: string,
+): Promise<GerarResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataAssinaturaIso)) return { error: "Informe a data da assinatura." };
+
+  const resultado = await compilarManifestacaoConsolidada(
+    processoId,
+    modulos,
+    confirmarExposicaoDadosBancarios,
+    dataAssinaturaIso,
+  );
+  if (resultado.status === "erro") return { error: resultado.mensagem };
+
+  return gerarERegistrar(processoId, "manifestacao_inicial", "Manifestação Consolidada", resultado.modelo, resultado.snapshot);
+}
+
+/**
+ * Destino da trava do Aceite (§4.1) pra quando ela ainda NÃO tinha aceitado
+ * (`aceitou_nomeacao` ainda não é 'sim'). Gerar isto NÃO altera
+ * `aceitou_nomeacao` nem nenhum outro campo do processo — se algo deveria
+ * mudar, é decisão de protocolar (ver marcarFluxoPrincipalProtocolado), e
+ * hoje ela também não mexe em nada, de propósito, até confirmação.
+ */
+export async function gerarImpossibilidadeAssumir(
+  processoId: string,
+  motivo: string,
+  dataAssinaturaIso: string,
+): Promise<GerarResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataAssinaturaIso)) return { error: "Informe a data da assinatura." };
+
+  const resultado = await compilarImpossibilidadeAssumir(processoId, motivo, dataAssinaturaIso);
+  if (resultado.status === "erro") return { error: resultado.mensagem };
+
+  return gerarERegistrar(processoId, "impossibilidade_assumir", "Impossibilidade de Assumir o Encargo", resultado.modelo, resultado.snapshot);
+}
+
+/**
+ * Destino da trava do Aceite (§4.1) pra quando ela JÁ tinha aceitado
+ * (`aceitou_nomeacao === 'sim'`). Mesma regra do documento acima: gerar não
+ * altera nada em `processos`.
+ */
+export async function gerarEscusaDeclinio(
+  processoId: string,
+  motivo: string,
+  pendencias: string | null,
+  dataAssinaturaIso: string,
+): Promise<GerarResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataAssinaturaIso)) return { error: "Informe a data da assinatura." };
+
+  const resultado = await compilarEscusaDeclinio(processoId, motivo, pendencias, dataAssinaturaIso);
+  if (resultado.status === "erro") return { error: resultado.mensagem };
+
+  return gerarERegistrar(processoId, "escusa_declinio_pericial", "Escusa/Declínio do Encargo Já Aceito", resultado.modelo, resultado.snapshot);
+}
+
+/**
+ * Marca uma versão de documento do Fluxo Principal como PROTOCOLADA. Mesmo
+ * padrão de `marcarLaudoProtocolado` — a partir daqui o conteúdo fica
+ * congelado pelo trigger de sempre; só protocolo_id segue corrigível.
+ *
+ * Único efeito colateral em `processos`: protocolar um documento que inclui
+ * o módulo Aceite (standalone `aceite_pericial`, ou `manifestacao_inicial`
+ * com 'aceite' no snapshot) grava `aceitou_nomeacao = 'sim'` — consequência
+ * direta e não-ambígua (a trava já exigiu impedimento=não e competência=sim
+ * pra esse documento ter sido gerado; protocolar só formaliza o que já
+ * estava comprovadamente correto). Fecha a lacuna do Aceite standalone, que
+ * até esta fatia não gravava nada ao ser protocolado.
+ *
+ * Protocolar `impossibilidade_assumir` ou `escusa_declinio_pericial` NÃO
+ * mexe em `aceitou_nomeacao` nem em nenhum outro campo — decisão
+ * deliberada, pendente de confirmação (ver docs/plano-modulo-fluxo-principal.md).
  */
 export async function marcarFluxoPrincipalProtocolado(
   laudoGeradoId: string,
@@ -338,11 +465,23 @@ export async function marcarFluxoPrincipalProtocolado(
     .eq("processo_id", processoId)
     .eq("tipo", tipo)
     .eq("protocolado", false)
-    .select("id");
+    .select("id, snapshot_respostas");
 
   if (error) return { error: error.message };
   if (!data || data.length === 0) {
     return { error: "Não foi possível marcar como protocolado — a versão não existe ou já está protocolada." };
+  }
+
+  const incluiAceite =
+    tipo === "aceite_pericial" ||
+    (tipo === "manifestacao_inicial" &&
+      Boolean(
+        (data[0].snapshot_respostas as { modulos_selecionados?: string[] } | null)?.modulos_selecionados?.includes(
+          "aceite",
+        ),
+      ));
+  if (incluiAceite) {
+    await supabase.from("processos").update({ aceitou_nomeacao: "sim" }).eq("id", processoId);
   }
 
   revalidatePath(`/processos/${processoId}/fluxo-principal`);
