@@ -1,9 +1,7 @@
 -- ============================================================================
--- Fluxo Principal do Perito Judicial — fatia seguinte: 3 novos valores em
+-- Fluxo Principal do Perito Judicial — fatia 4: 3 novos valores em
 -- laudos_gerados.tipo (Manifestação Consolidada, Impossibilidade de Assumir
--- o Encargo, Escusa/Declínio do Encargo Já Aceito) + a coluna de liberação
--- que ficou decidida no plano (coluna própria, sem reaproveitar
--- deposito_forma_disponibilizacao — decisão do Jeferson, 11/09/2026).
+-- o Encargo, Escusa/Declínio do Encargo Já Aceito).
 -- ============================================================================
 -- 'manifestacao_inicial': documento composto que agrupa Aceite/Honorários/
 -- Depósito/Agendamento conforme os módulos marcados pela perita — nenhuma
