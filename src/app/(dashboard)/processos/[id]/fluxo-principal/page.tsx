@@ -5,21 +5,29 @@ import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
 import { AceitePanel } from "@/features/fluxo-principal/aceite-panel";
 import { DepositoPanel } from "@/features/fluxo-principal/deposito-panel";
 import { AgendamentoPanel } from "@/features/fluxo-principal/agendamento-panel";
+import { ConsolidadaPanel } from "@/features/fluxo-principal/consolidada-panel";
 import type { VersaoDocumento } from "@/features/fluxo-principal/gerar-documento-panel";
 import type { LaudoGeradoTipo } from "@/types/enums";
 
 const URL_ASSINADA_VALIDADE_SEGUNDOS = 60 * 60;
 
+const TODOS_TIPOS_FLUXO_PRINCIPAL: LaudoGeradoTipo[] = [
+  "aceite_pericial",
+  "dados_deposito",
+  "agendamento_pericia",
+  "manifestacao_inicial",
+  "impossibilidade_assumir",
+  "escusa_declinio_pericial",
+];
+
 /**
- * Fluxo Principal do Perito Judicial — fase inicial (fatia 2): Aceite do
- * Encargo Pericial, Informação de Dados para Depósito dos Honorários e
- * Comunicação de Agendamento da Perícia. Cada bloco tem seu formulário de
- * dados (colunas que existiam desde a fatia 0 mas não tinham tela nenhuma
- * pra editar) + geração/versões/protocolar, mesmo padrão do Pós-Laudo.
- *
- * Honorários fica de fora desta tela — schema pronto (migration
- * 20260911130000), mas sem petição avulsa: só entra quando a Manifestação
- * Consolidada existir (ver docs/plano-modulo-fluxo-principal.md §2-3).
+ * Fluxo Principal do Perito Judicial — fase inicial: Aceite do Encargo
+ * Pericial, Informação de Dados para Depósito dos Honorários, Comunicação de
+ * Agendamento da Perícia, Manifestação Consolidada (agrupa os 3 anteriores +
+ * Honorários) e os 2 destinos da trava do Aceite (Impossibilidade de Assumir
+ * / Escusa-Declínio, embutidos na tela do Aceite). Cada bloco tem seu
+ * formulário de dados + geração/versões/protocolar, mesmo padrão do
+ * Pós-Laudo.
  */
 export default async function FluxoPrincipalPage({
   params,
@@ -36,7 +44,7 @@ export default async function FluxoPrincipalPage({
       .from("laudos_gerados")
       .select("*")
       .eq("processo_id", processoId)
-      .in("tipo", ["aceite_pericial", "dados_deposito", "agendamento_pericia"])
+      .in("tipo", TODOS_TIPOS_FLUXO_PRINCIPAL)
       .order("versao", { ascending: false }),
   ]);
   if (!processo) notFound();
@@ -93,7 +101,12 @@ export default async function FluxoPrincipalPage({
         <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-100">
           Aceite do Encargo Pericial
         </h2>
-        <AceitePanel processo={processo} versoes={versoesDoTipo("aceite_pericial")} />
+        <AceitePanel
+          processo={processo}
+          versoes={versoesDoTipo("aceite_pericial")}
+          versoesImpossibilidade={versoesDoTipo("impossibilidade_assumir")}
+          versoesEscusa={versoesDoTipo("escusa_declinio_pericial")}
+        />
       </section>
 
       <section className="space-y-3">
@@ -112,6 +125,17 @@ export default async function FluxoPrincipalPage({
           Agendamento da Perícia
         </h2>
         <AgendamentoPanel processo={processo} versoes={versoesDoTipo("agendamento_pericia")} />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-100">
+          Manifestação Consolidada
+        </h2>
+        <ConsolidadaPanel
+          processo={processo}
+          temDadosBancariosCadastrados={temDadosBancariosCadastrados}
+          versoes={versoesDoTipo("manifestacao_inicial")}
+        />
       </section>
     </main>
   );

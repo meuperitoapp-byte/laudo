@@ -7,6 +7,7 @@ import { verificarTravaAceite } from "./regras";
 import { Botao } from "@/components/ui/button";
 import { Toast } from "@/components/ui/toast";
 import { GerarDocumentoPanel, type VersaoDocumento } from "./gerar-documento-panel";
+import { ImpossibilidadeOuEscusaPanel } from "./impossibilidade-escusa-panel";
 import type { ProcessosRow } from "@/types/database";
 
 const inputClass =
@@ -24,13 +25,24 @@ type ProcessoAceite = Pick<
   | "aceite_impedimento_suspeicao"
   | "aceite_competencia_tecnica"
   | "aceite_necessita_especialista"
+  | "aceitou_nomeacao"
 >;
 
 const paraValor = (v: boolean | null) => (v === true ? "sim" : v === false ? "nao" : "");
 const paraBool = (v: string) => (v === "sim" ? true : v === "nao" ? false : null);
 
 /** Manifestação de Aceite do Encargo Pericial — dados (nomeação + análise prévia) + geração. */
-export function AceitePanel({ processo, versoes }: { processo: ProcessoAceite; versoes: VersaoDocumento[] }) {
+export function AceitePanel({
+  processo,
+  versoes,
+  versoesImpossibilidade,
+  versoesEscusa,
+}: {
+  processo: ProcessoAceite;
+  versoes: VersaoDocumento[];
+  versoesImpossibilidade: VersaoDocumento[];
+  versoesEscusa: VersaoDocumento[];
+}) {
   const router = useRouter();
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
 
@@ -95,6 +107,10 @@ export function AceitePanel({ processo, versoes }: { processo: ProcessoAceite; v
     aceite_impedimento_suspeicao: paraBool(f.impedimentoSuspeicao),
     aceite_competencia_tecnica: paraBool(f.competenciaTecnica),
   });
+  // Trava avaliada com os valores JÁ SALVOS — é essa que decide se mostra o
+  // bloco de Impossibilidade/Escusa, porque esses dois documentos não têm
+  // relação com o que ainda está sendo editado no formulário acima.
+  const travaSalva = verificarTravaAceite(processo);
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -238,6 +254,15 @@ export function AceitePanel({ processo, versoes }: { processo: ProcessoAceite; v
           gerar={(dataAssinatura) => gerarAceitePericial(processo.id, dataAssinatura)}
         />
       </div>
+
+      {!travaSalva.ok && (
+        <ImpossibilidadeOuEscusaPanel
+          processoId={processo.id}
+          aceitouNomeacao={processo.aceitou_nomeacao}
+          versoesImpossibilidade={versoesImpossibilidade}
+          versoesEscusa={versoesEscusa}
+        />
+      )}
     </div>
   );
 }

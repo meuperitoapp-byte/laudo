@@ -10,6 +10,15 @@ const dataHora = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 const dataCurta = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { dateStyle: "short" });
 
+const TIPOS_FLUXO_PRINCIPAL: readonly LaudoGeradoTipo[] = [
+  "aceite_pericial",
+  "dados_deposito",
+  "agendamento_pericia",
+  "manifestacao_inicial",
+  "impossibilidade_assumir",
+  "escusa_declinio_pericial",
+];
+
 /**
  * Linha do tempo de versões do processo (fatia 12) — TODAS as linhas de
  * `laudos_gerados` (o Laudo V1 e toda saída de pós-laudo, judicial ou AT),
@@ -158,7 +167,7 @@ export default async function LinhaDoTempoPage({
                     ) : (
                       <span className="text-nevoa-400 dark:text-nevoa-600">Ciclo removido</span>
                     )
-                  ) : v.tipo === "aceite_pericial" || v.tipo === "dados_deposito" || v.tipo === "agendamento_pericia" ? (
+                  ) : TIPOS_FLUXO_PRINCIPAL.includes(v.tipo as LaudoGeradoTipo) ? (
                     <Link
                       href={`/processos/${processoId}/fluxo-principal`}
                       className="text-petroleo-600 hover:underline dark:text-petroleo-400"

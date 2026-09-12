@@ -465,4 +465,7 @@ export const TIPO_DOCUMENTO_ROTULOS: Record<LaudoGeradoTipo, string> = {
   aceite_pericial: "Manifestação de Aceite do Encargo Pericial",
   dados_deposito: "Informação de Dados para Depósito dos Honorários",
   agendamento_pericia: "Comunicação de Agendamento da Perícia",
+  manifestacao_inicial: "Manifestação Consolidada",
+  impossibilidade_assumir: "Impossibilidade de Assumir o Encargo",
+  escusa_declinio_pericial: "Escusa/Declínio do Encargo Já Aceito",
 };
