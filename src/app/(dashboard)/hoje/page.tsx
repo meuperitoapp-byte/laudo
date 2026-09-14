@@ -47,12 +47,20 @@ export default async function HojePage() {
             ciclo por ciclo pra descobrir.
           </p>
         </div>
-        <Link
-          href="/processos"
-          className="text-sm text-petroleo-600 hover:underline dark:text-petroleo-400 whitespace-nowrap"
-        >
-          Ver processos →
-        </Link>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <Link
+            href="/tarefas/nova"
+            className="text-sm text-petroleo-600 hover:underline dark:text-petroleo-400 whitespace-nowrap"
+          >
+            + Nova tarefa/evento
+          </Link>
+          <Link
+            href="/processos"
+            className="text-sm text-petroleo-600 hover:underline dark:text-petroleo-400 whitespace-nowrap"
+          >
+            Ver processos →
+          </Link>
+        </div>
       </div>
 
       {itens.length === 0 ? (
