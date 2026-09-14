@@ -227,7 +227,7 @@ puro incremento de conveniência, sem compromisso prévio.
 | 2 | **Cadastro manual de tarefa/evento avulso** — os campos que ela pediu (urgência, evento×tarefa, status próprio, Próxima Providência agora editável de verdade). Tabela nova aqui, pela primeira vez no módulo. | **Não mais — respondida em 11/09/2026** (ver bloco acima): vocabulário de status editável, evento entra já, correção manual sempre vence o cálculo. Escopo da Fase 2 — falta o Jeferson escrever o plano de fatiamento antes de codar. |
 | 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Não mais — respondida em 11/09/2026** (ver bloco acima): recorrência ligada a papel + estado do caso, com exemplos concretos dela já levantados. Escopo da Fase 2. |
 | 4 | **Edição da Próxima Providência dos itens automáticos** (fatia 1) — sobrescrever o texto fixo por item específico. Tabela pequena de ajustes. | **Não** — a única fatia realmente opcional do módulo: só entra se ela pedir, sem compromisso prévio. |
-| 5 | **Integração com o Fluxo Principal do Perito Judicial** — pluga a régua como mais uma fonte do agregador (§5). | Escopo da Fase 2, não pergunta pra ela. **FEITA PARCIALMENTE (15/09/2026)** — ver abaixo. |
+| 5 | **Integração com o Fluxo Principal do Perito Judicial** — pluga a régua como mais uma fonte do agregador (§5). | Escopo da Fase 2, não pergunta pra ela. **FEITA (16/09/2026)** — ver abaixo. |
 
 **Ordem de fechamento da Fase 2, decidida pelo Jeferson (15/09/2026):** régua enxuta do
 Fluxo Principal → **fatia 5** desta Central (menor, resultado visível imediato) → fatias 2 e
@@ -252,16 +252,22 @@ dia seguinte ao pedido — puro ruído.
   como "vencida" seria o mesmo tipo de ruído do caso da liberação. Decisão minha, sinalizada
   ao Jeferson, ainda sem veto dele registrado.
 
-**Ponto em aberto (não é dele decidir sozinho, ele pediu minha recomendação):** o que fazer
-com `liberacao_solicitada_em`. A pendência real por trás dela — "liberação pedida, ainda sem
-confirmação de que o dinheiro caiu" — é genuína (dinheiro parado), mas o sistema não tem hoje
-como saber se já foi recebido. Recomendação registrada: acrescentar `processos.
-honorarios_recebidos_em` (timestamptz, nullable, fato que ela confirma — nunca inferido) +
-botão "Confirmar recebimento" na tela de Liberação; a Central ganharia a fonte "Liberação
-solicitada, sem confirmação de recebimento" (nível `sem_prazo`, some sozinha quando ela
-confirma). Pequeno, mas é 1 coluna nova — fora do "só pluga o que já existe" original desta
-fatia. Aguardando decisão do Jeferson: aprovar esse adendo, ou deixar `liberacao_
-solicitada_em` de fora da Central até esse controle existir por outro motivo.
+**16/09/2026 — decisão do Jeferson: cria o campo.** Motivo dele, registrado verbatim: "o
+trilho financeiro já existe no desenho e para em liberação por falta de um único dado. Pedido
+de liberação protocolado e sem recebimento confirmado é dinheiro parado, é exatamente o tipo
+de pendência que se perde de vista, e honorário depositado judicialmente costuma demorar."
+
+**FEITO (migration `20260916120000`):** `processos.honorarios_recebidos_em` (`date`,
+nullable, sem default) — preenchida pela perita quando o dinheiro cai, **nunca** inferida
+(não há evento no sistema que prove recebimento). Entra na tela de Liberação do Fluxo
+Principal, logo abaixo do "Forma de liberação", só visível quando `liberacao_solicitada_em`
+já existe. **Fatia 5 fecha de vez**: processo com `liberacao_solicitada_em` preenchido e
+`honorarios_recebidos_em` vazio vira item **sem prazo** — "Liberação sem recebimento
+confirmado", providência "Conferir se o valor foi liberado" — que some sozinho assim que ela
+preenche a data. A régua enxuta do Fluxo Principal também mudou: a etapa "Liberação" só
+mostra "concluída" (sucesso) com recebimento confirmado — protocolar o pedido agora aparece
+como estado intermediário (atenção "Solicitada em X — aguardando recebimento"), não como fim
+do trilho.
 
 Cada fatia continua no mesmo rito das outras: SQL pra revisão antes de aplicar (quando
 houver), `tsc`/`eslint`/`build` limpos, commit dividido por camada, deploy só depois de

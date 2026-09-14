@@ -269,6 +269,14 @@ Jeferson sobre staffing), e a pergunta pendente sobre `situacao_processo` pra en
 recusado/devolvido (aguardando ele conversar com ela). Próximo passo da ordem de fechamento
 combinada: fatia 5 da Central de Prazos (plugar como fonte no painel `/hoje`).
 
+**16/09/2026 — trilho financeiro fecha até recebimento** (migration `20260916120000`):
+`processos.honorarios_recebidos_em` (`date`, nullable) — preenchida pela perita quando o
+dinheiro cai, nunca inferida (ver detalhe completo em
+`docs/plano-modulo-central-prazos.md` §6, onde a Central de Prazos ganhou a fonte
+correspondente). Consequência na `ReguaEnxuta` (fatia 7): a etapa "Liberação" passou a
+distinguir 3 estados em vez de 2 — pendente / solicitada (aguardando recebimento, atenção) /
+recebida (sucesso) — em vez de tratar "protocolou o pedido" como fim do trilho.
+
 ---
 
 ## 5.1. Achado (11/09/2026) — a biblioteca tem 32 expedientes, não 5
