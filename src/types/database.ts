@@ -226,6 +226,8 @@ export type ProcessosRow = {
   agendamento_deposito_previo_exigido: AgendamentoDepositoPrevioExigido | null
   liberacao_forma: LiberacaoForma | null
   liberacao_solicitada_em: string | null
+  /** date do Postgres, 'YYYY-MM-DD' — preenchida pela perita, nunca inferida. */
+  honorarios_recebidos_em: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -287,6 +289,7 @@ export type ProcessosInsert = ComDefaults<
   | 'agendamento_deposito_previo_exigido'
   | 'liberacao_forma'
   | 'liberacao_solicitada_em'
+  | 'honorarios_recebidos_em'
   | 'created_by'
   | 'created_at'
   | 'updated_at'
