@@ -224,8 +224,8 @@ puro incremento de conveniência, sem compromisso prévio.
 | # | Fatia | Depende de resposta da Dra. Fernanda? |
 |---|---|---|
 | 1 | **Painel "o que fazer hoje"** — só leitura, zero tabela nova, zero cadastro. Cobre tudo do §1-5 acima. | **FEITA (11/09/2026)** |
-| 2 | **Cadastro manual de tarefa/evento avulso** — os campos que ela pediu (urgência, evento×tarefa, status próprio, Próxima Providência agora editável de verdade). Tabela nova aqui, pela primeira vez no módulo. | **Não mais — respondida em 11/09/2026** (ver bloco acima): vocabulário de status editável, evento entra já, correção manual sempre vence o cálculo. Escopo da Fase 2 — falta o Jeferson escrever o plano de fatiamento antes de codar. |
-| 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Não mais — respondida em 11/09/2026** (ver bloco acima): recorrência ligada a papel + estado do caso, com exemplos concretos dela já levantados. Escopo da Fase 2. |
+| 2 | **Cadastro manual de tarefa/evento avulso** — os campos que ela pediu (urgência, evento×tarefa, status próprio, Próxima Providência agora editável de verdade). Tabela nova aqui, pela primeira vez no módulo. | **FEITA (17/09/2026)** — ver §6.2. |
+| 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Dividida em duas (16-17/09/2026)** — ver §6.2: documentos pendentes decidida e na fila; pagamento em atraso depende de resposta dela (vencimento de honorário varia entre depósito judicial e contratação particular). |
 | 4 | **Edição da Próxima Providência dos itens automáticos** (fatia 1) — sobrescrever o texto fixo por item específico. Tabela pequena de ajustes. | **Não** — a única fatia realmente opcional do módulo: só entra se ela pedir, sem compromisso prévio. |
 | 5 | **Integração com o Fluxo Principal do Perito Judicial** — pluga a régua como mais uma fonte do agregador (§5). | Escopo da Fase 2, não pergunta pra ela. **FEITA (16/09/2026)** — ver abaixo. |
 
@@ -272,6 +272,65 @@ do trilho.
 Cada fatia continua no mesmo rito das outras: SQL pra revisão antes de aplicar (quando
 houver), `tsc`/`eslint`/`build` limpos, commit dividido por camada, deploy só depois de
 confirmado.
+
+## 6.2 Fatias 2 e 3 — desenho final (16-17/09/2026)
+
+**Fatia 2 — cadastro manual de tarefa/evento avulso.** Uma tabela só (`central_tarefas`),
+`tipo` ('tarefa' | 'evento') discriminando — mesmo padrão de `laudos_gerados.tipo`. A
+separação evento×tarefa que ela confirmou duas vezes vira trava estrutural: `hora` só existe
+(e é exigida) quando `tipo='evento'` — CHECK garante isso —, e a tela de cadastro pergunta
+"Evento ou Tarefa?" antes de abrir o formulário certo, nunca um campo de hora pendurado numa
+tarefa. `processo_id` nullable (tarefa avulsa pode não ter processo). Vocabulário de
+`status` é `text` livre sem CHECK — mesmo padrão de Vara/Comarca (`ComboboxCatalogo` +
+`mesclarSugestoes`): semente no código (`Aguardando documentos`/`Em estudo`/`Em execução`/
+`Aguardando agendamento`), cresce sozinho com o que ela digitar. `nivel_urgencia_manual`
+(nullable) sempre vence o cálculo automático quando preenchido. `status_alterado_em`
+(gravado pela aplicação a cada mudança de status) e `concluida_em` (fato explícito, separado
+de `status` — o sistema não sabe qual valor de status "significa terminado") completam a
+tabela.
+
+**FEITO (17/09/2026):** migration `20260917120000_central_prazos_tarefas.sql` aplicada. Código:
+`/tarefas/nova` e `/tarefas/[id]` (Server Components), `TarefaForm` (client, mesmo padrão de
+`action={handleSubmit}` + `useTransition` do `processo-form.tsx`), `TarefaAcoes` (concluir/
+reabrir + excluir, sem confirmação por digitação — tarefa avulsa não carrega documento nem
+histórico, diferente de excluir processo), `actions.ts` (`criarTarefaCentral`,
+`atualizarTarefaCentral`, `marcarTarefaConcluida`, `excluirTarefaCentral`),
+`catalogos.ts` (`STATUS_TAREFA_SEED`, reaproveitando `mesclarSugestoes` já existente em
+`features/processos/catalogos.ts`, sem duplicar). Fonte 8 do agregador (`agregador.ts`) lê
+`central_tarefas` com `concluida_em is null`; é a única fonte que não filtra por processo
+ativo — decisão registrada inline no código: "a tarefa é criação explícita dela, não
+inferência do sistema sobre um processo específico" (ainda não confirmada pelo Jeferson).
+Entrada "+ Nova tarefa/evento" adicionada em `/hoje`. `tsc`/`eslint`/`build` limpos.
+
+**Fatia 3 — correção da leitura da recorrência (16/09/2026).** Eu tinha modelado a
+recorrência como regra sobre o status de uma tarefa CADASTRADA À MÃO — o Jeferson corrigiu:
+os dois exemplos dela ("lembrar de contatar o advogado quando o caso está aguardando
+documentos", "lembrar o financeiro após X dias de atraso") são sobre **estado do caso**, não
+sobre tarefa manual. Fazer do jeito que eu tinha desenhado inverteria o propósito da Central
+(só funcionaria se ela alimentasse o sistema à mão primeiro).
+
+**Investigação (17/09/2026) — o que o banco sustenta hoje pra cada um dos dois estados:**
+- **Documentos pendentes**: nada. `situacao_processo` é pipeline fechado de etapas
+  procedurais, sem valor pra isso (e conceitualmente "aguardando documentos" convive com
+  qualquer etapa, não é uma etapa a mais). `documentos.ilegivel_insuficiente` é sobre
+  documento que já existe e está ruim — conceito diferente de documento que ainda não chegou.
+- **Atraso de pagamento**: `situacao_financeira` tem o valor qualitativo ("Aguardando
+  Pagamento de Honorários") mas é texto livre sem nenhuma data anexada, e não existe
+  timestamp de quando entrou nesse valor (só `updated_at` genérico da linha, contaminado por
+  qualquer edição do processo). **Achado útil além da Central**: hoje o sistema sabe que está
+  aguardando pagamento e não sabe desde quando.
+
+**Decisão do Jeferson: caminho 1 (criar o estado), dividido em dois, por natureza diferente:**
+- **Documentos pendentes — decidida agora.** Estado independente do pipeline (convive com
+  qualquer etapa de `situacao_processo`): `processos.documentos_solicitados_em` (date,
+  nullable — preenchida quando ela marca que solicitou, limpa quando os documentos chegam) +
+  um campo de texto curto do que foi solicitado (sem isso o lembrete não diz o que cobrar).
+  Ainda não codada — próxima depois da fatia 2 fechar.
+- **Atraso de pagamento — não decidida.** Vencimento de honorário depende de como ela pensa
+  o prazo, e isso muda entre depósito judicial e contratação particular — pergunta dela, não
+  decisão técnica. Entrou na lista de perguntas que o Jeferson está juntando. **Registrada
+  como pendência declarada, não como estado inventado** — a fatia 3 fecha parcial (só
+  documentos pendentes) até essa resposta voltar.
 
 ## 6.1 Ordenação — por que item sem data nunca compete com o que está vencendo
 
