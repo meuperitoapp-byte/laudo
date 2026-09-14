@@ -13,7 +13,7 @@ const DEPOSITO_SITUACOES_ATENCAO = ["parcial", "aguardando_comprovacao"] as cons
 type ProcessoRegua = Pick<
   ProcessosRow,
   "nomeacao_data" | "aceitou_nomeacao" | "honorarios_situacao" | "deposito_situacao" | "agendamento_data"
-  | "liberacao_solicitada_em"
+  | "liberacao_solicitada_em" | "honorarios_recebidos_em"
 >;
 
 /**
@@ -98,9 +98,14 @@ export function ReguaEnxuta({
       ),
     },
     {
+      // Só "concluída" (sucesso) quando há RECEBIMENTO confirmado — protocolar
+      // o pedido é um passo intermediário, não o fim do trilho financeiro
+      // (decisão do Jeferson, 16/09/2026).
       rotulo: "Liberação",
-      conteudo: processo.liberacao_solicitada_em ? (
-        <Selo variante="sucesso">Solicitada em {dataCurta(processo.liberacao_solicitada_em)}</Selo>
+      conteudo: processo.honorarios_recebidos_em ? (
+        <Selo variante="sucesso">Recebido em {dataCurta(processo.honorarios_recebidos_em)}</Selo>
+      ) : processo.liberacao_solicitada_em ? (
+        <Selo variante="atencao">Solicitada em {dataCurta(processo.liberacao_solicitada_em)} — aguardando recebimento</Selo>
       ) : (
         <Selo variante="neutro">Pendente</Selo>
       ),
