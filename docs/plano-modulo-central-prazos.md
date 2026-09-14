@@ -227,12 +227,41 @@ puro incremento de conveniência, sem compromisso prévio.
 | 2 | **Cadastro manual de tarefa/evento avulso** — os campos que ela pediu (urgência, evento×tarefa, status próprio, Próxima Providência agora editável de verdade). Tabela nova aqui, pela primeira vez no módulo. | **Não mais — respondida em 11/09/2026** (ver bloco acima): vocabulário de status editável, evento entra já, correção manual sempre vence o cálculo. Escopo da Fase 2 — falta o Jeferson escrever o plano de fatiamento antes de codar. |
 | 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Não mais — respondida em 11/09/2026** (ver bloco acima): recorrência ligada a papel + estado do caso, com exemplos concretos dela já levantados. Escopo da Fase 2. |
 | 4 | **Edição da Próxima Providência dos itens automáticos** (fatia 1) — sobrescrever o texto fixo por item específico. Tabela pequena de ajustes. | **Não** — a única fatia realmente opcional do módulo: só entra se ela pedir, sem compromisso prévio. |
-| 5 | **Integração com o Fluxo Principal do Perito Judicial** — pluga a régua como mais uma fonte do agregador (§5). | Escopo da Fase 2, não pergunta pra ela. **Desbloqueada tecnicamente (15/09/2026)**: o Fluxo Principal já grava datas reais (`agendamento_data`, `nomeacao_prazo_manifestacao`, `liberacao_solicitada_em`) que o painel `/hoje` ainda não lê. |
+| 5 | **Integração com o Fluxo Principal do Perito Judicial** — pluga a régua como mais uma fonte do agregador (§5). | Escopo da Fase 2, não pergunta pra ela. **FEITA PARCIALMENTE (15/09/2026)** — ver abaixo. |
 
 **Ordem de fechamento da Fase 2, decidida pelo Jeferson (15/09/2026):** régua enxuta do
 Fluxo Principal → **fatia 5** desta Central (menor, resultado visível imediato) → fatias 2 e
 3 (cadastro manual + recorrência). A fatia 4 fica de fora dessa ordem — só entra se e quando
 ela pedir.
+
+**15/09/2026 — cuidado do Jeferson antes de codar a fatia 5, corrigindo o que eu tinha
+listado:** das 3 datas novas do Fluxo Principal, só 2 são prazo de verdade —
+`agendamento_data` e `nomeacao_prazo_manifestacao` "são coisas que vencem". `liberacao_
+solicitada_em` **não é** — é registro do que já foi feito (quando ela pediu a liberação), não
+algo com vencimento. Colocar como prazo faria o item aparecer "vencido" pra sempre a partir do
+dia seguinte ao pedido — puro ruído.
+
+**FEITO nesta fatia (sem migration, só leitura):**
+- **Nomeação sem decisão** (categoria já existente) ganhou prazo real: usa
+  `nomeacao_prazo_manifestacao` quando existir, em vez de cair sempre em "sem prazo" — a
+  categoria não mudou, só passou a ter dado melhor pra ler (exatamente o "cresce sozinho" já
+  previsto desde a fatia 1).
+- **Agendamento marcado** (categoria nova) — primeira fonte de "evento" de verdade do painel.
+  Só aparece enquanto **nenhum laudo** (rascunho ou protocolado) existir pro processo — se o
+  laudo já saiu, a perícia aconteceu, e deixar a data do agendamento (já passada) competir
+  como "vencida" seria o mesmo tipo de ruído do caso da liberação. Decisão minha, sinalizada
+  ao Jeferson, ainda sem veto dele registrado.
+
+**Ponto em aberto (não é dele decidir sozinho, ele pediu minha recomendação):** o que fazer
+com `liberacao_solicitada_em`. A pendência real por trás dela — "liberação pedida, ainda sem
+confirmação de que o dinheiro caiu" — é genuína (dinheiro parado), mas o sistema não tem hoje
+como saber se já foi recebido. Recomendação registrada: acrescentar `processos.
+honorarios_recebidos_em` (timestamptz, nullable, fato que ela confirma — nunca inferido) +
+botão "Confirmar recebimento" na tela de Liberação; a Central ganharia a fonte "Liberação
+solicitada, sem confirmação de recebimento" (nível `sem_prazo`, some sozinha quando ela
+confirma). Pequeno, mas é 1 coluna nova — fora do "só pluga o que já existe" original desta
+fatia. Aguardando decisão do Jeferson: aprovar esse adendo, ou deixar `liberacao_
+solicitada_em` de fora da Central até esse controle existir por outro motivo.
 
 Cada fatia continua no mesmo rito das outras: SQL pra revisão antes de aplicar (quando
 houver), `tsc`/`eslint`/`build` limpos, commit dividido por camada, deploy só depois de
