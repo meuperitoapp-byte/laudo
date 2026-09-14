@@ -1,16 +1,15 @@
 /**
- * Central de Prazos e Tarefas — fatias 1 e 5: agrega em uma lista só o que
- * já é pendente em qualquer canto do sistema, sem tabela nova e sem cadastro
- * manual. Ver docs/plano-modulo-central-prazos.md.
+ * Central de Prazos e Tarefas — fatias 1, 2 e 5: agrega em uma lista só o
+ * que é pendente em qualquer canto do sistema. Ver docs/plano-modulo-central-prazos.md.
  *
  * Não é "use server": função de leitura pura, chamada pela página. Cada
  * bloco numerado é uma FONTE independente — mesmo formato de saída
- * (`ItemPainel`) — de propósito (ver plano §5). Fatia 5 (15/09/2026) plugou
- * o Fluxo Principal do Perito Judicial como mais duas fontes (nomeação com
- * prazo real, agendamento marcado) exatamente como previsto: sem mexer nas
- * fontes que já existiam nem na ordenação — só mais funções na mesma lista.
- * `liberacao_solicitada_em` ficou de fora de propósito (não é prazo, é
- * registro do que já foi feito — ver ponto em aberto registrado no plano).
+ * (`ItemPainel`) — de propósito (ver plano §5). Fatia 5 (15-16/09/2026)
+ * plugou o Fluxo Principal do Perito Judicial como mais 3 fontes (nomeação
+ * com prazo real, agendamento marcado, liberação sem recebimento) sem mexer
+ * nas que já existiam. Fatia 2 (17/09/2026) plugou `central_tarefas` (o
+ * cadastro manual de tarefa/evento avulso) como a 8ª fonte — a única que lê
+ * dado que ela mesma escreveu em vez de inferir de outra tabela.
  */
 
 import type { createClient } from "@/lib/supabase/server";
@@ -23,7 +22,7 @@ type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 const TIPOS_SAIDA_AT = ["parecer_at", "manifestacao_at", "impugnacao_at", "parecer_divergente_at", "quesitos_at"] as const;
 
 /** "Nº do processo, ou nome do periciando, ou parte autora" — mesmo critério já usado no índice de ciclos e no índice de processos. */
-function identificarProcesso(p: { numero_processo: string | null; periciando_nome: string | null; parte_autora: string | null }): string {
+export function identificarProcesso(p: { numero_processo: string | null; periciando_nome: string | null; parte_autora: string | null }): string {
   return p.numero_processo || p.periciando_nome || p.parte_autora || "Processo sem identificação";
 }
 
@@ -240,6 +239,56 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       dataContexto: { rotulo: "Solicitada em", valor: p.liberacao_solicitada_em },
       ordenacao: p.liberacao_solicitada_em,
       href: `/processos/${p.id}/fluxo-principal`,
+    });
+  }
+
+  // ---- 8. Tarefas/eventos manuais em aberto (fatia 2) ----
+  // Diferente das outras 7 fontes, esta não filtra por `processos.status`:
+  // a tarefa é criação explícita dela, não inferência do sistema sobre um
+  // processo específico — um processo finalizado com uma tarefa avulsa
+  // ainda aberta continua sendo algo que ela decidiu acompanhar. Só
+  // `concluida_em is null` decide se aparece.
+  const { data: tarefasDb } = await supabase
+    .from("central_tarefas")
+    .select("id, processo_id, tipo, titulo, descricao, data, hora, status, nivel_urgencia_manual")
+    .is("concluida_em", null);
+  const tarefas = tarefasDb ?? [];
+
+  // Identificação dos processos vinculados — busca só os que NÃO estão no
+  // mapa de processos ativos (tarefa pode apontar pra um processo já
+  // finalizado/arquivado, que ainda assim precisa de rótulo no título).
+  const idsProcessosTarefas = Array.from(
+    new Set(tarefas.map((t) => t.processo_id).filter((id): id is string => id !== null && !processoPorId.has(id))),
+  );
+  let identificacaoExtra = new Map<string, string>();
+  if (idsProcessosTarefas.length > 0) {
+    const { data: processosExtraDb } = await supabase
+      .from("processos")
+      .select("id, numero_processo, periciando_nome, parte_autora")
+      .in("id", idsProcessosTarefas);
+    identificacaoExtra = new Map((processosExtraDb ?? []).map((p) => [p.id, identificarProcesso(p)]));
+  }
+
+  for (const t of tarefas) {
+    const nomeProcesso = t.processo_id
+      ? (processoPorId.has(t.processo_id) ? identificarProcesso(processoPorId.get(t.processo_id)!) : identificacaoExtra.get(t.processo_id))
+      : null;
+    // `dataContexto` é sempre uma DATA (a página formata como tal) — o
+    // horário do evento entra no subtítulo, não ali, pra não confundir a
+    // formatação de exibição.
+    const horario = t.tipo === "evento" && t.hora ? t.hora.slice(0, 5) : null;
+    itens.push({
+      id: `tarefa_manual-${t.id}`,
+      categoria: "tarefa_manual",
+      titulo: nomeProcesso ? `${t.titulo} — ${nomeProcesso}` : t.titulo,
+      subtitulo: horario ? `${t.status} · ${horario}` : t.status,
+      providencia: t.descricao?.trim() || PROVIDENCIA_POR_CATEGORIA.tarefa_manual,
+      // Correção manual SEMPRE vence o cálculo — nunca o contrário.
+      nivel: t.nivel_urgencia_manual ?? nivelPorPrazo(t.data, hoje),
+      prazo: t.data,
+      dataContexto: null,
+      ordenacao: t.data,
+      href: `/tarefas/${t.id}`,
     });
   }
 

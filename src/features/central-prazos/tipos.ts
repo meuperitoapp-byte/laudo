@@ -1,12 +1,14 @@
 /**
- * Central de Gestão de Prazos e Tarefas — fatia 1 (painel "o que fazer
- * hoje", só leitura, sem cadastro). Ver docs/plano-modulo-central-prazos.md.
+ * Central de Gestão de Prazos e Tarefas. Ver docs/plano-modulo-central-prazos.md.
  *
- * `NivelUrgencia` NÃO é uma coluna de banco — não existe tabela de tarefa
- * ainda (fatia 2+). É um valor calculado em `regras.ts` a partir do que já
- * existe em cada tabela de origem (`agregador.ts`).
+ * `NivelUrgencia` mora em `@/types/enums` desde a fatia 2 — deixou de ser só
+ * um valor calculado (`regras.ts`) e passou a ser TAMBÉM o vocabulário de
+ * `central_tarefas.nivel_urgencia_manual` (a correção dela, que sempre vence
+ * o cálculo). Reexportado aqui pra não quebrar os imports existentes
+ * (`import type { NivelUrgencia } from "./tipos"`).
  */
-export type NivelUrgencia = "critica" | "urgente" | "alta" | "atencao" | "programada" | "sem_prazo";
+import type { NivelUrgencia } from "@/types/enums";
+export type { NivelUrgencia };
 
 /**
  * Um item da lista do painel. `prazo` é a ÚNICA data usada pra calcular
@@ -25,10 +27,11 @@ export interface ItemPainel {
     | "documento_ilegivel"
     | "nomeacao_sem_decisao"
     | "agendamento_marcado"
-    | "liberacao_sem_recebimento";
+    | "liberacao_sem_recebimento"
+    | "tarefa_manual";
   titulo: string;
   subtitulo: string | null;
-  /** Texto fixo por categoria (ver rotulos.ts) — nunca vazio, nunca digitado por ela nesta fatia. */
+  /** Texto fixo por categoria (ver rotulos.ts) pras fontes automáticas; pra `tarefa_manual` é a descrição que ela mesma digitou (ou um fallback genérico quando em branco). Nunca vazio. */
   providencia: string;
   nivel: NivelUrgencia;
   /** "YYYY-MM-DD" — só quando a categoria tem prazo de verdade (ciclo aberto, nomeação sem decisão com prazo de manifestação, agendamento marcado). */

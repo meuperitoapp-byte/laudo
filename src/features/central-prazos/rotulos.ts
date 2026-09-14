@@ -50,4 +50,6 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   nomeacao_sem_decisao: "Decidir se aceita a nomeação.",
   agendamento_marcado: "Confirmar preparação para a perícia agendada.",
   liberacao_sem_recebimento: "Conferir se o valor foi liberado.",
+  /** Fallback só — na prática, a providência de uma tarefa manual é a descrição que ela mesma escreveu (ver agregador.ts). */
+  tarefa_manual: "Ver detalhes da tarefa.",
 };
