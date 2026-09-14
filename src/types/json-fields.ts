@@ -336,6 +336,22 @@ export interface SnapshotEscusaDeclinio {
 }
 
 /**
+ * laudos_gerados.snapshot_respostas quando tipo = 'nao_comparecimento' (nº17
+ * da Biblioteca). Campos digitados na hora de gerar — a data/horário aqui
+ * são os do ATO que não aconteceu, congelados no documento; NUNCA
+ * sobrescrevem `processos.agendamento_data`/`agendamento_horario`.
+ */
+export interface SnapshotNaoComparecimento {
+  tipo: 'nao_comparecimento'
+  gerado_em: string
+  data: string | null
+  horario: string | null
+  horarioChegadaPerito: string | null
+  tempoEspera: string | null
+  pessoasPresentes: string | null
+}
+
+/**
  * Forma de laudos_gerados.snapshot_respostas — união de todas as naturezas.
  * Narrow por `laudos_gerados.tipo` (ver acima).
  */
@@ -345,3 +361,4 @@ export type SnapshotLaudoGerado =
   | SnapshotManifestacaoInicial
   | SnapshotImpossibilidadeAssumir
   | SnapshotEscusaDeclinio
+  | SnapshotNaoComparecimento

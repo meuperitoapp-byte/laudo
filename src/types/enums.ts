@@ -24,8 +24,15 @@ export type TipoVara = 'federal' | 'estadual' | 'trabalho'
 /** processos.justica_gratuita (S/N no formulário) */
 export type JusticaGratuita = 'sim' | 'nao'
 
-/** processos.aceitou_nomeacao (S/N/D — 'destituida' = destituída do cargo) */
-export type AceitouNomeacao = 'sim' | 'nao' | 'destituida'
+/**
+ * processos.aceitou_nomeacao (S/N/D — 'destituida' = destituída do cargo,
+ * remoção pelo juízo). 'encargo_declinado' (migration 20260914120000) =
+ * aceitou e depois devolveu o encargo por impedimento superveniente (nº13
+ * da Biblioteca de Expedientes Periciais) — distinto de 'destituida' porque
+ * é devolução voluntária, não remoção; nome descreve o fato, não o
+ * documento que o formaliza.
+ */
+export type AceitouNomeacao = 'sim' | 'nao' | 'destituida' | 'encargo_declinado'
 
 // ----------------------------------------------------------------------------
 // Fluxo Principal do Perito Judicial (migration 20260911120000) — nomeação,
@@ -307,6 +314,7 @@ export type LaudoGeradoTipo =
   | 'manifestacao_inicial'
   | 'impossibilidade_assumir'
   | 'escusa_declinio_pericial'
+  | 'nao_comparecimento'
 
 // ----------------------------------------------------------------------------
 // Fluxo Assistência Técnica (migration 20260910120000_pos_laudo_at)
