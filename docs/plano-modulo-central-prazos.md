@@ -215,13 +215,24 @@ que doa depois.
 
 ## 6. Fatiamento sugerido do módulo inteiro
 
+**Correção de leitura (15/09/2026, decisão do Jeferson):** as fatias 2, 3 e 5 **não são fila
+opcional** — são escopo da Fase 2. A Central foi pedida pela Dra. Fernanda junto com o
+Pós-Laudo, na mesma encomenda; entregar só a fatia 1 (o painel que agrega o que já existe) não
+fecha o que foi combinado com ela. Só a fatia 4 é opcional de verdade — depende dela pedir,
+puro incremento de conveniência, sem compromisso prévio.
+
 | # | Fatia | Depende de resposta da Dra. Fernanda? |
 |---|---|---|
-| 1 | **Painel "o que fazer hoje"** — só leitura, zero tabela nova, zero cadastro. Cobre tudo do §1-5 acima. | **Não** — schema e regra de cor já são dados/decisões existentes. Só a costura do §2 (nível "Programada") e a política de promover itens do Grupo B (§2) valem uma confirmação rápida sua, não dela. |
-| 2 | **Cadastro manual de tarefa/evento avulso** — os campos que ela pediu (urgência, evento×tarefa, status próprio, Próxima Providência agora editável de verdade). Tabela nova aqui, pela primeira vez no módulo. | **Não mais — respondida em 11/09/2026** (ver bloco acima): vocabulário de status editável, evento entra já, correção manual sempre vence o cálculo. Falta só o Jeferson priorizar. |
-| 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Não mais — respondida em 11/09/2026** (ver bloco acima): recorrência ligada a papel + estado do caso, com exemplos concretos dela já levantados. |
-| 4 | **Edição da Próxima Providência dos itens automáticos** (fatia 1) — sobrescrever o texto fixo por item específico. Tabela pequena de ajustes. | **Não** — só depende de ela pedir, é incremento de conveniência. |
-| 5 | **Integração com o Fluxo Principal do Perito Judicial** — pluga a régua como mais uma fonte do agregador (§5), quando o Fluxo Principal existir. | Bloqueada pela construção do Fluxo Principal em si (frente própria, maior) — não é uma pergunta pra ela, é uma dependência de outro módulo. |
+| 1 | **Painel "o que fazer hoje"** — só leitura, zero tabela nova, zero cadastro. Cobre tudo do §1-5 acima. | **FEITA (11/09/2026)** |
+| 2 | **Cadastro manual de tarefa/evento avulso** — os campos que ela pediu (urgência, evento×tarefa, status próprio, Próxima Providência agora editável de verdade). Tabela nova aqui, pela primeira vez no módulo. | **Não mais — respondida em 11/09/2026** (ver bloco acima): vocabulário de status editável, evento entra já, correção manual sempre vence o cálculo. Escopo da Fase 2 — falta o Jeferson escrever o plano de fatiamento antes de codar. |
+| 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Não mais — respondida em 11/09/2026** (ver bloco acima): recorrência ligada a papel + estado do caso, com exemplos concretos dela já levantados. Escopo da Fase 2. |
+| 4 | **Edição da Próxima Providência dos itens automáticos** (fatia 1) — sobrescrever o texto fixo por item específico. Tabela pequena de ajustes. | **Não** — a única fatia realmente opcional do módulo: só entra se ela pedir, sem compromisso prévio. |
+| 5 | **Integração com o Fluxo Principal do Perito Judicial** — pluga a régua como mais uma fonte do agregador (§5). | Escopo da Fase 2, não pergunta pra ela. **Desbloqueada tecnicamente (15/09/2026)**: o Fluxo Principal já grava datas reais (`agendamento_data`, `nomeacao_prazo_manifestacao`, `liberacao_solicitada_em`) que o painel `/hoje` ainda não lê. |
+
+**Ordem de fechamento da Fase 2, decidida pelo Jeferson (15/09/2026):** régua enxuta do
+Fluxo Principal → **fatia 5** desta Central (menor, resultado visível imediato) → fatias 2 e
+3 (cadastro manual + recorrência). A fatia 4 fica de fora dessa ordem — só entra se e quando
+ela pedir.
 
 Cada fatia continua no mesmo rito das outras: SQL pra revisão antes de aplicar (quando
 houver), `tsc`/`eslint`/`build` limpos, commit dividido por camada, deploy só depois de

@@ -227,18 +227,47 @@ parte com material pronto e de baixo risco (ver alerta no topo). O resto fica de
 | 4 | `montarSecaoHonorarios` + Manifestação Consolidada (monta os 4 módulos) **+ Impossibilidade de Assumir (nº12) e Escusa/Declínio (nº13), os 2 destinos da trava do Aceite** | **FEITA (11/09/2026)** |
 | 5 | Não Comparecimento do Periciando — documento + o pequeno subfluxo de status (não marca a perícia como realizada, mantém a data original na linha do tempo) | **FEITA (14/09/2026)** |
 | 6 | Trilho financeiro até liberação — schema (provavelmente pequeno, ver §5.1) + `compilar-pedido-liberacao.ts` (documento nº23 da biblioteca) | **FEITA (15/09/2026)** |
-| 7 | Régua enxuta — painel só-leitura lendo o que já está gravado (aceite/depósito/agendamento/laudo), sem papéis nem Central Judicial. **Opcional, por último.** | Não |
+| 7 | **Régua enxuta** — painel só-leitura lendo o que já está gravado (nomeação/aceite/honorários/depósito/agendamento/laudo/liberação), sem papéis nem Central Judicial. **Fecha a Fase 2 do Fluxo Principal — não é opcional.** | **FEITA (15/09/2026)** |
 | 8 | *(fora deste fatiamento, decisão maior)* O resto da régua de 30 passos, os papéis Assessor/Financeiro, a Central Judicial com 4 painéis, o botão de encaminhamento entre setores | **Sim — é decisão sua, não da Dra. Fernanda**, sobre como o escritório está de fato organizado hoje (ver alerta no topo) |
-| 9 | *(quando a fatia 8 existir)* Plugar a régua como mais uma fonte da Central de Prazos (fatia 5 daquele módulo) | Depende só da fatia 8 acima existir |
+
+**Correção de leitura (15/09/2026, decisão do Jeferson):** a linha acima que dizia "régua
+enxuta = opcional, por último" estava errada, e a linha que amarrava a fatia 5 da Central de
+Prazos à fatia 8 (a decisão maior de papéis) também — as duas nunca dependeram uma da outra.
+Plugar o Fluxo Principal como fonte no painel `/hoje` da Central (fatia 5 daquele módulo) só
+precisa dos dados que as fatias 0-6 **já gravam** (`agendamento_data`,
+`nomeacao_prazo_manifestacao`, `liberacao_solicitada_em`) — está desbloqueada desde a fatia 6
+fechar, sem relação nenhuma com a régua de 30 passos ou os papéis Assessor/Financeiro.
 
 Nenhuma das fatias 0-7 depende de resposta da Dra. Fernanda no sentido em que Viabilidade
 dependia (hipótese clínica) — os documentos e as travas já vêm fechados no material. As
 confirmações que precisei até aqui foram suas, de escopo/comportamento, não dela.
 
-**Ordem de execução decidida pelo Jeferson (11/09/2026):** 4 (Consolidada, + Escusa/Declínio
+**Ordem de fechamento da Fase 2, decidida pelo Jeferson (15/09/2026):** 7 (régua enxuta,
+neste plano) → fatia 5 da Central de Prazos (plugar o Fluxo Principal como fonte — menor,
+resultado visível imediato) → fatias 2 e 3 da Central (cadastro manual + recorrência, ambas
+já respondidas pela Dra. Fernanda). A fatia 4 da Central fica de fora dessa ordem — só entra
+se ela pedir.
+
+**Ordem de execução das fatias 4-6 (11/09/2026, histórico):** 4 (Consolidada, + Escusa/Declínio
 se ele confirmar) → 5 (Não Comparecimento) → 6 (trilho financeiro até liberação) → 7 (régua
-enxuta, opcional, por último). A fatia 6 só é fatiada de verdade depois de eu ler o modelo do
-Pedido de Liberação palavra por palavra (feito — ver §5.1) e reportar o que falta de schema.
+enxuta). A fatia 6 só é fatiada de verdade depois de eu ler o modelo do Pedido de Liberação
+palavra por palavra (feito — ver §5.1) e reportar o que falta de schema.
+
+**15/09/2026 — FATIA 7 FEITA E NO AR: `ReguaEnxuta`** (sem migration — só leitura sobre
+`processos`/`laudos_gerados`). 7 etapas (Nomeação/Aceite/Honorários/Depósito/Agendamento/
+Laudo/Liberação), cada uma refletindo exatamente o campo que a tela correspondente já edita
+— nenhuma inferência nova, nenhum dado calculado que não exista em outro lugar. `Aceite`
+distingue os 4 valores de `aceitou_nomeacao` (sim=sucesso; nao/encargo_declinado/destituida=
+atenção, com o rótulo certo pra cada um); `Depósito` usa Selo de atenção pra parcial/aguardando
+comprovação, sucesso pra integral/dispensado/justiça gratuita. Renderizada no topo da página
+do Fluxo Principal, antes de todas as seções.
+
+**FASE 2 DO FLUXO PRINCIPAL FECHADA (fatias 0-7).** O que segue fora desta fase, por decisão
+já registrada: os ~23 documentos restantes da biblioteca de 32 (conversa de escopo com a Dra.
+Fernanda), a régua completa de 30 passos com papéis/Central Judicial (decisão maior do
+Jeferson sobre staffing), e a pergunta pendente sobre `situacao_processo` pra encargo
+recusado/devolvido (aguardando ele conversar com ela). Próximo passo da ordem de fechamento
+combinada: fatia 5 da Central de Prazos (plugar como fonte no painel `/hoje`).
 
 ---
 
