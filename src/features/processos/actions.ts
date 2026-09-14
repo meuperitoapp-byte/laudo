@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
+import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
 import type { ProcessosInsert, ProcessosUpdate } from "@/types/database";
 import type {
   AceitouNomeacao,
@@ -166,4 +168,49 @@ export async function updateProcesso(
   revalidatePath(`/processos/${processoId}`);
   revalidatePath(`/processos/${processoId}/editar`);
   redirect(`/processos/${processoId}`);
+}
+
+/**
+ * Exclusão real e definitiva do processo — sem desfazer. Todas as tabelas
+ * que referenciam `processos` já têm `on delete cascade` no banco (ver
+ * migrations 20260821120000, 20260823110000, 20260827100000,
+ * 20260905120000) — documentos, respostas, quesitos, partes e todo o
+ * histórico de pós-laudo somem junto, sem linha órfã.
+ *
+ * O que o cascade NÃO alcança é o Storage (arquivos são bytes fora do
+ * banco) — por isso a limpeza de `documentos`/`laudos_gerados` roda ANTES
+ * do delete, lendo os caminhos enquanto as linhas ainda existem. Erro de
+ * Storage não bloqueia a exclusão do registro: um arquivo órfão é um
+ * problema bem menor que não conseguir excluir um processo.
+ */
+export async function excluirProcesso(processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const [{ data: documentosDb }, { data: laudosDb }] = await Promise.all([
+    supabase.from("documentos").select("storage_path").eq("processo_id", processoId),
+    supabase.from("laudos_gerados").select("storage_path_pdf, storage_path_docx").eq("processo_id", processoId),
+  ]);
+
+  const caminhosDocumentos = (documentosDb ?? [])
+    .map((d) => d.storage_path)
+    .filter((p): p is string => Boolean(p));
+  const caminhosLaudos = (laudosDb ?? [])
+    .flatMap((l) => [l.storage_path_pdf, l.storage_path_docx])
+    .filter((p): p is string => Boolean(p));
+
+  if (caminhosDocumentos.length > 0) {
+    await supabase.storage.from(BUCKET_DOCUMENTOS).remove(caminhosDocumentos);
+  }
+  if (caminhosLaudos.length > 0) {
+    await supabase.storage.from(BUCKET_LAUDOS_GERADOS).remove(caminhosLaudos);
+  }
+
+  const { error } = await supabase.from("processos").delete().eq("id", processoId);
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/processos");
+  revalidatePath("/hoje");
+  redirect("/processos");
 }

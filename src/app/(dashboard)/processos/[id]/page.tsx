@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
 import { PoloPartesPanel } from "@/features/processos/polo-partes-panel";
+import { ExcluirProcessoButton } from "@/features/processos/excluir-processo-button";
 
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   pericia_judicial: "Perícia Judicial",
@@ -272,6 +273,10 @@ export default async function ProcessoDetalhePage({
             Pós-laudo (marque o laudo como protocolado)
           </span>
         )}
+      </div>
+
+      <div className="pt-4 border-t border-nevoa-200 dark:border-nevoa-800">
+        <ExcluirProcessoButton processoId={processo.id} />
       </div>
     </main>
   );
