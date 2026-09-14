@@ -37,7 +37,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   const { data: processosDb } = await supabase
     .from("processos")
     .select(
-      "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data",
+      "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em",
     )
     .eq("status", "em_andamento");
   const processos = processosDb ?? [];
@@ -217,6 +217,28 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: p.agendamento_data,
       dataContexto: null,
       ordenacao: p.agendamento_data,
+      href: `/processos/${p.id}/fluxo-principal`,
+    });
+  }
+
+  // ---- 7. Liberação protocolada, sem confirmação de recebimento ----
+  // `liberacao_solicitada_em` não é prazo (é registro do que já foi feito),
+  // mas a AUSÊNCIA de `honorarios_recebidos_em` depois dela é pendência real
+  // — dinheiro parado, sem data de vencimento (depósito judicial costuma
+  // demorar, então nunca "vence") — cai em "sem_prazo" (decisão do Jeferson,
+  // 16/09/2026). Some sozinho quando ela confirma o recebimento.
+  for (const p of processos) {
+    if (!p.liberacao_solicitada_em || p.honorarios_recebidos_em) continue;
+    itens.push({
+      id: `liberacao_sem_recebimento-${p.id}`,
+      categoria: "liberacao_sem_recebimento",
+      titulo: `Liberação sem recebimento confirmado — ${identificarProcesso(p)}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.liberacao_sem_recebimento,
+      nivel: "sem_prazo",
+      prazo: null,
+      dataContexto: { rotulo: "Solicitada em", valor: p.liberacao_solicitada_em },
+      ordenacao: p.liberacao_solicitada_em,
       href: `/processos/${p.id}/fluxo-principal`,
     });
   }

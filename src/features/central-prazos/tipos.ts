@@ -24,7 +24,8 @@ export interface ItemPainel {
     | "at_entregue_sem_protocolo"
     | "documento_ilegivel"
     | "nomeacao_sem_decisao"
-    | "agendamento_marcado";
+    | "agendamento_marcado"
+    | "liberacao_sem_recebimento";
   titulo: string;
   subtitulo: string | null;
   /** Texto fixo por categoria (ver rotulos.ts) — nunca vazio, nunca digitado por ela nesta fatia. */

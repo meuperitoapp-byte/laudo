@@ -49,4 +49,5 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   documento_ilegivel: "Solicitar documento legível ao apresentante.",
   nomeacao_sem_decisao: "Decidir se aceita a nomeação.",
   agendamento_marcado: "Confirmar preparação para a perícia agendada.",
+  liberacao_sem_recebimento: "Conferir se o valor foi liberado.",
 };

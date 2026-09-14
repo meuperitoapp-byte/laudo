@@ -244,6 +244,25 @@ export async function salvarLiberacaoForma(processoId: string, forma: string | n
   return { success: true };
 }
 
+/**
+ * `honorarios_recebidos_em` — preenchida pela perita quando o dinheiro
+ * efetivamente cai na conta. NUNCA gravado sozinho pelo sistema (diferente
+ * de `liberacao_solicitada_em`, consequência direta de protocolar o
+ * documento) — não existe evento no sistema que prove recebimento, só ela
+ * sabe. `data: null` desfaz a confirmação (ela digitou errado, por exemplo).
+ */
+export async function salvarHonorariosRecebidos(processoId: string, data: string | null): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const dados: ProcessosUpdate = { honorarios_recebidos_em: data || null };
+  const { error } = await supabase.from("processos").update(dados).eq("id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/fluxo-principal`);
+  revalidatePath("/hoje");
+  return { success: true };
+}
+
 // ============================================================================
 // Geração — Aceite / Depósito / Agendamento. Mesmo padrão de
 // geracao-laudo/actions.ts (gerarLaudo): compila, renderiza PDF+Word do MESMO
