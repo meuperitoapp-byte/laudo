@@ -8,6 +8,7 @@ import { Botao } from "@/components/ui/button";
 import { Toast } from "@/components/ui/toast";
 import { GerarDocumentoPanel, type VersaoDocumento } from "./gerar-documento-panel";
 import { ImpossibilidadeOuEscusaPanel } from "./impossibilidade-escusa-panel";
+import type { DocumentoProtocoladoAceite } from "./aceitou-nomeacao-sugestao";
 import type { ProcessosRow } from "@/types/database";
 
 const inputClass =
@@ -37,11 +38,13 @@ export function AceitePanel({
   versoes,
   versoesImpossibilidade,
   versoesEscusa,
+  documentoProtocolado,
 }: {
   processo: ProcessoAceite;
   versoes: VersaoDocumento[];
   versoesImpossibilidade: VersaoDocumento[];
   versoesEscusa: VersaoDocumento[];
+  documentoProtocolado: DocumentoProtocoladoAceite | null;
 }) {
   const router = useRouter();
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
@@ -261,6 +264,7 @@ export function AceitePanel({
           aceitouNomeacao={processo.aceitou_nomeacao}
           versoesImpossibilidade={versoesImpossibilidade}
           versoesEscusa={versoesEscusa}
+          documentoProtocolado={documentoProtocolado}
         />
       )}
     </div>

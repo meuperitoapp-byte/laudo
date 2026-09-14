@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { gerarImpossibilidadeAssumir, gerarEscusaDeclinio } from "./actions";
 import { GerarDocumentoPanel, type VersaoDocumento } from "./gerar-documento-panel";
+import { AceitouNomeacaoSugestao, type DocumentoProtocoladoAceite } from "./aceitou-nomeacao-sugestao";
+import { Selo } from "@/components/ui/badge";
 import type { AceitouNomeacao } from "@/types/enums";
 
 const inputClass =
@@ -23,26 +25,74 @@ const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400
  *   pressupõe isso ("Após a aceitação do encargo..."), então mostrar o
  *   documento errado seria um erro de conteúdo na peça, não só de UI.
  *
- * Gerar qualquer um dos dois NÃO alza `aceitou_nomeacao` nem nenhum outro
- * campo do processo — só o protocolar de um documento com o módulo Aceite
- * mexe nisso (ver marcarFluxoPrincipalProtocolado), e estes dois nunca
- * incluem esse módulo.
+ * Gerar qualquer um dos dois NÃO altera `aceitou_nomeacao` nem nenhum campo
+ * do processo — só o PROTOCOLAR pode sugerir isso (nunca aplicar sozinho),
+ * via `AceitouNomeacaoSugestao` (14/09/2026): se o nº12 ou o nº13 já foi
+ * protocolado e `aceitou_nomeacao` ainda não reflete isso, aparece a
+ * sugestão com o motivo visível, e ela confirma.
+ *
+ * Uma vez que `aceitou_nomeacao` já é 'nao'/'destituida'/'encargo_declinado'
+ * (encargo já resolvido, por qualquer via), nenhum dos dois formulários faz
+ * sentido mais — mostrar "Impossibilidade de Assumir" pra quem já devolveu
+ * o encargo seria confuso. Mostra só as versões já geradas (se houver) e um
+ * aviso neutro.
  */
 export function ImpossibilidadeOuEscusaPanel({
   processoId,
   aceitouNomeacao,
   versoesImpossibilidade,
   versoesEscusa,
+  documentoProtocolado,
 }: {
   processoId: string;
   aceitouNomeacao: AceitouNomeacao | null;
   versoesImpossibilidade: VersaoDocumento[];
   versoesEscusa: VersaoDocumento[];
+  documentoProtocolado: DocumentoProtocoladoAceite | null;
 }) {
-  if (aceitouNomeacao === "sim") {
-    return <EscusaDeclinioForm processoId={processoId} versoes={versoesEscusa} />;
+  const sugestao = (
+    <AceitouNomeacaoSugestao
+      processoId={processoId}
+      aceitouNomeacaoAtual={aceitouNomeacao}
+      documentoProtocolado={documentoProtocolado}
+    />
+  );
+
+  if (aceitouNomeacao === "nao" || aceitouNomeacao === "destituida" || aceitouNomeacao === "encargo_declinado") {
+    return (
+      <div className="space-y-3">
+        {sugestao}
+        <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-3">
+          <p className="text-sm text-nevoa-700 dark:text-nevoa-300">
+            Encargo já resolvido — <Selo variante="neutro">Não aceito / declinado</Selo>. Nenhuma geração pendente
+            aqui.
+          </p>
+          {(versoesImpossibilidade.length > 0 || versoesEscusa.length > 0) && (
+            <ul className="space-y-1 text-xs text-nevoa-500 dark:text-nevoa-400">
+              {[...versoesImpossibilidade, ...versoesEscusa].map((v) => (
+                <li key={v.id}>Versão {v.versao} gerada.</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    );
   }
-  return <ImpossibilidadeAssumirForm processoId={processoId} versoes={versoesImpossibilidade} />;
+
+  if (aceitouNomeacao === "sim") {
+    return (
+      <div className="space-y-3">
+        {sugestao}
+        <EscusaDeclinioForm processoId={processoId} versoes={versoesEscusa} />
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      {sugestao}
+      <ImpossibilidadeAssumirForm processoId={processoId} versoes={versoesImpossibilidade} />
+    </div>
+  );
 }
 
 function ImpossibilidadeAssumirForm({

@@ -17,6 +17,7 @@ const TIPOS_FLUXO_PRINCIPAL: readonly LaudoGeradoTipo[] = [
   "manifestacao_inicial",
   "impossibilidade_assumir",
   "escusa_declinio_pericial",
+  "nao_comparecimento",
 ];
 
 /**

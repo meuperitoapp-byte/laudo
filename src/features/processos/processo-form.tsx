@@ -628,6 +628,7 @@ export function ProcessoForm({
                   <option value="sim">Sim</option>
                   <option value="nao">Não</option>
                   <option value="destituida">Destituída do cargo</option>
+                  <option value="encargo_declinado">Encargo declinado (devolvido após aceitar)</option>
                 </select>
               </div>
             </div>

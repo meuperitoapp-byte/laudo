@@ -6,7 +6,9 @@ import { AceitePanel } from "@/features/fluxo-principal/aceite-panel";
 import { DepositoPanel } from "@/features/fluxo-principal/deposito-panel";
 import { AgendamentoPanel } from "@/features/fluxo-principal/agendamento-panel";
 import { ConsolidadaPanel } from "@/features/fluxo-principal/consolidada-panel";
+import { NaoComparecimentoPanel } from "@/features/fluxo-principal/nao-comparecimento-panel";
 import type { VersaoDocumento } from "@/features/fluxo-principal/gerar-documento-panel";
+import type { DocumentoProtocoladoAceite } from "@/features/fluxo-principal/aceitou-nomeacao-sugestao";
 import type { LaudoGeradoTipo } from "@/types/enums";
 
 const URL_ASSINADA_VALIDADE_SEGUNDOS = 60 * 60;
@@ -18,16 +20,17 @@ const TODOS_TIPOS_FLUXO_PRINCIPAL: LaudoGeradoTipo[] = [
   "manifestacao_inicial",
   "impossibilidade_assumir",
   "escusa_declinio_pericial",
+  "nao_comparecimento",
 ];
 
 /**
  * Fluxo Principal do Perito Judicial — fase inicial: Aceite do Encargo
  * Pericial, Informação de Dados para Depósito dos Honorários, Comunicação de
- * Agendamento da Perícia, Manifestação Consolidada (agrupa os 3 anteriores +
- * Honorários) e os 2 destinos da trava do Aceite (Impossibilidade de Assumir
- * / Escusa-Declínio, embutidos na tela do Aceite). Cada bloco tem seu
- * formulário de dados + geração/versões/protocolar, mesmo padrão do
- * Pós-Laudo.
+ * Agendamento da Perícia, Não Comparecimento ao Ato Pericial, Manifestação
+ * Consolidada (agrupa Aceite/Depósito/Agendamento + Honorários) e os 2
+ * destinos da trava do Aceite (Impossibilidade de Assumir / Escusa-Declínio,
+ * embutidos na tela do Aceite). Cada bloco tem seu formulário de dados +
+ * geração/versões/protocolar, mesmo padrão do Pós-Laudo.
  */
 export default async function FluxoPrincipalPage({
   params,
@@ -77,6 +80,18 @@ export default async function FluxoPrincipalPage({
       }));
   }
 
+  // Documento protocolado mais recente entre os 2 destinos da trava do Aceite
+  // — alimenta a sugestão de aceitou_nomeacao (AceitouNomeacaoSugestao).
+  const documentoProtocolado: DocumentoProtocoladoAceite | null = versoes
+    .filter(
+      (v): v is typeof v & { tipo: "impossibilidade_assumir" | "escusa_declinio_pericial"; protocolado_em: string } =>
+        (v.tipo === "impossibilidade_assumir" || v.tipo === "escusa_declinio_pericial") &&
+        v.protocolado &&
+        v.protocolado_em !== null,
+    )
+    .sort((a, b) => b.protocolado_em.localeCompare(a.protocolado_em))
+    .map((v) => ({ tipo: v.tipo, protocoladoEm: v.protocolado_em }))[0] ?? null;
+
   const temDadosBancariosCadastrados = Boolean(config?.dados_bancarios_titular?.trim());
 
   const titulo =
@@ -106,6 +121,7 @@ export default async function FluxoPrincipalPage({
           versoes={versoesDoTipo("aceite_pericial")}
           versoesImpossibilidade={versoesDoTipo("impossibilidade_assumir")}
           versoesEscusa={versoesDoTipo("escusa_declinio_pericial")}
+          documentoProtocolado={documentoProtocolado}
         />
       </section>
 
@@ -125,6 +141,13 @@ export default async function FluxoPrincipalPage({
           Agendamento da Perícia
         </h2>
         <AgendamentoPanel processo={processo} versoes={versoesDoTipo("agendamento_pericia")} />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-100">
+          Não Comparecimento ao Ato Pericial
+        </h2>
+        <NaoComparecimentoPanel processo={processo} versoes={versoesDoTipo("nao_comparecimento")} />
       </section>
 
       <section className="space-y-3">

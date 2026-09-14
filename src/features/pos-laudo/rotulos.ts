@@ -468,4 +468,5 @@ export const TIPO_DOCUMENTO_ROTULOS: Record<LaudoGeradoTipo, string> = {
   manifestacao_inicial: "Manifestação Consolidada",
   impossibilidade_assumir: "Impossibilidade de Assumir o Encargo",
   escusa_declinio_pericial: "Escusa/Declínio do Encargo Já Aceito",
+  nao_comparecimento: "Comunicação de Não Comparecimento ao Ato Pericial",
 };
