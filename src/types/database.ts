@@ -55,6 +55,7 @@ import type {
   HonorariosComplexidade,
   AgendamentoNecessidadeAcompanhante,
   AgendamentoDepositoPrevioExigido,
+  LiberacaoForma,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -223,6 +224,8 @@ export type ProcessosRow = {
   agendamento_necessidade_acompanhante: AgendamentoNecessidadeAcompanhante | null
   agendamento_orientacoes_especificas: string | null
   agendamento_deposito_previo_exigido: AgendamentoDepositoPrevioExigido | null
+  liberacao_forma: LiberacaoForma | null
+  liberacao_solicitada_em: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -282,6 +285,8 @@ export type ProcessosInsert = ComDefaults<
   | 'agendamento_necessidade_acompanhante'
   | 'agendamento_orientacoes_especificas'
   | 'agendamento_deposito_previo_exigido'
+  | 'liberacao_forma'
+  | 'liberacao_solicitada_em'
   | 'created_by'
   | 'created_at'
   | 'updated_at'

@@ -352,6 +352,20 @@ export interface SnapshotNaoComparecimento {
 }
 
 /**
+ * laudos_gerados.snapshot_respostas quando tipo = 'pedido_liberacao' (nº23
+ * da Biblioteca — trilho financeiro até liberação). `valor` e `laudoProtocoloId`
+ * são congelados no momento da geração (o valor pode mudar depois em
+ * `processos.deposito_valor`; o snapshot preserva o que foi pedido).
+ */
+export interface SnapshotPedidoLiberacao {
+  tipo: 'pedido_liberacao'
+  gerado_em: string
+  valor: number | null
+  forma: string | null
+  laudoProtocoloId: string | null
+}
+
+/**
  * Forma de laudos_gerados.snapshot_respostas — união de todas as naturezas.
  * Narrow por `laudos_gerados.tipo` (ver acima).
  */
@@ -362,3 +376,4 @@ export type SnapshotLaudoGerado =
   | SnapshotImpossibilidadeAssumir
   | SnapshotEscusaDeclinio
   | SnapshotNaoComparecimento
+  | SnapshotPedidoLiberacao

@@ -87,6 +87,17 @@ export type AgendamentoNecessidadeAcompanhante = 'nao' | 'sim' | 'conforme_condi
  */
 export type AgendamentoDepositoPrevioExigido = 'sim' | 'nao' | 'nao_aplicavel'
 
+/**
+ * processos.liberacao_forma — "mediante [alvará/transferência]" do Modelo
+ * de Pedido de Liberação dos Honorários (nº23 da Biblioteca de Expedientes
+ * Periciais, migration 20260915120000). Trava de exposição dos dados
+ * bancários: só 'transferencia' permite incluí-los no documento gerado;
+ * 'alvara'/'outro' excluem sempre — mesmo desenho de
+ * FormaDisponibilizacaoDeposito, mas campo independente (momentos
+ * diferentes do processo).
+ */
+export type LiberacaoForma = 'alvara' | 'transferencia' | 'outro'
+
 /** documentos.tipo */
 export type TipoDocumento =
   | 'documento_processual'
@@ -315,6 +326,7 @@ export type LaudoGeradoTipo =
   | 'impossibilidade_assumir'
   | 'escusa_declinio_pericial'
   | 'nao_comparecimento'
+  | 'pedido_liberacao'
 
 // ----------------------------------------------------------------------------
 // Fluxo Assistência Técnica (migration 20260910120000_pos_laudo_at)
