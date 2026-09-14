@@ -12,6 +12,7 @@ import type {
   AgendamentoDepositoPrevioExigido,
   HonorariosSituacao,
   HonorariosComplexidade,
+  LiberacaoForma,
 } from "@/types/enums";
 
 /** processos.deposito_situacao — vocabulário literal do Modelo de Dados para Depósito. */
@@ -129,4 +130,13 @@ export const HONORARIOS_COMPLEXIDADE_ROTULOS: Record<HonorariosComplexidade, str
   media: "Média",
   alta: "Alta",
   excepcional: "Excepcional",
+};
+
+/** processos.liberacao_forma — "mediante [alvará/transferência]" do Modelo de Pedido de Liberação. */
+export const LIBERACAO_FORMA_ORDENADA: readonly LiberacaoForma[] = ["alvara", "transferencia", "outro"];
+
+export const LIBERACAO_FORMA_ROTULOS: Record<LiberacaoForma, string> = {
+  alvara: "Alvará",
+  transferencia: "Transferência",
+  outro: "Outro",
 };

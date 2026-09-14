@@ -13,6 +13,7 @@ import { compilarManifestacaoConsolidada, type ModulosSelecionados } from "./com
 import { compilarImpossibilidadeAssumir } from "./compilar-impossibilidade-assumir";
 import { compilarEscusaDeclinio } from "./compilar-escusa-declinio";
 import { compilarNaoComparecimento } from "./compilar-nao-comparecimento";
+import { compilarPedidoLiberacao } from "./compilar-pedido-liberacao";
 import { verificarAlertaAgendamento } from "./regras";
 import type { ModeloLaudo } from "@/features/geracao-laudo/modelo";
 import type { LaudosGeradosInsert, ProcessosUpdate } from "@/types/database";
@@ -26,6 +27,7 @@ import type {
   HonorariosSituacao,
   HonorariosComplexidade,
   AceitouNomeacao,
+  LiberacaoForma,
   LaudoGeradoTipo,
 } from "@/types/enums";
 
@@ -223,6 +225,22 @@ export async function salvarDadosHonorarios(input: {
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${input.processoId}/fluxo-principal`);
+  return { success: true };
+}
+
+const LIBERACAO_FORMA_VALIDAS: readonly LiberacaoForma[] = ["alvara", "transferencia", "outro"];
+
+export async function salvarLiberacaoForma(processoId: string, forma: string | null): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const valor =
+    forma && (LIBERACAO_FORMA_VALIDAS as readonly string[]).includes(forma) ? (forma as LiberacaoForma) : null;
+
+  const dados: ProcessosUpdate = { liberacao_forma: valor };
+  const { error } = await supabase.from("processos").update(dados).eq("id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/fluxo-principal`);
   return { success: true };
 }
 
@@ -461,6 +479,25 @@ export async function gerarNaoComparecimento(
   );
 }
 
+export async function gerarPedidoLiberacao(
+  processoId: string,
+  confirmarExposicaoDadosBancarios: boolean,
+  dataAssinaturaIso: string,
+): Promise<GerarResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataAssinaturaIso)) return { error: "Informe a data da assinatura." };
+
+  const resultado = await compilarPedidoLiberacao(processoId, confirmarExposicaoDadosBancarios, dataAssinaturaIso);
+  if (resultado.status === "erro") return { error: resultado.mensagem };
+
+  return gerarERegistrar(
+    processoId,
+    "pedido_liberacao",
+    "Pedido de Liberação dos Honorários Periciais",
+    resultado.modelo,
+    resultado.snapshot,
+  );
+}
+
 /**
  * Marca uma versão de documento do Fluxo Principal como PROTOCOLADA. Mesmo
  * padrão de `marcarLaudoProtocolado` — a partir daqui o conteúdo fica
@@ -514,6 +551,12 @@ export async function marcarFluxoPrincipalProtocolado(
       ));
   if (incluiAceite) {
     await supabase.from("processos").update({ aceitou_nomeacao: "sim" }).eq("id", processoId);
+  }
+  if (tipo === "pedido_liberacao") {
+    // Gravado DIRETO, sem sugestão — campo novo, criado só pra este fato,
+    // sem ambiguidade nem leitura concorrente (mesmo critério do
+    // aceitou_nomeacao='sim' acima; decisão do Jeferson, 14/09/2026).
+    await supabase.from("processos").update({ liberacao_solicitada_em: new Date().toISOString() }).eq("id", processoId);
   }
 
   revalidatePath(`/processos/${processoId}/fluxo-principal`);

@@ -183,8 +183,26 @@ export async function updateProcesso(
  * Storage não bloqueia a exclusão do registro: um arquivo órfão é um
  * problema bem menor que não conseguir excluir um processo.
  */
+const MENSAGEM_BLOQUEIO_PROTOCOLADO =
+  "Este processo tem documento protocolado nos autos (laudo, esclarecimentos, ou saída do Fluxo Principal) e por isso não pode ser excluído — documento protocolado é registro oficial já entregue, não pode simplesmente sumir do histórico.";
+
 export async function excluirProcesso(processoId: string): Promise<ActionResult> {
   const supabase = await createClient();
+
+  // Checado ANTES de mexer em qualquer coisa — nem limpa Storage nem tenta
+  // apagar se já se sabe que vai bloquear. Cobre TODO documento protocolado
+  // do processo (laudo principal, pós-laudo, Fluxo Principal), não só o que
+  // o trigger do banco (trg_pos_laudo_ciclo_bloqueia_delete_com_protocolo)
+  // enxerga — esse trigger só olha ciclos de pós-laudo, então um laudo
+  // principal protocolado sem nenhum ciclo aberto passaria batido por ele.
+  const { count: totalProtocolados } = await supabase
+    .from("laudos_gerados")
+    .select("id", { count: "exact", head: true })
+    .eq("processo_id", processoId)
+    .eq("protocolado", true);
+  if (totalProtocolados && totalProtocolados > 0) {
+    return { error: MENSAGEM_BLOQUEIO_PROTOCOLADO };
+  }
 
   const [{ data: documentosDb }, { data: laudosDb }] = await Promise.all([
     supabase.from("documentos").select("storage_path").eq("processo_id", processoId),
@@ -207,6 +225,13 @@ export async function excluirProcesso(processoId: string): Promise<ActionResult>
 
   const { error } = await supabase.from("processos").delete().eq("id", processoId);
   if (error) {
+    // Rede de segurança: se o trigger do banco disparar por algum caminho
+    // que o pré-check acima não previu, a Dra. Fernanda nunca vê a exceção
+    // crua do Postgres (nome de tabela interna, UUID) — só a explicação em
+    // linguagem clara.
+    if (error.message.includes("protocolado")) {
+      return { error: MENSAGEM_BLOQUEIO_PROTOCOLADO };
+    }
     return { error: error.message };
   }
 
