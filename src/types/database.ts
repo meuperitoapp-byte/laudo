@@ -56,6 +56,8 @@ import type {
   AgendamentoNecessidadeAcompanhante,
   AgendamentoDepositoPrevioExigido,
   LiberacaoForma,
+  TipoCentralTarefa,
+  NivelUrgencia,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -962,6 +964,47 @@ export type PosLaudoConclusoesVigentesInsert = ComDefaults<
 export type PosLaudoConclusoesVigentesUpdate = Partial<PosLaudoConclusoesVigentesRow>
 
 // ============================================================================
+// central_tarefas — Central de Gestão de Prazos e Tarefas, fatia 2 (cadastro
+// manual de tarefa/evento avulso). Ver migration 20260917120000.
+// ============================================================================
+export type CentralTarefasRow = {
+  id: string
+  /** Null = tarefa avulsa, sem processo específico. */
+  processo_id: string | null
+  tipo: TipoCentralTarefa
+  titulo: string
+  descricao: string | null
+  /** date do Postgres — prazo (tarefa) ou data do compromisso (evento). */
+  data: string
+  /** time do Postgres, 'HH:MM:SS' — só quando tipo='evento' (CHECK no banco). */
+  hora: string | null
+  /** Vocabulário livre, sem CHECK — ver central-prazos/catalogos.ts. */
+  status: string
+  status_alterado_em: string
+  /** Quando preenchida, sempre vence o cálculo automático de nível. */
+  nivel_urgencia_manual: NivelUrgencia | null
+  /** Fato explícito e independente de `status` — null = ainda pendente. */
+  concluida_em: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+export type CentralTarefasInsert = ComDefaults<
+  CentralTarefasRow,
+  | 'id'
+  | 'processo_id'
+  | 'descricao'
+  | 'hora'
+  | 'status_alterado_em'
+  | 'nivel_urgencia_manual'
+  | 'concluida_em'
+  | 'created_by'
+  | 'created_at'
+  | 'updated_at'
+>
+export type CentralTarefasUpdate = Partial<CentralTarefasRow>
+
+// ============================================================================
 // Database — shape esperado por createClient<Database>()
 // ============================================================================
 export interface Database {
@@ -1097,6 +1140,12 @@ export interface Database {
         Row: PosLaudoConclusoesVigentesRow
         Insert: PosLaudoConclusoesVigentesInsert
         Update: PosLaudoConclusoesVigentesUpdate
+        Relationships: []
+      }
+      central_tarefas: {
+        Row: CentralTarefasRow
+        Insert: CentralTarefasInsert
+        Update: CentralTarefasUpdate
         Relationships: []
       }
     }

@@ -362,3 +362,23 @@ export type PosLaudoProvidenciaAt =
   | 'pedido_nova_pericia'
   | 'parecer_divergente'
   | 'outro'
+
+// ----------------------------------------------------------------------------
+// Central de Gestão de Prazos e Tarefas (migration 20260917120000_central_prazos_tarefas)
+// ----------------------------------------------------------------------------
+
+/**
+ * central_tarefas.tipo — 'tarefa' (data-limite) ou 'evento' (hora marcada).
+ * Distinção estrutural pedida pela Dra. Fernanda, confirmada duas vezes:
+ * `hora` só existe (CHECK no banco) quando tipo='evento'.
+ */
+export type TipoCentralTarefa = 'tarefa' | 'evento'
+
+/**
+ * central_tarefas.nivel_urgencia_manual — os mesmos 6 níveis calculados em
+ * `central-prazos/regras.ts` (nivelPorPrazo), mas aqui como CORREÇÃO
+ * MANUAL: quando preenchida, sempre vence o cálculo automático, nunca o
+ * contrário. Vivia só como tipo calculado (não-coluna) até esta migration —
+ * `central-prazos/tipos.ts` reexporta este mesmo tipo, não duplica.
+ */
+export type NivelUrgencia = 'critica' | 'urgente' | 'alta' | 'atencao' | 'programada' | 'sem_prazo'
