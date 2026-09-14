@@ -226,7 +226,7 @@ parte com material pronto e de baixo risco (ver alerta no topo). O resto fica de
 | 3 | `compilar-agendamento-pericia.ts` standalone + trava do §4.2 | **FEITA (11/09/2026)** |
 | 4 | `montarSecaoHonorarios` + Manifestação Consolidada (monta os 4 módulos) **+ Impossibilidade de Assumir (nº12) e Escusa/Declínio (nº13), os 2 destinos da trava do Aceite** | **FEITA (11/09/2026)** |
 | 5 | Não Comparecimento do Periciando — documento + o pequeno subfluxo de status (não marca a perícia como realizada, mantém a data original na linha do tempo) | **FEITA (14/09/2026)** |
-| 6 | Trilho financeiro até liberação — schema (provavelmente pequeno, ver §5.1) + `compilar-pedido-liberacao.ts` (documento nº23 da biblioteca) | Não |
+| 6 | Trilho financeiro até liberação — schema (provavelmente pequeno, ver §5.1) + `compilar-pedido-liberacao.ts` (documento nº23 da biblioteca) | **FEITA (15/09/2026)** |
 | 7 | Régua enxuta — painel só-leitura lendo o que já está gravado (aceite/depósito/agendamento/laudo), sem papéis nem Central Judicial. **Opcional, por último.** | Não |
 | 8 | *(fora deste fatiamento, decisão maior)* O resto da régua de 30 passos, os papéis Assessor/Financeiro, a Central Judicial com 4 painéis, o botão de encaminhamento entre setores | **Sim — é decisão sua, não da Dra. Fernanda**, sobre como o escritório está de fato organizado hoje (ver alerta no topo) |
 | 9 | *(quando a fatia 8 existir)* Plugar a régua como mais uma fonte da Central de Prazos (fatia 5 daquele módulo) | Depende só da fatia 8 acima existir |
@@ -312,6 +312,30 @@ checklist de controle operacional, só parágrafos com campos livres. O que ele 
 **Conclusão da fatia 6:** 1 coluna nova (`liberacao_forma`) — bem menor que a fatia 0
 original. Nenhuma pendência de leitura, pode ser fatiada quando chegar a vez dela na ordem
 acima.
+
+**15/09/2026 — decisões finais antes de codar, aprovadas pelo Jeferson:**
+- **Exposição de dados bancários**: `liberacao_forma === 'transferencia'` expõe; `'alvara'` e
+  `'outro'` nunca expõem — mesmo critério do Depósito (só expõe na hipótese explicitamente
+  prevista, nunca por padrão num valor novo que ninguém revisou).
+- **O que muda ao protocolar**: `liberacao_solicitada_em` (coluna nova, timestamptz) é
+  **gravado direto**, sem sugestão — diferente do caso `encargo_declinado` (que disputava um
+  campo já existente, com leitura concorrente e vocabulário da Dra. Fernanda). Aqui é campo
+  novo, criado só pra este fato, sem ambiguidade — mesmo critério do `aceitou_nomeacao='sim'`
+  ao protocolar o Aceite.
+
+**15/09/2026 — FATIA 6 FEITA E NO AR** (migration `20260915120000`): `compilar-pedido-
+liberacao.ts` exige laudo principal protocolado (o modelo pressupõe isso — sem laudo
+apresentado não há o que liberar); reaproveita `deposito_valor` (valor) e o `protocolo_id`/
+`protocolado_em` do laudo principal (data/ID) — zero coluna nova além de `liberacao_forma` e
+`liberacao_solicitada_em`. `SnapshotPedidoLiberacao` (extensão de `SnapshotLaudoGerado`).
+`LiberacaoPanel` (tela nova) — forma de liberação + geração, com o mesmo checkbox de confirmar
+exposição de dados bancários que o Depósito já usa.
+
+Também corrigido nesta rodada, fora do escopo do Fluxo Principal mas achado no meio dele: a
+exclusão de processo (`excluirProcesso`) podia apagar um processo com laudo principal
+protocolado sem checar — o trigger do banco só enxergava documentos vinculados a ciclo de
+pós-laudo. Corrigido com verificação em duas camadas (tela já mostra bloqueado, action confere
+de novo) cobrindo qualquer documento protocolado do processo, não só os de pós-laudo.
 
 ---
 
