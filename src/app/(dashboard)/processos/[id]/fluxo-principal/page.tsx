@@ -8,6 +8,7 @@ import { AgendamentoPanel } from "@/features/fluxo-principal/agendamento-panel";
 import { ConsolidadaPanel } from "@/features/fluxo-principal/consolidada-panel";
 import { NaoComparecimentoPanel } from "@/features/fluxo-principal/nao-comparecimento-panel";
 import { LiberacaoPanel } from "@/features/fluxo-principal/liberacao-panel";
+import { ReguaEnxuta } from "@/features/fluxo-principal/regua-enxuta";
 import type { VersaoDocumento } from "@/features/fluxo-principal/gerar-documento-panel";
 import type { DocumentoProtocoladoAceite } from "@/features/fluxo-principal/aceitou-nomeacao-sugestao";
 import type { LaudoGeradoTipo } from "@/types/enums";
@@ -27,13 +28,15 @@ const TODOS_TIPOS_FLUXO_PRINCIPAL: LaudoGeradoTipo[] = [
 
 /**
  * Fluxo Principal do Perito Judicial — fase inicial + trilho financeiro até
- * liberação: Aceite do Encargo Pericial, Informação de Dados para Depósito
- * dos Honorários, Comunicação de Agendamento da Perícia, Não Comparecimento
- * ao Ato Pericial, Pedido de Liberação dos Honorários, Manifestação
- * Consolidada (agrupa Aceite/Depósito/Agendamento + Honorários) e os 2
- * destinos da trava do Aceite (Impossibilidade de Assumir / Escusa-Declínio,
- * embutidos na tela do Aceite). Cada bloco tem seu formulário de dados +
- * geração/versões/protocolar, mesmo padrão do Pós-Laudo.
+ * liberação: régua enxuta (visão geral só-leitura, fatia 7 — fecha a Fase 2
+ * deste módulo), Aceite do Encargo Pericial, Informação de Dados para
+ * Depósito dos Honorários, Comunicação de Agendamento da Perícia, Não
+ * Comparecimento ao Ato Pericial, Pedido de Liberação dos Honorários,
+ * Manifestação Consolidada (agrupa Aceite/Depósito/Agendamento + Honorários)
+ * e os 2 destinos da trava do Aceite (Impossibilidade de Assumir /
+ * Escusa-Declínio, embutidos na tela do Aceite). Cada bloco tem seu
+ * formulário de dados + geração/versões/protocolar, mesmo padrão do
+ * Pós-Laudo.
  */
 export default async function FluxoPrincipalPage({
   params,
@@ -43,7 +46,7 @@ export default async function FluxoPrincipalPage({
   const { id: processoId } = await params;
   const supabase = await createClient();
 
-  const [{ data: processo }, { data: config }, { data: versoesDb }] = await Promise.all([
+  const [{ data: processo }, { data: config }, { data: versoesDb }, { data: laudoPrincipal }] = await Promise.all([
     supabase.from("processos").select("*").eq("id", processoId).single(),
     supabase.from("configuracoes").select("*").maybeSingle(),
     supabase
@@ -52,6 +55,15 @@ export default async function FluxoPrincipalPage({
       .eq("processo_id", processoId)
       .in("tipo", TODOS_TIPOS_FLUXO_PRINCIPAL)
       .order("versao", { ascending: false }),
+    supabase
+      .from("laudos_gerados")
+      .select("protocolado_em")
+      .eq("processo_id", processoId)
+      .eq("tipo", "laudo")
+      .eq("protocolado", true)
+      .order("versao", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   if (!processo) notFound();
   if (processo.tipo_trabalho !== "pericia_judicial") {
@@ -114,6 +126,8 @@ export default async function FluxoPrincipalPage({
         </h1>
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">{titulo}</p>
       </div>
+
+      <ReguaEnxuta processo={processo} laudoPrincipalProtocoladoEm={laudoPrincipal?.protocolado_em ?? null} />
 
       <section className="space-y-3">
         <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-100">
