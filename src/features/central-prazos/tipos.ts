@@ -23,13 +23,14 @@ export interface ItemPainel {
     | "at_sem_entrega"
     | "at_entregue_sem_protocolo"
     | "documento_ilegivel"
-    | "nomeacao_sem_decisao";
+    | "nomeacao_sem_decisao"
+    | "agendamento_marcado";
   titulo: string;
   subtitulo: string | null;
   /** Texto fixo por categoria (ver rotulos.ts) — nunca vazio, nunca digitado por ela nesta fatia. */
   providencia: string;
   nivel: NivelUrgencia;
-  /** "YYYY-MM-DD" — só quando a categoria tem prazo de verdade (hoje, só ciclo aberto). */
+  /** "YYYY-MM-DD" — só quando a categoria tem prazo de verdade (ciclo aberto, nomeação sem decisão com prazo de manifestação, agendamento marcado). */
   prazo: string | null;
   /** Data só pra exibir (ex.: "entregue em"), nunca usada pra calcular nível. */
   dataContexto: { rotulo: string; valor: string } | null;

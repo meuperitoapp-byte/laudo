@@ -1,13 +1,16 @@
 /**
- * Central de Prazos e Tarefas — fatia 1: agrega em uma lista só o que já é
- * pendente em qualquer canto do sistema, sem tabela nova e sem cadastro
+ * Central de Prazos e Tarefas — fatias 1 e 5: agrega em uma lista só o que
+ * já é pendente em qualquer canto do sistema, sem tabela nova e sem cadastro
  * manual. Ver docs/plano-modulo-central-prazos.md.
  *
  * Não é "use server": função de leitura pura, chamada pela página. Cada
- * `itensDe*` é uma FONTE independente — mesmo formato de saída
- * (`ItemPainel`) — de propósito (ver plano §5): quando o Fluxo Principal do
- * Perito Judicial existir, ele entra como só mais uma fonte aqui, sem mexer
- * nas que já existem nem na ordenação.
+ * bloco numerado é uma FONTE independente — mesmo formato de saída
+ * (`ItemPainel`) — de propósito (ver plano §5). Fatia 5 (15/09/2026) plugou
+ * o Fluxo Principal do Perito Judicial como mais duas fontes (nomeação com
+ * prazo real, agendamento marcado) exatamente como previsto: sem mexer nas
+ * fontes que já existiam nem na ordenação — só mais funções na mesma lista.
+ * `liberacao_solicitada_em` ficou de fora de propósito (não é prazo, é
+ * registro do que já foi feito — ver ponto em aberto registrado no plano).
  */
 
 import type { createClient } from "@/lib/supabase/server";
@@ -33,7 +36,9 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   // num processo de anos atrás, de antes de a coluna existir).
   const { data: processosDb } = await supabase
     .from("processos")
-    .select("id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao")
+    .select(
+      "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data",
+    )
     .eq("status", "em_andamento");
   const processos = processosDb ?? [];
   const processoPorId = new Map(processos.map((p) => [p.id, p]));
@@ -173,19 +178,46 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   }
 
   // ---- 5. Nomeação sem decisão (só perícia judicial) ----
+  // `nomeacao_prazo_manifestacao` (Fluxo Principal) alimenta um prazo REAL
+  // aqui quando ela existir — antes disso caía sempre em "sem_prazo" porque
+  // não havia dado nenhum pra ler. Cresce sozinho, sem mudar a categoria.
   for (const p of processos) {
     if (p.tipo_trabalho !== "pericia_judicial" || p.aceitou_nomeacao !== null) continue;
     itens.push({
       id: `nomeacao_sem_decisao-${p.id}`,
       categoria: "nomeacao_sem_decisao",
       titulo: `Nomeação sem decisão — ${identificarProcesso(p)}`,
-      subtitulo: null,
+      subtitulo: p.nomeacao_prazo_manifestacao ? null : "Sem prazo de manifestação registrado ainda",
       providencia: PROVIDENCIA_POR_CATEGORIA.nomeacao_sem_decisao,
-      nivel: "sem_prazo",
-      prazo: null,
+      nivel: nivelPorPrazo(p.nomeacao_prazo_manifestacao, hoje),
+      prazo: p.nomeacao_prazo_manifestacao,
       dataContexto: null,
-      ordenacao: hoje,
+      ordenacao: p.nomeacao_prazo_manifestacao ?? hoje,
       href: `/processos/${p.id}/editar`,
+    });
+  }
+
+  // ---- 6. Agendamento marcado (só perícia judicial, primeira fonte de "evento" de verdade) ----
+  // Só aparece enquanto NENHUM laudo (rascunho ou protocolado) existir pro
+  // processo — se o laudo já saiu, a perícia claramente aconteceu, e deixar
+  // a data do agendamento (já passada) competir como "vencida" seria ruído,
+  // não sinal (mesmo cuidado que motivou não incluir liberacao_solicitada_em
+  // como prazo).
+  const { data: processosComLaudoDb } = await supabase.from("laudos_gerados").select("processo_id").eq("tipo", "laudo");
+  const processosComLaudo = new Set((processosComLaudoDb ?? []).map((l) => l.processo_id));
+  for (const p of processos) {
+    if (p.tipo_trabalho !== "pericia_judicial" || !p.agendamento_data || processosComLaudo.has(p.id)) continue;
+    itens.push({
+      id: `agendamento_marcado-${p.id}`,
+      categoria: "agendamento_marcado",
+      titulo: `Perícia agendada — ${identificarProcesso(p)}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.agendamento_marcado,
+      nivel: nivelPorPrazo(p.agendamento_data, hoje),
+      prazo: p.agendamento_data,
+      dataContexto: null,
+      ordenacao: p.agendamento_data,
+      href: `/processos/${p.id}/fluxo-principal`,
     });
   }
 

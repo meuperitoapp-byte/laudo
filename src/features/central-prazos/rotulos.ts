@@ -48,4 +48,5 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   at_entregue_sem_protocolo: "Confirmar com o advogado se já protocolou.",
   documento_ilegivel: "Solicitar documento legível ao apresentante.",
   nomeacao_sem_decisao: "Decidir se aceita a nomeação.",
+  agendamento_marcado: "Confirmar preparação para a perícia agendada.",
 };
