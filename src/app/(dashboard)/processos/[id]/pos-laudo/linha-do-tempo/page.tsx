@@ -18,6 +18,7 @@ const TIPOS_FLUXO_PRINCIPAL: readonly LaudoGeradoTipo[] = [
   "impossibilidade_assumir",
   "escusa_declinio_pericial",
   "nao_comparecimento",
+  "pedido_liberacao",
 ];
 
 /**

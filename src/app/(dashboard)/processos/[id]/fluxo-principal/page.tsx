@@ -7,6 +7,7 @@ import { DepositoPanel } from "@/features/fluxo-principal/deposito-panel";
 import { AgendamentoPanel } from "@/features/fluxo-principal/agendamento-panel";
 import { ConsolidadaPanel } from "@/features/fluxo-principal/consolidada-panel";
 import { NaoComparecimentoPanel } from "@/features/fluxo-principal/nao-comparecimento-panel";
+import { LiberacaoPanel } from "@/features/fluxo-principal/liberacao-panel";
 import type { VersaoDocumento } from "@/features/fluxo-principal/gerar-documento-panel";
 import type { DocumentoProtocoladoAceite } from "@/features/fluxo-principal/aceitou-nomeacao-sugestao";
 import type { LaudoGeradoTipo } from "@/types/enums";
@@ -21,12 +22,14 @@ const TODOS_TIPOS_FLUXO_PRINCIPAL: LaudoGeradoTipo[] = [
   "impossibilidade_assumir",
   "escusa_declinio_pericial",
   "nao_comparecimento",
+  "pedido_liberacao",
 ];
 
 /**
- * Fluxo Principal do Perito Judicial — fase inicial: Aceite do Encargo
- * Pericial, Informação de Dados para Depósito dos Honorários, Comunicação de
- * Agendamento da Perícia, Não Comparecimento ao Ato Pericial, Manifestação
+ * Fluxo Principal do Perito Judicial — fase inicial + trilho financeiro até
+ * liberação: Aceite do Encargo Pericial, Informação de Dados para Depósito
+ * dos Honorários, Comunicação de Agendamento da Perícia, Não Comparecimento
+ * ao Ato Pericial, Pedido de Liberação dos Honorários, Manifestação
  * Consolidada (agrupa Aceite/Depósito/Agendamento + Honorários) e os 2
  * destinos da trava do Aceite (Impossibilidade de Assumir / Escusa-Declínio,
  * embutidos na tela do Aceite). Cada bloco tem seu formulário de dados +
@@ -148,6 +151,17 @@ export default async function FluxoPrincipalPage({
           Não Comparecimento ao Ato Pericial
         </h2>
         <NaoComparecimentoPanel processo={processo} versoes={versoesDoTipo("nao_comparecimento")} />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-100">
+          Liberação dos Honorários
+        </h2>
+        <LiberacaoPanel
+          processo={processo}
+          temDadosBancariosCadastrados={temDadosBancariosCadastrados}
+          versoes={versoesDoTipo("pedido_liberacao")}
+        />
       </section>
 
       <section className="space-y-3">

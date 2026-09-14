@@ -13,8 +13,23 @@ const PALAVRA_CONFIRMACAO = "EXCLUIR";
  * apagar a linha. Confirmação por digitação (não só um clique) porque,
  * diferente de "marcar protocolado" (que pelo menos preserva o conteúdo),
  * aqui não sobra nada pra corrigir depois.
+ *
+ * `temDocumentoProtocolado`: processo com QUALQUER documento protocolado
+ * (laudo principal, saída de pós-laudo ou do Fluxo Principal) não pode ser
+ * excluído — documento protocolado é registro oficial já entregue nos
+ * autos. Em vez de deixar ela abrir o diálogo, digitar a confirmação e só
+ * então tomar um erro, o botão já explica o motivo de cara (mesmo padrão do
+ * "Pós-laudo (marque o laudo como protocolado)" logo acima). A action
+ * confere isso de novo do lado do servidor — nunca confia só no que a tela
+ * calculou.
  */
-export function ExcluirProcessoButton({ processoId }: { processoId: string }) {
+export function ExcluirProcessoButton({
+  processoId,
+  temDocumentoProtocolado,
+}: {
+  processoId: string;
+  temDocumentoProtocolado: boolean;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [confirmacao, setConfirmacao] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -37,6 +52,17 @@ export function ExcluirProcessoButton({ processoId }: { processoId: string }) {
   }
 
   const podeConfirmar = confirmacao.trim().toUpperCase() === PALAVRA_CONFIRMACAO;
+
+  if (temDocumentoProtocolado) {
+    return (
+      <span
+        className="inline-flex items-center text-sm text-nevoa-400 dark:text-nevoa-600"
+        title="Processos com documento protocolado (laudo, esclarecimentos, ou qualquer saída do Fluxo Principal) não podem ser excluídos — é registro oficial já entregue nos autos."
+      >
+        Excluir processo (bloqueado — há documento protocolado nos autos)
+      </span>
+    );
+  }
 
   return (
     <>

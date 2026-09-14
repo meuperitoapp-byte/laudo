@@ -45,6 +45,7 @@ const ACEITOU_NOMEACAO_ROTULOS: Record<string, string> = {
   sim: "Sim",
   nao: "Não",
   destituida: "Destituída do cargo",
+  encargo_declinado: "Encargo declinado (devolvido após aceitar)",
 };
 
 function moedaBRL(valor: number | null): string {
@@ -98,6 +99,17 @@ export default async function ProcessoDetalhePage({
     .limit(1)
     .maybeSingle();
   const temLaudoProtocolado = Boolean(laudoProtocolado);
+
+  // Gate da exclusão: qualquer documento protocolado (não só o laudo
+  // principal — inclui saídas de pós-laudo e do Fluxo Principal) bloqueia a
+  // exclusão do processo, de propósito (documento protocolado é registro
+  // oficial já entregue nos autos). Ver excluirProcesso, mesmo critério.
+  const { count: totalProtocolados } = await supabase
+    .from("laudos_gerados")
+    .select("id", { count: "exact", head: true })
+    .eq("processo_id", id)
+    .eq("protocolado", true);
+  const temDocumentoProtocolado = Boolean(totalProtocolados);
   // Fluxo AT: a aba Pós-laudo é a própria análise do laudo do perito JUDICIAL
   // (externo) — não depende de a perita ter gerado e protocolado um laudo aqui.
   const ehAssistenciaTecnica = processo.tipo_trabalho === "assistencia_tecnica";
@@ -276,7 +288,7 @@ export default async function ProcessoDetalhePage({
       </div>
 
       <div className="pt-4 border-t border-nevoa-200 dark:border-nevoa-800">
-        <ExcluirProcessoButton processoId={processo.id} />
+        <ExcluirProcessoButton processoId={processo.id} temDocumentoProtocolado={temDocumentoProtocolado} />
       </div>
     </main>
   );
