@@ -225,7 +225,7 @@ parte com material pronto e de baixo risco (ver alerta no topo). O resto fica de
 | 2 | Estrutura de depósito (campos + `montarSecaoDeposito`) + `compilar-dados-deposito.ts` standalone | **FEITA (11/09/2026)** |
 | 3 | `compilar-agendamento-pericia.ts` standalone + trava do §4.2 | **FEITA (11/09/2026)** |
 | 4 | `montarSecaoHonorarios` + Manifestação Consolidada (monta os 4 módulos) **+ Impossibilidade de Assumir (nº12) e Escusa/Declínio (nº13), os 2 destinos da trava do Aceite** | **FEITA (11/09/2026)** |
-| 5 | Não Comparecimento do Periciando — documento + o pequeno subfluxo de status (não marca a perícia como realizada, mantém a data original na linha do tempo) | Não |
+| 5 | Não Comparecimento do Periciando — documento + o pequeno subfluxo de status (não marca a perícia como realizada, mantém a data original na linha do tempo) | **FEITA (14/09/2026)** |
 | 6 | Trilho financeiro até liberação — schema (provavelmente pequeno, ver §5.1) + `compilar-pedido-liberacao.ts` (documento nº23 da biblioteca) | Não |
 | 7 | Régua enxuta — painel só-leitura lendo o que já está gravado (aceite/depósito/agendamento/laudo), sem papéis nem Central Judicial. **Opcional, por último.** | Não |
 | 8 | *(fora deste fatiamento, decisão maior)* O resto da régua de 30 passos, os papéis Assessor/Financeiro, a Central Judicial com 4 painéis, o botão de encaminhamento entre setores | **Sim — é decisão sua, não da Dra. Fernanda**, sobre como o escritório está de fato organizado hoje (ver alerta no topo) |
@@ -360,6 +360,51 @@ valor mostra Impossibilidade de Assumir — nunca os dois ao mesmo tempo, nunca 
 `marcarFluxoPrincipalProtocolado` ganhou o efeito colateral do Aceite descrito acima; protocolar
 `impossibilidade_assumir`/`escusa_declinio_pericial` não mexe em nada em `processos`, decisão
 deliberada e pendente de confirmação explícita se algum dia precisar mudar.
+
+## 5.3. Protocolar o nº12/nº13 agora SUGERE atualizar `aceitou_nomeacao` (14/09/2026)
+
+Decisão do Jeferson, mudando o que ficou registrado no §5.2: "se ela protocolou uma escusa, o
+processo não pode continuar se comportando como encargo ativo, senão a régua e a Central de
+Prazos vão cobrar providências de algo que ela devolveu ao juízo." Mas é mudança de estado a
+partir de um ato formal — mesma regra de sempre: **sugere, com o motivo visível, nunca aplica
+sozinho.**
+
+**Campo por caso, decidido depois de eu checar se o valor mais próximo servia (não servia em
+nenhum dos dois):**
+- **nº12 (recusa antes de aceitar)** → sugere `aceitou_nomeacao = 'nao'`. Encaixe limpo, valor
+  já existia.
+- **nº13 (devolução depois de aceitar)** → `'destituida'` foi descartado (significa remoção
+  *pelo juízo*, não devolução voluntária) — mesmo erro que forçar "Finalizado" em
+  `situacao_processo` pra um encargo recusado. **Valor novo: `encargo_declinado`**
+  (migration `20260914120000`) — nome descreve o FATO (encargo devolvido depois de aceito), não
+  o documento que o formaliza, pra continuar certo se um dia existir outro expediente com o
+  mesmo efeito.
+- **`situacao_processo` fica de fora por enquanto** — é vocabulário que a Dra. Fernanda vê todo
+  dia, e ela quem escolhe a palavra (um valor único cobrindo os dois casos, ou dois valores
+  distintos pra recusa-antes vs. devolução-depois). Nenhum dos dois documentos sugere mudança
+  de `situacao_processo` até essa resposta voltar.
+
+**14/09/2026 — FEITO E NO AR** (migration `20260914120000`): `AceitouNomeacaoSugestao`
+(componente novo, mesmo mecanismo do `SituacaoProcessoSugestao` do Pós-Laudo — Selo
+"Sugestão", motivo visível, botão "Agora não" dispensa só na sessão) aparece dentro do
+`ImpossibilidadeOuEscusaPanel` quando o nº12/nº13 mais recente já protocolado ainda não bateu
+com `aceitou_nomeacao`. `sugerirAceitouNomeacao` (actions.ts) só aceita os 2 valores que essa
+sugestão pode oferecer — `'sim'`/`'destituida'` continuam só editáveis manualmente. Também
+corrigido: uma vez `aceitou_nomeacao` já `'nao'`/`'destituida'`/`'encargo_declinado'`, o painel
+para de oferecer os formulários de geração (mostra só um aviso neutro + versões já geradas) —
+sem essa correção, alguém já com o encargo devolvido veria "Impossibilidade de Assumir" de
+novo, o que não faz sentido.
+
+## 5.4. Fatia 5 — Não Comparecimento ao Ato Pericial (14/09/2026)
+
+**FEITA E NO AR** (migration `20260914130000`, nº17 da Biblioteca). Documento pequeno, lido
+por completo: 1 página, sem checklist — data/horário do ato, horário de chegada do perito,
+tempo de espera e pessoas presentes, todos digitados na hora de gerar (nenhuma coluna nova em
+`processos`, mesmo padrão do nº12/nº13). Data/horário vêm pré-preenchidos do agendamento já
+salvo, mas editáveis sem reescrevê-lo — gerar este documento **nunca** altera
+`agendamento_data`/`agendamento_horario`, cumprindo o "subfluxo de status" do fatiamento
+original: a perícia que não aconteceu continua com a data original na linha do tempo, e a
+comunicação de não comparecimento aparece como um evento à parte, não uma substituição.
 
 ---
 
