@@ -12,6 +12,7 @@ import { compilarAgendamentoPericia } from "./compilar-agendamento-pericia";
 import { compilarManifestacaoConsolidada, type ModulosSelecionados } from "./compilar-manifestacao-consolidada";
 import { compilarImpossibilidadeAssumir } from "./compilar-impossibilidade-assumir";
 import { compilarEscusaDeclinio } from "./compilar-escusa-declinio";
+import { compilarNaoComparecimento } from "./compilar-nao-comparecimento";
 import { verificarAlertaAgendamento } from "./regras";
 import type { ModeloLaudo } from "@/features/geracao-laudo/modelo";
 import type { LaudosGeradosInsert, ProcessosUpdate } from "@/types/database";
@@ -24,6 +25,7 @@ import type {
   AgendamentoDepositoPrevioExigido,
   HonorariosSituacao,
   HonorariosComplexidade,
+  AceitouNomeacao,
   LaudoGeradoTipo,
 } from "@/types/enums";
 
@@ -430,6 +432,36 @@ export async function gerarEscusaDeclinio(
 }
 
 /**
+ * Comunicação de Não Comparecimento ao Ato Pericial (nº17) — NÃO altera
+ * `agendamento_data`/`agendamento_horario` do processo: a perícia que não
+ * aconteceu continua registrada com a data original (plano §5).
+ */
+export async function gerarNaoComparecimento(
+  processoId: string,
+  input: {
+    data: string;
+    horario: string;
+    horarioChegadaPerito: string | null;
+    tempoEspera: string | null;
+    pessoasPresentes: string | null;
+  },
+  dataAssinaturaIso: string,
+): Promise<GerarResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataAssinaturaIso)) return { error: "Informe a data da assinatura." };
+
+  const resultado = await compilarNaoComparecimento(processoId, input, dataAssinaturaIso);
+  if (resultado.status === "erro") return { error: resultado.mensagem };
+
+  return gerarERegistrar(
+    processoId,
+    "nao_comparecimento",
+    "Comunicação de Não Comparecimento ao Ato Pericial",
+    resultado.modelo,
+    resultado.snapshot,
+  );
+}
+
+/**
  * Marca uma versão de documento do Fluxo Principal como PROTOCOLADA. Mesmo
  * padrão de `marcarLaudoProtocolado` — a partir daqui o conteúdo fica
  * congelado pelo trigger de sempre; só protocolo_id segue corrigível.
@@ -485,5 +517,28 @@ export async function marcarFluxoPrincipalProtocolado(
   }
 
   revalidatePath(`/processos/${processoId}/fluxo-principal`);
+  return { success: true };
+}
+
+const ACEITOU_NOMEACAO_SUGERIVEIS: readonly AceitouNomeacao[] = ["nao", "encargo_declinado"];
+
+/**
+ * Sugestão (nunca automática) de `processos.aceitou_nomeacao` depois de
+ * protocolar o nº12 ou o nº13 — ver `AceitouNomeacaoSugestao`. Só aceita os
+ * 2 valores que essa sugestão pode oferecer ('nao' pro nº12, 'encargo_declinado'
+ * pro nº13) — 'sim'/'destituida' continuam só editáveis manualmente na tela
+ * de dados do processo, nunca por aqui.
+ */
+export async function sugerirAceitouNomeacao(processoId: string, valor: AceitouNomeacao): Promise<ActionResult> {
+  if (!(ACEITOU_NOMEACAO_SUGERIVEIS as readonly string[]).includes(valor)) {
+    return { error: "Valor inválido para esta sugestão." };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.from("processos").update({ aceitou_nomeacao: valor }).eq("id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/fluxo-principal`);
+  revalidatePath(`/processos/${processoId}`);
+  revalidatePath("/processos");
   return { success: true };
 }

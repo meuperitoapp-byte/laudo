@@ -40,7 +40,7 @@ function optionalEnum<T extends string>(
 }
 
 const JUSTICA_GRATUITA_VALORES: readonly JusticaGratuita[] = ["sim", "nao"];
-const ACEITOU_NOMEACAO_VALORES: readonly AceitouNomeacao[] = ["sim", "nao", "destituida"];
+const ACEITOU_NOMEACAO_VALORES: readonly AceitouNomeacao[] = ["sim", "nao", "destituida", "encargo_declinado"];
 
 /**
  * Campos genéricos (situação, acompanhamento, financeiro) — válidos para os
