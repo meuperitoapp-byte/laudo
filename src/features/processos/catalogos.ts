@@ -53,6 +53,19 @@ export const SITUACOES_PROCESSO_ORDENADA = [
   "Finalizado",
 ] as const;
 
+/**
+ * Cor da Situação do processo onde aparece como selo (lista de processos,
+ * detalhe do processo) — pipeline sem julgamento embutido na maioria dos
+ * valores (neutro), exceto os poucos que já são um desfecho: sucesso
+ * (encerrou bem) ou atenção (encargo não seguiu adiante). Mesmo critério já
+ * usado pra `aceitou_nomeacao` na régua enxuta do Fluxo Principal.
+ */
+export function varianteSituacaoProcesso(situacao: string | null): "sucesso" | "atencao" | "neutro" {
+  if (situacao === "Finalizado" || situacao === "Pagamento") return "sucesso";
+  if (situacao === SITUACAO_PROCESSO_RECUSA || situacao === SITUACAO_PROCESSO_DEVOLUCAO) return "atencao";
+  return "neutro";
+}
+
 /** Situação Financeira do Processo — só Perícia Judicial (a Assistência Técnica usa SITUACOES_FINANCEIRAS_AT_SEED). */
 export const SITUACOES_FINANCEIRAS_SEED = [
   "Aguardando",

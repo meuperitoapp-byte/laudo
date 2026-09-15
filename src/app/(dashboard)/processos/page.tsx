@@ -4,10 +4,9 @@ import { classesBotao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
 import { ProcessosFiltros } from "@/features/processos/processos-filtros";
 import {
-  SITUACAO_PROCESSO_RECUSA,
-  SITUACAO_PROCESSO_DEVOLUCAO,
   SITUACOES_FINANCEIRAS_SEED,
   mesclarSugestoes,
+  varianteSituacaoProcesso,
 } from "@/features/processos/catalogos";
 import type { TipoTrabalhoProcesso } from "@/types/enums";
 
@@ -15,18 +14,6 @@ const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   pericia_judicial: "Perícia Judicial",
   assistencia_tecnica: "Assistência Técnica",
 };
-
-/**
- * Cor da Situação na lista — pipeline sem julgamento embutido na maioria
- * dos valores (neutro), exceto os poucos que já são um desfecho: sucesso
- * (encerrou bem) ou atenção (encargo não seguiu adiante). Mesmo critério já
- * usado pra `aceitou_nomeacao` na régua enxuta do Fluxo Principal.
- */
-function varianteSituacao(situacao: string | null): "sucesso" | "atencao" | "neutro" {
-  if (situacao === "Finalizado" || situacao === "Pagamento") return "sucesso";
-  if (situacao === SITUACAO_PROCESSO_RECUSA || situacao === SITUACAO_PROCESSO_DEVOLUCAO) return "atencao";
-  return "neutro";
-}
 
 /** Primeiro valor não-vazio de um search param (Next entrega string | string[] | undefined). */
 function param(v: string | string[] | undefined): string {
@@ -168,7 +155,7 @@ export default async function ProcessosPage({
                   </td>
                   <td className="py-2.5 px-4">
                     {p.situacao_processo ? (
-                      <Selo variante={varianteSituacao(p.situacao_processo)}>{p.situacao_processo}</Selo>
+                      <Selo variante={varianteSituacaoProcesso(p.situacao_processo)}>{p.situacao_processo}</Selo>
                     ) : (
                       <span className="text-nevoa-400 dark:text-nevoa-600">—</span>
                     )}

@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
+import { Selo } from "@/components/ui/badge";
 import { PoloPartesPanel } from "@/features/processos/polo-partes-panel";
 import { ExcluirProcessoButton } from "@/features/processos/excluir-processo-button";
 import { DocumentosPendentesPanel } from "@/features/processos/documentos-pendentes-panel";
+import { varianteSituacaoProcesso } from "@/features/processos/catalogos";
 
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   pericia_judicial: "Perícia Judicial",
@@ -148,7 +150,7 @@ export default async function ProcessoDetalhePage({
       : processo.numero_processo || nomePericiado || "Processo sem identificação";
 
   return (
-    <main className="p-8 space-y-6 max-w-2xl">
+    <main className="p-8 space-y-6 max-w-4xl mx-auto">
       <div>
         <Link
           href="/processos"
@@ -161,8 +163,8 @@ export default async function ProcessoDetalhePage({
         </div>
       </div>
 
-      <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-6">
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+      <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6">
+        <dl className="grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
           <Campo rotulo="Tipo de trabalho">{TIPO_TRABALHO_ROTULOS[processo.tipo_trabalho] ?? processo.tipo_trabalho}</Campo>
           <Campo rotulo="Tipo de laudo">{tipoLaudoNome ?? "—"}</Campo>
 
@@ -202,12 +204,20 @@ export default async function ProcessoDetalhePage({
         </dl>
       </div>
 
-      <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-6">
+      <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6">
         <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100 mb-4">
           Situação e financeiro
         </h2>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-          <Campo rotulo="Situação do processo">{processo.situacao_processo ?? "—"}</Campo>
+        <dl className="grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
+          <Campo rotulo="Situação do processo">
+            {processo.situacao_processo ? (
+              <Selo variante={varianteSituacaoProcesso(processo.situacao_processo)}>
+                {processo.situacao_processo}
+              </Selo>
+            ) : (
+              "—"
+            )}
+          </Campo>
           <Campo rotulo="Situação financeira">{processo.situacao_financeira ?? "—"}</Campo>
           <Campo rotulo="Ação / Objeto" colSpan>
             {processo.acao_objeto ?? "—"}
