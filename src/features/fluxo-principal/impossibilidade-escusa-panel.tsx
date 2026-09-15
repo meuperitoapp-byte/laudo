@@ -40,12 +40,14 @@ const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400
 export function ImpossibilidadeOuEscusaPanel({
   processoId,
   aceitouNomeacao,
+  situacaoProcessoAtual,
   versoesImpossibilidade,
   versoesEscusa,
   documentoProtocolado,
 }: {
   processoId: string;
   aceitouNomeacao: AceitouNomeacao | null;
+  situacaoProcessoAtual: string | null;
   versoesImpossibilidade: VersaoDocumento[];
   versoesEscusa: VersaoDocumento[];
   documentoProtocolado: DocumentoProtocoladoAceite | null;
@@ -54,6 +56,7 @@ export function ImpossibilidadeOuEscusaPanel({
     <AceitouNomeacaoSugestao
       processoId={processoId}
       aceitouNomeacaoAtual={aceitouNomeacao}
+      situacaoProcessoAtual={situacaoProcessoAtual}
       documentoProtocolado={documentoProtocolado}
     />
   );

@@ -15,6 +15,7 @@ import { compilarEscusaDeclinio } from "./compilar-escusa-declinio";
 import { compilarNaoComparecimento } from "./compilar-nao-comparecimento";
 import { compilarPedidoLiberacao } from "./compilar-pedido-liberacao";
 import { verificarAlertaAgendamento } from "./regras";
+import { SITUACAO_PROCESSO_RECUSA, SITUACAO_PROCESSO_DEVOLUCAO } from "@/features/processos/catalogos";
 import type { ModeloLaudo } from "@/features/geracao-laudo/modelo";
 import type { LaudosGeradosInsert, ProcessosUpdate } from "@/types/database";
 import type { SnapshotLaudoGerado } from "@/types/json-fields";
@@ -585,18 +586,36 @@ export async function marcarFluxoPrincipalProtocolado(
 const ACEITOU_NOMEACAO_SUGERIVEIS: readonly AceitouNomeacao[] = ["nao", "encargo_declinado"];
 
 /**
- * Sugestão (nunca automática) de `processos.aceitou_nomeacao` depois de
- * protocolar o nº12 ou o nº13 — ver `AceitouNomeacaoSugestao`. Só aceita os
- * 2 valores que essa sugestão pode oferecer ('nao' pro nº12, 'encargo_declinado'
- * pro nº13) — 'sim'/'destituida' continuam só editáveis manualmente na tela
- * de dados do processo, nunca por aqui.
+ * `situacao_processo` correspondente a cada valor sugerível de
+ * `aceitou_nomeacao` — dois valores distintos (nunca um só combinando os
+ * dois), confirmado pela Dra. Fernanda (18/09/2026): recusa (nunca chegou a
+ * aceitar) e devolução (aceitou e devolveu depois) são fatos diferentes.
+ */
+const SITUACAO_PROCESSO_POR_ACEITOU_NOMEACAO: Record<"nao" | "encargo_declinado", string> = {
+  nao: SITUACAO_PROCESSO_RECUSA,
+  encargo_declinado: SITUACAO_PROCESSO_DEVOLUCAO,
+};
+
+/**
+ * Sugestão (nunca automática) de `processos.aceitou_nomeacao` +
+ * `situacao_processo` juntos depois de protocolar o nº12 ou o nº13 — ver
+ * `AceitouNomeacaoSugestao`. Os dois campos mudam com um clique só porque
+ * descrevem o MESMO fato (o protocolo do documento); pedir duas confirmações
+ * separadas pra uma coisa só seria fricção, não segurança extra. Só aceita
+ * os 2 valores que essa sugestão pode oferecer ('nao' pro nº12,
+ * 'encargo_declinado' pro nº13) — 'sim'/'destituida' continuam só editáveis
+ * manualmente na tela de dados do processo, nunca por aqui.
  */
 export async function sugerirAceitouNomeacao(processoId: string, valor: AceitouNomeacao): Promise<ActionResult> {
   if (!(ACEITOU_NOMEACAO_SUGERIVEIS as readonly string[]).includes(valor)) {
     return { error: "Valor inválido para esta sugestão." };
   }
   const supabase = await createClient();
-  const { error } = await supabase.from("processos").update({ aceitou_nomeacao: valor }).eq("id", processoId);
+  const dados: ProcessosUpdate = {
+    aceitou_nomeacao: valor,
+    situacao_processo: SITUACAO_PROCESSO_POR_ACEITOU_NOMEACAO[valor as "nao" | "encargo_declinado"],
+  };
+  const { error } = await supabase.from("processos").update(dados).eq("id", processoId);
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/fluxo-principal`);

@@ -27,6 +27,7 @@ type ProcessoAceite = Pick<
   | "aceite_competencia_tecnica"
   | "aceite_necessita_especialista"
   | "aceitou_nomeacao"
+  | "situacao_processo"
 >;
 
 const paraValor = (v: boolean | null) => (v === true ? "sim" : v === false ? "nao" : "");
@@ -262,6 +263,7 @@ export function AceitePanel({
         <ImpossibilidadeOuEscusaPanel
           processoId={processo.id}
           aceitouNomeacao={processo.aceitou_nomeacao}
+          situacaoProcessoAtual={processo.situacao_processo}
           versoesImpossibilidade={versoesImpossibilidade}
           versoesEscusa={versoesEscusa}
           documentoProtocolado={documentoProtocolado}
