@@ -24,9 +24,24 @@
 /** Situação sugerida (Módulo Pós-Laudo, fatia 11) ao abrir um ciclo de pós-laudo — nunca setada sozinha, sempre com confirmação explícita da perita. */
 export const SITUACAO_PROCESSO_POS_LAUDO = "Manifestação/complementação/esclarecimentos/novos quesitos";
 
+/**
+ * "Recusa do encargo" (protocolar nº12, Impossibilidade de Assumir) e
+ * "Devolução do encargo" (protocolar nº13, Escusa/Declínio) — dois valores
+ * distintos, nunca um só combinando os dois (confirmado pela Dra. Fernanda,
+ * 18/09/2026): são fatos diferentes (nunca chegou a aceitar × aceitou e
+ * devolveu depois), mesma distinção que já existe em
+ * `processos.aceitou_nomeacao` ('nao' × 'encargo_declinado'). Sugeridas
+ * juntas com a mudança de `aceitou_nomeacao`, nunca aplicadas sozinhas — ver
+ * `AceitouNomeacaoSugestao`.
+ */
+export const SITUACAO_PROCESSO_RECUSA = "Recusa do encargo";
+export const SITUACAO_PROCESSO_DEVOLUCAO = "Devolução do encargo";
+
 export const SITUACOES_PROCESSO_ORDENADA = [
   "Sem processo",
   "Aceite",
+  SITUACAO_PROCESSO_RECUSA,
+  SITUACAO_PROCESSO_DEVOLUCAO,
   "Proposta de honorários",
   "Agendamento de perícia",
   "Comunicação de ausência do periciando",

@@ -264,10 +264,11 @@ do Fluxo Principal, antes de todas as seções.
 
 **FASE 2 DO FLUXO PRINCIPAL FECHADA (fatias 0-7).** O que segue fora desta fase, por decisão
 já registrada: os ~23 documentos restantes da biblioteca de 32 (conversa de escopo com a Dra.
-Fernanda), a régua completa de 30 passos com papéis/Central Judicial (decisão maior do
-Jeferson sobre staffing), e a pergunta pendente sobre `situacao_processo` pra encargo
-recusado/devolvido (aguardando ele conversar com ela). Próximo passo da ordem de fechamento
-combinada: fatia 5 da Central de Prazos (plugar como fonte no painel `/hoje`).
+Fernanda) e a régua completa de 30 passos com papéis/Central Judicial (decisão maior do
+Jeferson sobre staffing — **resposta da Dra. confirmou "equipe", não multi-tenant, ver
+18/09/2026 abaixo**, mas a decisão de construir ou não continua com o Jeferson). A pergunta
+sobre `situacao_processo` pra encargo recusado/devolvido **já voltou respondida e foi
+implementada — ver §5.3**.
 
 **16/09/2026 — trilho financeiro fecha até recebimento** (migration `20260916120000`):
 `processos.honorarios_recebidos_em` (`date`, nullable) — preenchida pela perita quando o
@@ -456,6 +457,25 @@ para de oferecer os formulários de geração (mostra só um aviso neutro + vers
 sem essa correção, alguém já com o encargo devolvido veria "Impossibilidade de Assumir" de
 novo, o que não faz sentido.
 
+**18/09/2026 — resposta da Dra. Fernanda: dois valores distintos, não um só.** "Ela quer as
+duas separadas na lista de situação do processo, não uma palavra só" — decisão do Jeferson,
+direta: "dois valores novos no catálogo de situação do processo, com a sugestão pós-protocolo
+ligando cada documento ao seu valor."
+
+**FEITO E NO AR:** `SITUACOES_PROCESSO_ORDENADA` (`features/processos/catalogos.ts`) ganhou
+`"Recusa do encargo"` (nº12) e `"Devolução do encargo"` (nº13), logo depois de `"Aceite"` —
+mesmo par conceitual de `aceitou_nomeacao` ('nao'/'encargo_declinado'), nomes que descrevem o
+FATO, não o documento. **Sem migration**: `processos.situacao_processo` é `text` sem CHECK
+(closedness é só de UI, um `<select>` fixo em vez de combobox livre) — adicionar valor novo ao
+catálogo é só editar a constante TS, nenhuma alteração de schema.
+
+`AceitouNomeacaoSugestao` estendida (não um componente novo): agora sugere `aceitou_nomeacao`
+E `situacao_processo` juntos, num só "Marcar" — os dois descrevem o mesmo fato (o protocolo do
+documento), então pedir duas confirmações separadas seria fricção sem ganho de segurança.
+Aparece se QUALQUER um dos dois campos ainda não bate com o documento protocolado.
+`sugerirAceitouNomeacao` (actions.ts) grava os dois num único UPDATE, via mapa
+`SITUACAO_PROCESSO_POR_ACEITOU_NOMEACAO`.
+
 ## 5.4. Fatia 5 — Não Comparecimento ao Ato Pericial (14/09/2026)
 
 **FEITA E NO AR** (migration `20260914130000`, nº17 da Biblioteca). Documento pequeno, lido
@@ -570,6 +590,14 @@ clientes/casos totalmente próprios, com relação de contrato e cobrança indep
 — aí sim seria multi-tenant de verdade (uma espécie de plataforma pra peritos independentes,
 não uma expansão do escritório dela). Nada na resposta aponta nisso, mas vale uma confirmação
 de uma linha antes de qualquer coisa que dependa 100% dessa leitura.
+
+**18/09/2026 — CONFIRMADO pela Dra. Fernanda, exatamente como previsto:** "os outros médicos
+trabalhariam dentro do escritório dela, com os clientes dela." Isso fecha a ressalva acima —
+descarta de vez o cenário multi-tenant. **Modelo confirmado: equipe/atribuição num escritório
+só** (item d acima), não plataforma pra peritos independentes. A decisão de construir ou não a
+tabela "quem é quem" + papéis/RLS continua sendo do Jeferson (é ele quem decide investir
+nisso agora ou mais adiante) — o que estava em aberto era só a LEITURA do modelo, e essa
+leitura está fechada.
 
 ### d) O que dá pra construir agora sem errar em nenhum dos dois cenários
 

@@ -225,7 +225,7 @@ puro incremento de conveniência, sem compromisso prévio.
 |---|---|---|
 | 1 | **Painel "o que fazer hoje"** — só leitura, zero tabela nova, zero cadastro. Cobre tudo do §1-5 acima. | **FEITA (11/09/2026)** |
 | 2 | **Cadastro manual de tarefa/evento avulso** — os campos que ela pediu (urgência, evento×tarefa, status próprio, Próxima Providência agora editável de verdade). Tabela nova aqui, pela primeira vez no módulo. | **FEITA (17/09/2026)** — ver §6.2. |
-| 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Fechada parcial (18/09/2026)** — ver §6.2: documentos pendentes FEITA; pagamento em atraso depende de resposta dela (vencimento de honorário varia entre depósito judicial e contratação particular) — pendência declarada, não estado inventado. |
+| 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Em andamento (18/09/2026)** — ver §6.2: documentos pendentes FEITA; pagamento em atraso com resposta da Dra. já recebida e desenho de dois mecanismos (judicial × AT) proposto, aguardando aprovação do Jeferson antes da migration. |
 | 4 | **Edição da Próxima Providência dos itens automáticos** (fatia 1) — sobrescrever o texto fixo por item específico. Tabela pequena de ajustes. | **Não** — a única fatia realmente opcional do módulo: só entra se ela pedir, sem compromisso prévio. |
 | 5 | **Integração com o Fluxo Principal do Perito Judicial** — pluga a régua como mais uma fonte do agregador (§5). | Escopo da Fase 2, não pergunta pra ela. **FEITA (16/09/2026)** — ver abaixo. |
 
@@ -334,11 +334,57 @@ sobre tarefa manual. Fazer do jeito que eu tinha desenhado inverteria o propósi
   já usado em `LiberacaoPanel`. 8ª fonte do agregador: `sem_prazo` (sem vencimento real, mesmo
   raciocínio de "liberação sem recebimento" — pendência que não vence, só persiste), some
   sozinho quando ela marca como recebido.
-- **Atraso de pagamento — não decidida.** Vencimento de honorário depende de como ela pensa
-  o prazo, e isso muda entre depósito judicial e contratação particular — pergunta dela, não
-  decisão técnica. Entrou na lista de perguntas que o Jeferson está juntando. **Registrada
-  como pendência declarada, não como estado inventado** — a fatia 3 fecha parcial (só
-  documentos pendentes) até essa resposta voltar.
+- **Atraso de pagamento — resposta da Dra. Fernanda voltou (18/09/2026).** São dois mundos
+  diferentes, confirmando por que a pergunta não tinha resposta técnica sozinha:
+  - **Perícia judicial**: não existe data previsível — quem determina como, quando e quanto
+    se paga é o juiz. Existe um padrão que ela às vezes consegue (metade ao iniciar os
+    trabalhos, metade na entrega do laudo), mas varia caso a caso conforme a determinação.
+  - **Assistência técnica**: existe contrato fechado antes de começar, com datas definidas. A
+    maioria paga por cartão ou pix (sem necessidade de cobrança); o que ela precisa é ser
+    lembrada de cobrar quem paga por boleto ou transferência.
+
+  **Instrução do Jeferson antes de codar**: "são dois mecanismos diferentes, não um só... não
+  quero um campo genérico de vencimento que force os dois casos no mesmo molde." Desenho
+  abaixo, ainda SEM migration — apresentado antes de codar, como sempre.
+
+### Desenho proposto — dois mecanismos, não um (aguardando aprovação)
+
+**Judicial — marco combinado, não vencimento calculado.** Não dá pra derivar uma data daqui
+— não existe fórmula (nem sempre é 50/50, e mesmo quando é, a data de cada metade depende da
+determinação daquele processo específico). O que existe de real é ELA sabendo, processo a
+processo, se combinou um marco com data (ex.: "metade ao iniciar, combinado pra 10/10").
+Proposta: `processos.honorarios_proximo_marco_em` (date, nullable) +
+`honorarios_proximo_marco_descricao` (text, nullable) — mesmo par documentos_solicitados_em/
+descricao já aprovado (fatia 3, documentos pendentes): preenchido só quando ela sabe de um
+marco combinado para AQUELE caso, limpo quando resolvido (ela pode preencher de novo se
+houver um segundo marco depois). Nunca preenchido/calculado sozinho pelo sistema — não existe
+regra de "metade em X dias" nem nada parecido. Como é uma data que ela mesma confirmou (não
+uma inferência), entra na Central de Prazos como prazo REAL (`nivelPorPrazo` de verdade,
+cor/urgência normal) — diferente de "documentos pendentes"/"liberação sem recebimento", que
+nunca têm data real e por isso ficam em `sem_prazo`.
+
+**Assistência técnica — vencimento de contrato + forma de pagamento.** Aqui SIM existe data
+definida e forma de pagamento conhecida de antemão. Proposta: `processos.
+honorarios_forma_pagamento` (text, catálogo fechado: cartão / pix / boleto / transferência /
+outro) + `honorarios_vencimento` (date, nullable) — preenchidos uma vez, no cadastro/edição do
+processo AT, como qualquer outro dado de contrato. **Não preciso de um campo "pago" novo**: a
+AT já tem `situacao_financeira` fechada (`Pago` / `Não pago` / `Em parcelamento`, `SITUACOES_
+FINANCEIRAS_AT`) — reaproveito esse valor como sinal de resolvido, em vez de duplicar estado.
+
+**Fonte da Central de Prazos (a mesma, com dois ramos, não um campo genérico):** aparece
+quando `honorarios_vencimento` está preenchido, `honorarios_forma_pagamento` é boleto ou
+transferência (cartão/pix nunca geram lembrete — não precisam de cobrança), e
+`situacao_financeira !== 'Pago'`. Prazo real, mesma régua de urgência.
+
+**Por que isso não é "um campo genérico forçando os dois casos":** os dois pares de campos
+são fisicamente diferentes (um é marco manual e eventual, o outro é dado de contrato fixo),
+preenchidos em momentos diferentes da tela (judicial: durante o trâmite, quando ela souber;
+AT: no cadastro, porque já se sabe de antemão), e um deles nem sempre existe (judicial pode
+nunca ter marco combinado; isso é normal, não uma lacuna). A única coisa que os dois
+compartilham é entrar na mesma Central de Prazos no final — que é justamente o ponto da
+Central: agregar fontes heterogêneas num painel só, sem forçar homogeneidade na origem.
+
+**Ainda não codado** — aguardando o Jeferson aprovar este desenho antes da migration.
 
 ## 6.1 Ordenação — por que item sem data nunca compete com o que está vencendo
 
