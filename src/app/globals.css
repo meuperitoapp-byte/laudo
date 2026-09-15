@@ -63,12 +63,27 @@
 :root {
   --background: var(--color-nevoa-25);
   --foreground: var(--color-nevoa-900);
+
+  /*
+   * Cores de gráfico (dashboard) — passadas ao recharts. Petróleo/Âmbar UI
+   * já existentes ficam escuros/pouco saturados demais como MARCA de dado
+   * (aprovados pra texto/botão, não pra chip de gráfico) — estas duas são
+   * variantes específicas pra dado, validadas (script validate_palette.js
+   * da skill de dataviz): OKLCH dentro da banda de luminosidade, croma
+   * acima do piso, ΔE de separação sob daltonismo >= 8 e visão normal >= 15.
+   * Usadas via `fill="var(--chart-teal)"` etc. — trocam sozinhas com o
+   * `prefers-color-scheme`, sem JS.
+   */
+  --chart-teal: #0e9c95;
+  --chart-amber: #c17d1f;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: var(--color-nevoa-950);
     --foreground: var(--color-nevoa-100);
+    --chart-teal: #2ba89f;
+    --chart-amber: #bd8630;
   }
 }
 
