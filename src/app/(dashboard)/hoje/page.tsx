@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Plus, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Selo } from "@/components/ui/badge";
+import { classesBotao } from "@/components/ui/button";
 import { montarPainel } from "@/features/central-prazos/agregador";
 import { NIVEL_ROTULOS, NIVEL_SELO_VARIANTE, URGENTE_BADGE_CLASSE } from "@/features/central-prazos/rotulos";
 import type { ItemPainel } from "@/features/central-prazos/tipos";
@@ -36,7 +38,7 @@ export default async function HojePage() {
   const semPrazo = itens.filter((i) => i.nivel === "sem_prazo");
 
   return (
-    <main className="p-8 max-w-3xl space-y-6">
+    <main className="p-8 max-w-4xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">
@@ -47,12 +49,10 @@ export default async function HojePage() {
             ciclo por ciclo pra descobrir.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <Link
-            href="/tarefas/nova"
-            className="text-sm text-petroleo-600 hover:underline dark:text-petroleo-400 whitespace-nowrap"
-          >
-            + Nova tarefa/evento
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <Link href="/tarefas/nova" className={classesBotao("secundaria", "gap-1.5")}>
+            <Plus className="h-4 w-4" />
+            Nova tarefa
           </Link>
           <Link
             href="/processos"
@@ -64,10 +64,13 @@ export default async function HojePage() {
       </div>
 
       {itens.length === 0 ? (
-        <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
-          Nada pendente no momento — nenhum ciclo aberto, laudo sem protocolar ou item
-          esperando providência.
-        </p>
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 bg-white dark:bg-nevoa-900/40 px-6 py-14 text-center">
+          <CheckCircle2 className="h-8 w-8 text-musgo-600 dark:text-musgo-400" />
+          <p className="text-sm text-nevoa-600 dark:text-nevoa-400 max-w-sm">
+            Nada pendente no momento — nenhum ciclo aberto, laudo sem protocolar ou item
+            esperando providência.
+          </p>
+        </div>
       ) : (
         <div className="space-y-6">
           {pendentes.length > 0 && (
@@ -101,7 +104,7 @@ function ItemCard({ item }: { item: ItemPainel }) {
     <li>
       <Link
         href={item.href}
-        className="flex flex-wrap items-center gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 px-4 py-3 text-sm hover:border-petroleo-400 dark:hover:border-petroleo-600"
+        className="flex flex-wrap items-center gap-3 rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 px-4 py-3.5 text-sm transition-colors hover:border-petroleo-400 dark:hover:border-petroleo-600"
       >
         <SeloNivel item={item} />
         <div className="min-w-0 flex-1">
