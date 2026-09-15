@@ -17,7 +17,7 @@
  */
 
 import type { createClient } from "@/lib/supabase/server";
-import { hojeIsoBrasil, nivelPorPrazo, ordenarPainel } from "./regras";
+import { hojeIsoBrasil, nivelPorPrazo, ordenarPainel, paraDiasUtc } from "./regras";
 import { PROVIDENCIA_POR_CATEGORIA } from "./rotulos";
 import type { ItemPainel } from "./tipos";
 
@@ -255,10 +255,19 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   // urgência crescente. Some sozinho quando ela marca como recebido.
   for (const p of processos) {
     if (!p.documentos_solicitados_em) continue;
+    // A urgência é "sem_prazo" (não há vencimento a calcular), mas o tempo
+    // parado É o dado que torna o item acionável — por isso a data em vez de
+    // booleano desde a decisão original. Sem essa contagem no texto, o item
+    // não diz nada que justifique agir agora em vez de depois.
+    const diasPendente = paraDiasUtc(hoje) - paraDiasUtc(p.documentos_solicitados_em);
+    const rotuloPendencia =
+      diasPendente <= 0
+        ? "Documentos pendentes (solicitados hoje)"
+        : `Documentos pendentes há ${diasPendente} dia${diasPendente === 1 ? "" : "s"}`;
     itens.push({
       id: `documentos_pendentes-${p.id}`,
       categoria: "documentos_pendentes",
-      titulo: `Documentos pendentes — ${identificarProcesso(p)}`,
+      titulo: `${rotuloPendencia} — ${identificarProcesso(p)}`,
       subtitulo: null,
       providencia: p.documentos_solicitados_descricao?.trim() || PROVIDENCIA_POR_CATEGORIA.documentos_pendentes,
       nivel: "sem_prazo",

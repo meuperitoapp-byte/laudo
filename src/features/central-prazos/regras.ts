@@ -21,7 +21,7 @@ export const NIVEL_ORDEM: Record<NivelUrgencia, number> = {
 };
 
 /** "YYYY-MM-DD" -> dias desde a época, em UTC. Evita `new Date(string)` (que interpreta como meia-noite UTC e pode "voltar um dia" em fusos negativos) comparando sempre a mesma unidade — dias inteiros, não instantes. */
-function paraDiasUtc(dataIso: string): number {
+export function paraDiasUtc(dataIso: string): number {
   const m = dataIso.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return NaN;
   return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86_400_000;
