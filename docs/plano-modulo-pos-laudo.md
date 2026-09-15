@@ -8,33 +8,44 @@ conversa, tratado como parte deste escopo — é o Pós-Laudo do lado AT) +
 
 ---
 
-## ⚠️ PENDÊNCIA CRÍTICA EM ABERTO — teste do anti-join (fatia 3)
+## ✅ VALIDADO (18/09/2026) — teste do anti-join (fatia 3)
 
-**É a única pendência do módulo cujo erro seria SILENCIOSO.** Se o anti-join do
-`compilarLaudo` (`src/features/geracao-laudo/compilar.ts`, ver §1.7) estiver errado, o
-laudo sai citando na tabela de documentos analisados — e contando em
+**Era a única pendência do módulo cujo erro seria SILENCIOSO.** Se o anti-join do
+`compilarLaudo` (`src/features/geracao-laudo/compilar.ts`, ver §1.7) estivesse errado, o
+laudo sairia citando na tabela de documentos analisados — e contando em
 `{{total_documentos}}` — um documento superveniente, ou seja, **um documento que não
-existia à época da perícia**. Ninguém percebe isso olhando o PDF: parece um laudo
+existia à época da perícia**. Ninguém perceberia isso olhando o PDF: pareceria um laudo
 normal. Num laudo médico-legal é um vício grave passando despercebido.
 
-Código escrito e no ar (commit f6cec1c), `tsc`/`eslint`/`build` limpos, mas **NÃO
-testado em execução** (sem app/DB acessível pra quem escreveu). A Dra. Fernanda vai
-testar o módulo na prática e reportar ao Jeferson.
+**Como foi verificado:** sem acesso a navegador nesta sessão, a verificação rodou por
+script (`scripts/antijoin-check/run.ts`, ver README ali) chamando as MESMAS Server
+Actions que a tela usa — `uploadDocumento`, `gerarLaudo`, `marcarLaudoProtocolado`,
+`definirConclusaoVigenteInicial`, `abrirCicloPosLaudo`, `adicionarDocumentoSuperveniente`
+— contra o banco real, num processo de teste já existente ("João da Silva Teste").
+Nenhuma lógica foi reimplementada; só a obtenção do client Supabase (normalmente ligada
+a cookies de uma requisição Next.js) foi substituída por um client com a service role
+key, só para o script.
 
-**Roteiro de teste (5 passos):**
+**Resultado:** v1 e v2 saíram com a tabela "Matriz de Documentos Analisados"
+**byte-idêntica** — mesmos 2 documentos originais, mesma ordem, mesma contagem — em
+ambas as versões do PDF gerado (comparação direta do conteúdo dos dois PDFs, não só da
+contagem em tela — prova mais forte que o teste manual original). O documento
+superveniente não apareceu em nenhuma das duas. Processo de teste restaurado ao estado
+original ao final (script usa `try/finally`).
+
+**Roteiro original (5 passos) — mantido como referência, com uma correção:**
 1. Num processo judicial com laudo (ou criar um). Anotar quantos documentos processuais
    ele tem; gerar o laudo; conferir a contagem e a tabela de documentos no PDF.
-2. Marcar o laudo como protocolado → abrir um ciclo de pós-laudo → seção "Documentos
-   supervenientes" → enviar um arquivo qualquer (papel "Superveniente").
+2. Marcar o laudo como protocolado → **confirmar a Conclusão vigente na tela "Laudo
+   final" (pré-requisito que faltava neste roteiro — ver aviso abaixo)** → abrir um
+   ciclo de pós-laudo → seção "Documentos supervenientes" → enviar um arquivo qualquer
+   (papel "Superveniente").
 3. Voltar em "Laudo final" → "Gerar novo laudo" (nova versão).
 4. Abrir o PDF novo: o documento superveniente **não pode** estar na tabela de
    documentos analisados, e a contagem de documentos tem que ser **a mesma** do passo 1
    (não pode ter aumentado).
 5. Conferir também na aba "Documentos" do processo: o superveniente aparece lá com o
    selo, mas na tabela do laudo não.
-
-Se a contagem subir ou o documento aparecer na tabela do laudo → bug no anti-join,
-corrigir antes de considerar o módulo fechado.
 
 ---
 

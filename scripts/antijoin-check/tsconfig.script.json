@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "baseUrl": "../..",
+    "paths": {
+      "@/lib/supabase/server": ["./scripts/antijoin-check/shims/supabase-server.ts"],
+      "next/cache": ["./scripts/antijoin-check/shims/next-cache.ts"],
+      "next/navigation": ["./scripts/antijoin-check/shims/next-navigation.ts"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["./run.ts", "../../src/**/*.ts"]
+}
