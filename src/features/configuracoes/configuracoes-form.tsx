@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { ImageIcon, FileText, Landmark } from "lucide-react";
 import { salvarAtivoGlobal, salvarContato, salvarDadosBancarios } from "./actions";
 import { Botao } from "@/components/ui/button";
 import type { ConfiguracoesRow } from "@/types/database";
@@ -11,10 +12,27 @@ const inputClass =
   "placeholder:text-nevoa-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500";
 const labelClass = "block text-sm font-medium text-nevoa-700 dark:text-nevoa-300 mb-1.5";
 
-function Cartao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Cartao({
+  titulo,
+  icone,
+  className = "",
+  children,
+}: {
+  titulo: string;
+  icone: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <section className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-6 space-y-4">
-      <h2 className="font-title text-base font-semibold text-nevoa-900 dark:text-nevoa-100">{titulo}</h2>
+    <section
+      className={`rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6 space-y-4 ${className}`}
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-petroleo-100 dark:bg-petroleo-500/15 text-petroleo-600 dark:text-petroleo-400">
+          {icone}
+        </div>
+        <h2 className="font-title text-base font-semibold text-nevoa-900 dark:text-nevoa-100">{titulo}</h2>
+      </div>
       {children}
     </section>
   );
@@ -64,7 +82,7 @@ function FormAtivo({
   }
 
   return (
-    <Cartao titulo={titulo}>
+    <Cartao titulo={titulo} icone={<ImageIcon className="h-4.5 w-4.5" />}>
       <p className="text-sm text-nevoa-500 dark:text-nevoa-400">{descricao}</p>
       {urlAtual ? (
         <div>
@@ -116,7 +134,7 @@ function FormContato({ config }: { config: ConfiguracoesRow | null }) {
   }
 
   return (
-    <Cartao titulo="Rodapé dos documentos">
+    <Cartao titulo="Rodapé dos documentos" icone={<FileText className="h-4.5 w-4.5" />}>
       <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
         Linha de texto exibida numa faixa discreta no rodapé de toda página dos laudos e pareceres
         gerados, junto com a logomarca. É o texto literal — escreva exatamente como deve sair,
@@ -173,7 +191,7 @@ function FormDadosBancarios({ config }: { config: ConfiguracoesRow | null }) {
   }
 
   return (
-    <Cartao titulo="Dados bancários para depósito de honorários">
+    <Cartao titulo="Dados bancários para depósito de honorários" icone={<Landmark className="h-4.5 w-4.5" />}>
       <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
         Usados só quando você mesma confirmar, na hora de gerar cada documento de depósito, que
         eles devem entrar naquela peça — nunca automaticamente. Quando o processo exigir depósito
@@ -276,18 +294,20 @@ export function ConfiguracoesForm({
 }) {
   return (
     <div className="space-y-6">
-      <FormAtivo
-        tipo="assinatura_perito"
-        titulo="Assinatura da perita"
-        descricao="Imagem da assinatura inserida acima do nome no fim de cada laudo (PNG com fundo transparente fica melhor)."
-        urlAtual={urlAssinatura}
-      />
-      <FormAtivo
-        tipo="logomarca"
-        titulo="Logomarca"
-        descricao="Aparece pequena na faixa de identidade do rodapé de toda página dos documentos gerados."
-        urlAtual={urlLogomarca}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <FormAtivo
+          tipo="assinatura_perito"
+          titulo="Assinatura da perita"
+          descricao="Imagem da assinatura inserida acima do nome no fim de cada laudo (PNG com fundo transparente fica melhor)."
+          urlAtual={urlAssinatura}
+        />
+        <FormAtivo
+          tipo="logomarca"
+          titulo="Logomarca"
+          descricao="Aparece pequena na faixa de identidade do rodapé de toda página dos documentos gerados."
+          urlAtual={urlLogomarca}
+        />
+      </div>
       <FormContato config={config} />
       <FormDadosBancarios config={config} />
     </div>
