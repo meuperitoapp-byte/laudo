@@ -38,12 +38,14 @@ export default async function NovoProcessoPage({
     { data: comarcasDb },
     { data: financeirasDb },
     { data: acoesDb },
+    { data: escritoriosDb },
   ] = await Promise.all([
     supabase.from("tipos_laudo").select("*").eq("ativo", true).order("ordem", { ascending: true }),
     supabase.from("processos").select("valor:vara_numero").not("vara_numero", "is", null),
     supabase.from("processos").select("valor:comarca_subsecao").not("comarca_subsecao", "is", null),
     supabase.from("processos").select("valor:situacao_financeira").not("situacao_financeira", "is", null),
     supabase.from("processos").select("valor:acao_objeto").not("acao_objeto", "is", null),
+    supabase.from("processos").select("valor:escritorio_indicacao").not("escritorio_indicacao", "is", null),
   ]);
 
   const rotuloTipo = tipoTrabalho === "pericia_judicial" ? "Perícia Judicial" : "Assistência Técnica";
@@ -69,6 +71,7 @@ export default async function NovoProcessoPage({
         sugestoesComarca={mesclarSugestoes([], comarcasDb)}
         sugestoesFinanceira={mesclarSugestoes(SITUACOES_FINANCEIRAS_SEED, financeirasDb)}
         sugestoesAcaoObjeto={mesclarSugestoes([], acoesDb)}
+        sugestoesEscritorioIndicacao={mesclarSugestoes([], escritoriosDb)}
       />
     </main>
   );

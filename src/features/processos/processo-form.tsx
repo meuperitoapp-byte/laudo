@@ -176,6 +176,7 @@ export function ProcessoForm({
   sugestoesComarca,
   sugestoesFinanceira,
   sugestoesAcaoObjeto,
+  sugestoesEscritorioIndicacao,
 }: {
   modo: "criar" | "editar";
   processo?: ProcessosRow | null;
@@ -187,6 +188,7 @@ export function ProcessoForm({
   /** Judicial apenas — a Assistência Técnica usa uma lista fechada (Pago/Não pago/Em parcelamento). */
   sugestoesFinanceira: string[];
   sugestoesAcaoObjeto: string[];
+  sugestoesEscritorioIndicacao: string[];
 }) {
   const editando = modo === "editar" && processo != null;
 
@@ -528,6 +530,23 @@ export function ProcessoForm({
             />
             <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
               Campo livre, separado da Natureza acima (que define o modelo do laudo).
+            </p>
+          </div>
+          <div className="pt-2">
+            <label htmlFor="escritorio_indicacao" className={labelClass}>
+              Escritório/advogado que indicou o caso
+            </label>
+            <ComboboxCatalogo
+              id="escritorio_indicacao"
+              name="escritorio_indicacao"
+              sugestoes={sugestoesEscritorioIndicacao}
+              valorInicial={processo?.escritorio_indicacao ?? ""}
+              rotuloNovo="Novo escritório"
+              placeholder="Opcional — quem recomendou este caso a você"
+            />
+            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+              Opcional. Alimenta o dashboard de indicações — não é o mesmo advogado que contratou (esse fica em
+              &ldquo;Advogado&rdquo;, na Assistência Técnica).
             </p>
           </div>
         </Cartao>

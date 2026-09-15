@@ -57,6 +57,7 @@ function camposGenericos(formData: FormData) {
     aceitou_nomeacao: optionalEnum(formData, "aceitou_nomeacao", ACEITOU_NOMEACAO_VALORES),
     url_processo: optionalText(formData, "url_processo"),
     acao_objeto: optionalText(formData, "acao_objeto"),
+    escritorio_indicacao: optionalText(formData, "escritorio_indicacao"),
   };
 }
 

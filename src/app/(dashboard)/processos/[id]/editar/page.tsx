@@ -23,6 +23,7 @@ export default async function EditarProcessoPage({
     { data: comarcasDb },
     { data: financeirasDb },
     { data: acoesDb },
+    { data: escritoriosDb },
   ] = await Promise.all([
     supabase.from("processos").select("*").eq("id", id).single(),
     supabase.from("tipos_laudo").select("*").eq("ativo", true).order("ordem", { ascending: true }),
@@ -30,6 +31,7 @@ export default async function EditarProcessoPage({
     supabase.from("processos").select("valor:comarca_subsecao").not("comarca_subsecao", "is", null),
     supabase.from("processos").select("valor:situacao_financeira").not("situacao_financeira", "is", null),
     supabase.from("processos").select("valor:acao_objeto").not("acao_objeto", "is", null),
+    supabase.from("processos").select("valor:escritorio_indicacao").not("escritorio_indicacao", "is", null),
   ]);
 
   if (!processo) {
@@ -57,6 +59,7 @@ export default async function EditarProcessoPage({
         sugestoesComarca={mesclarSugestoes([], comarcasDb)}
         sugestoesFinanceira={mesclarSugestoes(SITUACOES_FINANCEIRAS_SEED, financeirasDb)}
         sugestoesAcaoObjeto={mesclarSugestoes([], acoesDb)}
+        sugestoesEscritorioIndicacao={mesclarSugestoes([], escritoriosDb)}
       />
     </main>
   );
