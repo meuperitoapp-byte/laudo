@@ -10,8 +10,8 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  // /hoje é a porta de entrada do sistema (Central de Prazos e Tarefas).
-  const next = searchParams.get("next") ?? "/hoje";
+  // /dashboard é a porta de entrada do sistema (decisão do Jeferson, 19/09/2026).
+  const next = searchParams.get("next") ?? "/dashboard";
 
   if (code) {
     const supabase = await createClient();

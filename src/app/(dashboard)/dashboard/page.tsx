@@ -47,16 +47,27 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const hoje = hojeIsoBrasil();
 
-  const [{ data: processosDb }, itensPainel] = await Promise.all([
+  const [{ data: processosDb, error: erroProcessos }, itensPainel] = await Promise.all([
     supabase
       .from("processos")
-      .select(
-        "id, tipo_trabalho, status, situacao_processo, situacao_financeira, aceitou_nomeacao, agendamento_data, escritorio_indicacao",
-      ),
+      .select("id, tipo_trabalho, status, situacao_processo, situacao_financeira, aceitou_nomeacao, agendamento_data"),
     montarPainel(supabase),
   ]);
+  if (erroProcessos) {
+    // Nunca deixa isso virar "0 processos" silencioso — o erro cru é mais
+    // útil que um dashboard com números falsos.
+    console.error("Dashboard: falha ao buscar processos:", erroProcessos.message);
+  }
   const processos = processosDb ?? [];
   const ativos = processos.filter((p) => p.status === "em_andamento");
+
+  // Coluna nova (escritorio_indicacao) buscada à parte, de propósito: se
+  // algo estiver errado só com ela (ex.: migration ainda não propagada),
+  // o resto do dashboard continua de pé em vez de zerar tudo junto.
+  const { data: escritoriosDb, error: erroEscritorios } = await supabase.from("processos").select("escritorio_indicacao");
+  if (erroEscritorios) {
+    console.error("Dashboard: falha ao buscar escritorio_indicacao:", erroEscritorios.message);
+  }
 
   const totalProcessos = processos.length;
   const emAndamento = ativos.length;
@@ -70,7 +81,10 @@ export default async function DashboardPage() {
   const porTipoTrabalho = ranquear(
     ativos.map((p) => (p.tipo_trabalho === "assistencia_tecnica" ? "Assistência Técnica" : "Perícia Judicial")),
   );
-  const porEscritorio = ranquear(processos.map((p) => p.escritorio_indicacao), "Sem indicação registrada").slice(0, 8);
+  const porEscritorio = ranquear((escritoriosDb ?? []).map((p) => p.escritorio_indicacao), "Sem indicação registrada").slice(
+    0,
+    8,
+  );
 
   return (
     <main className="p-8 max-w-6xl mx-auto space-y-6">
@@ -78,6 +92,13 @@ export default async function DashboardPage() {
         <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Dashboard</h1>
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">Visão geral dos processos e da operação.</p>
       </div>
+
+      {erroProcessos && (
+        <div className="rounded-xl border border-vinho-400/60 dark:border-vinho-600/40 bg-vinho-100 dark:bg-vinho-950/30 px-4 py-3 text-sm text-vinho-700 dark:text-vinho-300">
+          Não consegui carregar os processos: {erroProcessos.message}. Os números abaixo não são confiáveis até isso
+          ser corrigido.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatTile rotulo="Processos" valor={totalProcessos} icone={<FolderKanban className="h-5 w-5" />} href="/processos" />
@@ -108,7 +129,11 @@ export default async function DashboardPage() {
         </DashboardCard>
 
         <DashboardCard titulo="Escritórios que mais indicam" subtitulo="Top 8 — de onde vêm os casos">
-          <RankedBarList itens={porEscritorio} />
+          {erroEscritorios ? (
+            <p className="text-sm text-vinho-600 dark:text-vinho-400">Erro ao carregar: {erroEscritorios.message}</p>
+          ) : (
+            <RankedBarList itens={porEscritorio} />
+          )}
         </DashboardCard>
       </div>
 

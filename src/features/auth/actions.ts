@@ -62,7 +62,7 @@ export async function signInWithPassword(formData: FormData): Promise<ActionResu
     return { error: "E-mail ou senha incorretos." };
   }
 
-  redirect("/processos");
+  redirect("/dashboard");
 }
 
 export async function signOut() {
