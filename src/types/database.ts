@@ -230,6 +230,10 @@ export type ProcessosRow = {
   liberacao_solicitada_em: string | null
   /** date do Postgres, 'YYYY-MM-DD' — preenchida pela perita, nunca inferida. */
   honorarios_recebidos_em: string | null
+  // --- Central de Prazos — fatia 3, "documentos pendentes" (migration 20260918120000) ---
+  /** date do Postgres — preenchida e limpa manualmente pela perita, nunca inferida. */
+  documentos_solicitados_em: string | null
+  documentos_solicitados_descricao: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -292,6 +296,8 @@ export type ProcessosInsert = ComDefaults<
   | 'liberacao_forma'
   | 'liberacao_solicitada_em'
   | 'honorarios_recebidos_em'
+  | 'documentos_solicitados_em'
+  | 'documentos_solicitados_descricao'
   | 'created_by'
   | 'created_at'
   | 'updated_at'
