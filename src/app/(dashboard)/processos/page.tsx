@@ -1,14 +1,32 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
+import { Selo } from "@/components/ui/badge";
 import { ProcessosFiltros } from "@/features/processos/processos-filtros";
-import { SITUACOES_FINANCEIRAS_SEED, mesclarSugestoes } from "@/features/processos/catalogos";
+import {
+  SITUACAO_PROCESSO_RECUSA,
+  SITUACAO_PROCESSO_DEVOLUCAO,
+  SITUACOES_FINANCEIRAS_SEED,
+  mesclarSugestoes,
+} from "@/features/processos/catalogos";
 import type { TipoTrabalhoProcesso } from "@/types/enums";
 
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   pericia_judicial: "Perícia Judicial",
   assistencia_tecnica: "Assistência Técnica",
 };
+
+/**
+ * Cor da Situação na lista — pipeline sem julgamento embutido na maioria
+ * dos valores (neutro), exceto os poucos que já são um desfecho: sucesso
+ * (encerrou bem) ou atenção (encargo não seguiu adiante). Mesmo critério já
+ * usado pra `aceitou_nomeacao` na régua enxuta do Fluxo Principal.
+ */
+function varianteSituacao(situacao: string | null): "sucesso" | "atencao" | "neutro" {
+  if (situacao === "Finalizado" || situacao === "Pagamento") return "sucesso";
+  if (situacao === SITUACAO_PROCESSO_RECUSA || situacao === SITUACAO_PROCESSO_DEVOLUCAO) return "atencao";
+  return "neutro";
+}
 
 /** Primeiro valor não-vazio de um search param (Next entrega string | string[] | undefined). */
 function param(v: string | string[] | undefined): string {
@@ -81,9 +99,14 @@ export default async function ProcessosPage({
       : "/processos/novo";
 
   return (
-    <main className="p-8 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Processos</h1>
+    <main className="p-8 max-w-6xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Processos</h1>
+          <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">
+            {processos?.length ?? 0} {processos?.length === 1 ? "processo listado" : "processos listados"}
+          </p>
+        </div>
         <Link href={hrefNovo} className={classesBotao("primaria")}>
           Novo processo
         </Link>
@@ -95,20 +118,28 @@ export default async function ProcessosPage({
       />
 
       {!processos || processos.length === 0 ? (
-        <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-6">
+        <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
           {filtrouAlgo
             ? "Nenhum processo encontrado com esses filtros."
             : "Nenhum processo em andamento. Use os filtros acima para ver os finalizados."}
         </p>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-nevoa-200 dark:border-nevoa-800">
+        <div className="overflow-x-auto rounded-xl border border-nevoa-200 dark:border-nevoa-800">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="text-left bg-nevoa-50 dark:bg-nevoa-900 border-b border-nevoa-200 dark:border-nevoa-800">
-                <th className="py-2.5 px-4 font-medium text-nevoa-600 dark:text-nevoa-400">Processo / Periciando(a)</th>
-                <th className="py-2.5 px-4 font-medium text-nevoa-600 dark:text-nevoa-400">Tipo de trabalho</th>
-                <th className="py-2.5 px-4 font-medium text-nevoa-600 dark:text-nevoa-400">Tipo de laudo</th>
-                <th className="py-2.5 px-4 font-medium text-nevoa-600 dark:text-nevoa-400">Situação</th>
+                <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400">
+                  Processo / Periciando(a)
+                </th>
+                <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400">
+                  Tipo de trabalho
+                </th>
+                <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400">
+                  Tipo de laudo
+                </th>
+                <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400">
+                  Situação
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-nevoa-900/40">
@@ -135,8 +166,12 @@ export default async function ProcessosPage({
                   <td className="py-2.5 px-4 text-nevoa-700 dark:text-nevoa-300">
                     {p.tipo_laudo_id ? (nomePorTipoLaudo.get(p.tipo_laudo_id) ?? "—") : "—"}
                   </td>
-                  <td className="py-2.5 px-4 text-nevoa-700 dark:text-nevoa-300">
-                    {p.situacao_processo || "—"}
+                  <td className="py-2.5 px-4">
+                    {p.situacao_processo ? (
+                      <Selo variante={varianteSituacao(p.situacao_processo)}>{p.situacao_processo}</Selo>
+                    ) : (
+                      <span className="text-nevoa-400 dark:text-nevoa-600">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
