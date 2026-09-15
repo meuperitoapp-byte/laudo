@@ -239,3 +239,30 @@ export async function excluirProcesso(processoId: string): Promise<ActionResult>
   revalidatePath("/hoje");
   redirect("/processos");
 }
+
+/**
+ * "Documentos pendentes" (Central de Prazos, fatia 3) — estado do caso,
+ * independente de `situacao_processo` (convive com qualquer etapa).
+ * `em: null` marca como recebido/resolvido: limpa os dois campos de uma vez,
+ * nunca deixa a descrição órfã apontando pra uma solicitação que já foi
+ * atendida. Preenchida e limpa manualmente por ela — nunca inferida, não
+ * existe evento no sistema que prove chegada de documento.
+ */
+export async function salvarDocumentosSolicitados(
+  processoId: string,
+  em: string | null,
+  descricao: string | null,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createClient();
+
+  const dados: ProcessosUpdate = em
+    ? { documentos_solicitados_em: em, documentos_solicitados_descricao: descricao }
+    : { documentos_solicitados_em: null, documentos_solicitados_descricao: null };
+
+  const { error } = await supabase.from("processos").update(dados).eq("id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}`);
+  revalidatePath("/hoje");
+  return { success: true };
+}

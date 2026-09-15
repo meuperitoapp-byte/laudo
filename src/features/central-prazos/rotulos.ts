@@ -52,4 +52,6 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   liberacao_sem_recebimento: "Conferir se o valor foi liberado.",
   /** Fallback só — na prática, a providência de uma tarefa manual é a descrição que ela mesma escreveu (ver agregador.ts). */
   tarefa_manual: "Ver detalhes da tarefa.",
+  /** Fallback só — quando ela preencheu o que foi pedido, esse texto vira a providência (ver agregador.ts). */
+  documentos_pendentes: "Cobrar documentos com o advogado/parte.",
 };

@@ -1,6 +1,7 @@
 /**
- * Central de Prazos e Tarefas — fatias 1, 2 e 5: agrega em uma lista só o
- * que é pendente em qualquer canto do sistema. Ver docs/plano-modulo-central-prazos.md.
+ * Central de Prazos e Tarefas — fatias 1, 2, 3 (parte "documentos
+ * pendentes") e 5: agrega em uma lista só o que é pendente em qualquer canto
+ * do sistema. Ver docs/plano-modulo-central-prazos.md.
  *
  * Não é "use server": função de leitura pura, chamada pela página. Cada
  * bloco numerado é uma FONTE independente — mesmo formato de saída
@@ -8,8 +9,11 @@
  * plugou o Fluxo Principal do Perito Judicial como mais 3 fontes (nomeação
  * com prazo real, agendamento marcado, liberação sem recebimento) sem mexer
  * nas que já existiam. Fatia 2 (17/09/2026) plugou `central_tarefas` (o
- * cadastro manual de tarefa/evento avulso) como a 8ª fonte — a única que lê
- * dado que ela mesma escreveu em vez de inferir de outra tabela.
+ * cadastro manual de tarefa/evento avulso) como a 9ª fonte — a única que lê
+ * dado que ela mesma escreveu em vez de inferir de outra tabela. Fatia 3,
+ * parte "documentos pendentes" (18/09/2026), plugou a 8ª fonte
+ * (`processos.documentos_solicitados_em`) — a parte "atraso de pagamento"
+ * continua fora, pendente de resposta da Dra. Fernanda (ver plano §6.2).
  */
 
 import type { createClient } from "@/lib/supabase/server";
@@ -36,7 +40,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   const { data: processosDb } = await supabase
     .from("processos")
     .select(
-      "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em",
+      "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao",
     )
     .eq("status", "em_andamento");
   const processos = processosDb ?? [];
@@ -242,8 +246,31 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     });
   }
 
-  // ---- 8. Tarefas/eventos manuais em aberto (fatia 2) ----
-  // Diferente das outras 7 fontes, esta não filtra por `processos.status`:
+  // ---- 8. Documentos pendentes (fatia 3, parte decidida) ----
+  // Estado do caso, independente de `situacao_processo` (convive com
+  // qualquer etapa) — investigação de 17/09/2026 confirmou que nada no banco
+  // representava isso antes da migration 20260918120000. Sem prazo real (ela
+  // não registra vencimento, só o fato de estar esperando) — mesma lógica de
+  // "liberação sem recebimento": pendência real, sem data que sustente
+  // urgência crescente. Some sozinho quando ela marca como recebido.
+  for (const p of processos) {
+    if (!p.documentos_solicitados_em) continue;
+    itens.push({
+      id: `documentos_pendentes-${p.id}`,
+      categoria: "documentos_pendentes",
+      titulo: `Documentos pendentes — ${identificarProcesso(p)}`,
+      subtitulo: null,
+      providencia: p.documentos_solicitados_descricao?.trim() || PROVIDENCIA_POR_CATEGORIA.documentos_pendentes,
+      nivel: "sem_prazo",
+      prazo: null,
+      dataContexto: { rotulo: "Solicitado em", valor: p.documentos_solicitados_em },
+      ordenacao: p.documentos_solicitados_em,
+      href: `/processos/${p.id}`,
+    });
+  }
+
+  // ---- 9. Tarefas/eventos manuais em aberto (fatia 2) ----
+  // Diferente das outras 8 fontes, esta não filtra por `processos.status`:
   // a tarefa é criação explícita dela, não inferência do sistema sobre um
   // processo específico — um processo finalizado com uma tarefa avulsa
   // ainda aberta continua sendo algo que ela decidiu acompanhar. Só
