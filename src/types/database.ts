@@ -234,6 +234,9 @@ export type ProcessosRow = {
   /** date do Postgres — preenchida e limpa manualmente pela perita, nunca inferida. */
   documentos_solicitados_em: string | null
   documentos_solicitados_descricao: string | null
+  // --- Dashboard/relatórios (migration 20260919120000) ---
+  /** Escritório/advogado que indicou o caso — distinto de advogado_escritorio (AT: quem contratou). Vale pros dois tipos de trabalho. */
+  escritorio_indicacao: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -298,6 +301,7 @@ export type ProcessosInsert = ComDefaults<
   | 'honorarios_recebidos_em'
   | 'documentos_solicitados_em'
   | 'documentos_solicitados_descricao'
+  | 'escritorio_indicacao'
   | 'created_by'
   | 'created_at'
   | 'updated_at'
