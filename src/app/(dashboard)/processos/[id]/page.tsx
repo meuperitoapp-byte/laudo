@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
 import { PoloPartesPanel } from "@/features/processos/polo-partes-panel";
 import { ExcluirProcessoButton } from "@/features/processos/excluir-processo-button";
+import { DocumentosPendentesPanel } from "@/features/processos/documentos-pendentes-panel";
 
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   pericia_judicial: "Perícia Judicial",
@@ -238,6 +239,12 @@ export default async function ProcessoDetalhePage({
           </Campo>
         </dl>
       </div>
+
+      <DocumentosPendentesPanel
+        processoId={processo.id}
+        solicitadoEm={processo.documentos_solicitados_em}
+        descricao={processo.documentos_solicitados_descricao}
+      />
 
       {processo.tipo_trabalho === "pericia_judicial" && (
         <PoloPartesPanel processoId={processo.id} partes={partes} />
