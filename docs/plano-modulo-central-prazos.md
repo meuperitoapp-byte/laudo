@@ -225,7 +225,7 @@ puro incremento de conveniência, sem compromisso prévio.
 |---|---|---|
 | 1 | **Painel "o que fazer hoje"** — só leitura, zero tabela nova, zero cadastro. Cobre tudo do §1-5 acima. | **FEITA (11/09/2026)** |
 | 2 | **Cadastro manual de tarefa/evento avulso** — os campos que ela pediu (urgência, evento×tarefa, status próprio, Próxima Providência agora editável de verdade). Tabela nova aqui, pela primeira vez no módulo. | **FEITA (17/09/2026)** — ver §6.2. |
-| 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Dividida em duas (16-17/09/2026)** — ver §6.2: documentos pendentes decidida e na fila; pagamento em atraso depende de resposta dela (vencimento de honorário varia entre depósito judicial e contratação particular). |
+| 3 | **Tarefas recorrentes do domínio pericial** — ex.: lembretes que se repetem por natureza do trabalho dela, não por processo específico. | **Fechada parcial (18/09/2026)** — ver §6.2: documentos pendentes FEITA; pagamento em atraso depende de resposta dela (vencimento de honorário varia entre depósito judicial e contratação particular) — pendência declarada, não estado inventado. |
 | 4 | **Edição da Próxima Providência dos itens automáticos** (fatia 1) — sobrescrever o texto fixo por item específico. Tabela pequena de ajustes. | **Não** — a única fatia realmente opcional do módulo: só entra se ela pedir, sem compromisso prévio. |
 | 5 | **Integração com o Fluxo Principal do Perito Judicial** — pluga a régua como mais uma fonte do agregador (§5). | Escopo da Fase 2, não pergunta pra ela. **FEITA (16/09/2026)** — ver abaixo. |
 
@@ -325,7 +325,15 @@ sobre tarefa manual. Fazer do jeito que eu tinha desenhado inverteria o propósi
   qualquer etapa de `situacao_processo`): `processos.documentos_solicitados_em` (date,
   nullable — preenchida quando ela marca que solicitou, limpa quando os documentos chegam) +
   um campo de texto curto do que foi solicitado (sem isso o lembrete não diz o que cobrar).
-  Ainda não codada — próxima depois da fatia 2 fechar.
+
+  **FEITO (18/09/2026):** migration `20260918120000_processos_documentos_solicitados.sql`.
+  `salvarDocumentosSolicitados` (`features/processos/actions.ts`) grava os dois campos juntos
+  ao marcar como solicitado e limpa os dois juntos ao marcar como recebido (nunca deixa
+  descrição órfã). `DocumentosPendentesPanel` na tela do processo (`/processos/[id]`, logo
+  abaixo de "Situação e financeiro") — mesmo padrão de card com estado de "salvar explícito"
+  já usado em `LiberacaoPanel`. 8ª fonte do agregador: `sem_prazo` (sem vencimento real, mesmo
+  raciocínio de "liberação sem recebimento" — pendência que não vence, só persiste), some
+  sozinho quando ela marca como recebido.
 - **Atraso de pagamento — não decidida.** Vencimento de honorário depende de como ela pensa
   o prazo, e isso muda entre depósito judicial e contratação particular — pergunta dela, não
   decisão técnica. Entrou na lista de perguntas que o Jeferson está juntando. **Registrada
