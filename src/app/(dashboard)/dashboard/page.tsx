@@ -78,6 +78,16 @@ export default async function DashboardPage() {
   const porSituacaoFinanceira = ranquear(
     ativos.filter((p) => p.tipo_trabalho === "pericia_judicial").map((p) => p.situacao_financeira),
   );
+  // Item #10 da fila de melhorias (19-20/09/2026): ela perguntou se dava pra
+  // totalizar a situação financeira da Assistência Técnica também (ex.: "AT -
+  // Maria José - parcelado em 5x" / "AT - João da Silva - pago"). O totalizar
+  // por CATEGORIA (Pago/Não pago/Em parcelamento) já dá pra fazer com a coluna
+  // que já existe — os detalhes de forma de pagamento/parcelas (cartão/pix,
+  // quantas parcelas) são um campo novo, ainda sem a migration aprovada pelo
+  // Jeferson, então ficam de fora por ora.
+  const porSituacaoFinanceiraAT = ranquear(
+    ativos.filter((p) => p.tipo_trabalho === "assistencia_tecnica").map((p) => p.situacao_financeira),
+  );
   const porTipoTrabalho = ranquear(
     ativos.map((p) => (p.tipo_trabalho === "assistencia_tecnica" ? "Assistência Técnica" : "Perícia Judicial")),
   );
@@ -117,11 +127,15 @@ export default async function DashboardPage() {
           <RankedBarList itens={porSituacaoProcesso} />
         </DashboardCard>
 
-        <DashboardCard
-          titulo="Situação financeira"
-          subtitulo="Só Perícia Judicial — Assistência Técnica usa catálogo próprio (Pago/Não pago/Em parcelamento)"
-        >
+        <DashboardCard titulo="Situação financeira — Perícia Judicial">
           <RankedBarList itens={porSituacaoFinanceira} />
+        </DashboardCard>
+
+        <DashboardCard
+          titulo="Situação financeira — Assistência Técnica"
+          subtitulo="Pago / Não pago / Em parcelamento"
+        >
+          <RankedBarList itens={porSituacaoFinanceiraAT} />
         </DashboardCard>
 
         <DashboardCard titulo="Perícia Judicial × Assistência Técnica">
