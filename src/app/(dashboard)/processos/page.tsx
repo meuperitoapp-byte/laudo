@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
 import { ProcessosFiltros } from "@/features/processos/processos-filtros";
+import { ExcluirProcessoButton } from "@/features/processos/excluir-processo-button";
 import {
   SITUACOES_FINANCEIRAS_SEED,
   mesclarSugestoes,
@@ -59,12 +60,16 @@ export default async function ProcessosPage({
   if (f.dataInicial) query = query.gte("created_at", f.dataInicial);
   if (f.dataFinal) query = query.lte("created_at", `${f.dataFinal}T23:59:59.999Z`);
 
-  const [{ data: processos }, { data: tiposLaudo }, { data: partesDb }, { data: financeirasDb }] =
+  const [{ data: processos }, { data: tiposLaudo }, { data: partesDb }, { data: financeirasDb }, { data: protocoladosDb }] =
     await Promise.all([
       query,
       supabase.from("tipos_laudo").select("id, nome").order("ordem", { ascending: true }),
       supabase.from("processo_partes").select("processo_id, polo, nome, ordem").eq("polo", "ativo").order("ordem"),
       supabase.from("processos").select("valor:situacao_financeira").not("situacao_financeira", "is", null),
+      // Mesmo gate de exclusão do detalhe do processo (ver [id]/page.tsx):
+      // qualquer documento protocolado bloqueia excluir. Buscado em lote aqui
+      // pra ExcluirProcessoButton, sem duplicar a query por linha da tabela.
+      supabase.from("laudos_gerados").select("processo_id").eq("protocolado", true),
     ]);
 
   const nomePorTipoLaudo = new Map((tiposLaudo ?? []).map((t) => [t.id, t.nome]));
@@ -74,6 +79,7 @@ export default async function ProcessosPage({
       primeiroNomePoloAtivoPorProcesso.set(parte.processo_id, parte.nome);
     }
   }
+  const processosComDocumentoProtocolado = new Set((protocoladosDb ?? []).map((l) => l.processo_id));
 
   const filtrouAlgo = Object.values(f).some((v) => v);
 
@@ -127,6 +133,9 @@ export default async function ProcessosPage({
                 <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400">
                   Situação
                 </th>
+                <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400">
+                  Ações
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-nevoa-900/40">
@@ -159,6 +168,12 @@ export default async function ProcessosPage({
                     ) : (
                       <span className="text-nevoa-400 dark:text-nevoa-600">—</span>
                     )}
+                  </td>
+                  <td className="py-2.5 px-4">
+                    <ExcluirProcessoButton
+                      processoId={p.id}
+                      temDocumentoProtocolado={processosComDocumentoProtocolado.has(p.id)}
+                    />
                   </td>
                 </tr>
               ))}
