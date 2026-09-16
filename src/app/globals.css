@@ -91,3 +91,14 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* Nav superior com mais itens (item #7, PERICONS) pode passar da largura da
+   tela em telas menores — rola horizontalmente sem barra de rolagem visível
+   (comportamento padrão de barra de abas, distinto do artefato visual não
+   identificado que já existiu ali). */
+.nav-scroll {
+  scrollbar-width: none;
+}
+.nav-scroll::-webkit-scrollbar {
+  display: none;
+}

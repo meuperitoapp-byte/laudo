@@ -10,10 +10,24 @@ interface ItemNav {
   rotulo: string;
 }
 
+/**
+ * Reorganizado pra bater com a navegação PERICONS que a Dra. Fernanda
+ * descreveu (item #7 da fila de melhorias, 19-20/09/2026) — só a camada de
+ * navegação: cada rótulo aponta pro que já existe hoje (Início = Dashboard,
+ * Casos = Processos), e os módulos que ainda não foram construídos
+ * (Agenda, Financeiro, Relacionamento, Biblioteca Pericial) apontam pra uma
+ * tela "em construção" em vez de ficarem de fora ou fingirem já funcionar.
+ * Ver [[pericons-arquitetura-caso]] pro desenho completo, que fica pra uma
+ * conversa de escopo própria — nada de módulo novo foi construído aqui.
+ */
 const ITENS: ItemNav[] = [
-  { href: "/dashboard", rotulo: "Dashboard" },
+  { href: "/dashboard", rotulo: "Início" },
+  { href: "/processos", rotulo: "Casos" },
   { href: "/hoje", rotulo: "Hoje" },
-  { href: "/processos", rotulo: "Processos" },
+  { href: "/agenda", rotulo: "Agenda" },
+  { href: "/financeiro", rotulo: "Financeiro" },
+  { href: "/relacionamento", rotulo: "Relacionamento" },
+  { href: "/biblioteca-pericial", rotulo: "Biblioteca Pericial" },
   { href: "/respostas-reutilizaveis", rotulo: "Respostas" },
   { href: "/configuracoes", rotulo: "Configurações" },
 ];
@@ -38,7 +52,7 @@ export function TopNav({ email }: { email: string }) {
           </span>
         </Link>
 
-        <nav className="flex items-center gap-1 flex-1 min-w-0">
+        <nav className="nav-scroll flex items-center gap-1 flex-1 min-w-0 overflow-x-auto overflow-y-visible">
           {ITENS.map((item) => {
             const ativo = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
