@@ -6,7 +6,9 @@ import { Selo } from "@/components/ui/badge";
 import { PoloPartesPanel } from "@/features/processos/polo-partes-panel";
 import { ExcluirProcessoButton } from "@/features/processos/excluir-processo-button";
 import { DocumentosPendentesPanel } from "@/features/processos/documentos-pendentes-panel";
+import { ProximoMarcoHonorariosPanel } from "@/features/processos/proximo-marco-honorarios-panel";
 import { varianteSituacaoProcesso } from "@/features/processos/catalogos";
+import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   pericia_judicial: "Perícia Judicial",
@@ -73,27 +75,43 @@ export default async function ProcessoDetalhePage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: processo } = await supabase
+  const { data: processo, error: erroProcesso } = await supabase
     .from("processos")
     .select("*")
     .eq("id", id)
     .single();
 
+  // PGRST116 = ".single()" não achou nenhuma linha — esse é o único caso que
+  // significa "de verdade não existe". Qualquer OUTRO erro (rede, RLS,
+  // instabilidade) é falha de leitura, não ausência do registro, e nunca
+  // pode cair no mesmo caminho de notFound() — pra ela, um 404 aqui significa
+  // "o caso sumiu", que é uma leitura muito mais grave (e errada) do que
+  // "tenta de novo". Ver auditoria de 21/09/2026.
+  if (erroProcesso && erroProcesso.code !== "PGRST116") {
+    console.error(`Processo ${id}: falha ao buscar o registro principal:`, erroProcesso.message);
+    return <ErroConsultaPagina titulo="Não foi possível carregar este processo agora" />;
+  }
   if (!processo) {
     notFound();
   }
 
-  const { data: partesDb } = await supabase
+  const erros: string[] = [];
+
+  const { data: partesDb, error: erroPartes } = await supabase
     .from("processo_partes")
     .select("*")
     .eq("processo_id", id)
     .order("ordem", { ascending: true });
+  if (erroPartes) {
+    console.error(`Processo ${id}: falha ao buscar partes:`, erroPartes.message);
+    erros.push("as partes do processo");
+  }
   const partes = partesDb ?? [];
 
   // Gate do Módulo Pós-Laudo: a aba só abre quando existe um laudo (tipo =
   // 'laudo') marcado como protocolado — ver marcarLaudoProtocolado / migration
   // 20260905120000.
-  const { data: laudoProtocolado } = await supabase
+  const { data: laudoProtocolado, error: erroLaudoProtocolado } = await supabase
     .from("laudos_gerados")
     .select("id")
     .eq("processo_id", id)
@@ -101,18 +119,30 @@ export default async function ProcessoDetalhePage({
     .eq("protocolado", true)
     .limit(1)
     .maybeSingle();
+  if (erroLaudoProtocolado) {
+    console.error(`Processo ${id}: falha ao checar laudo protocolado:`, erroLaudoProtocolado.message);
+    erros.push("a liberação do Pós-laudo");
+  }
   const temLaudoProtocolado = Boolean(laudoProtocolado);
 
   // Gate da exclusão: qualquer documento protocolado (não só o laudo
   // principal — inclui saídas de pós-laudo e do Fluxo Principal) bloqueia a
   // exclusão do processo, de propósito (documento protocolado é registro
   // oficial já entregue nos autos). Ver excluirProcesso, mesmo critério.
-  const { count: totalProtocolados } = await supabase
+  // Erro aqui NUNCA pode virar "0 protocolados" silencioso — isso liberaria
+  // a exclusão de um processo que na verdade tem documento protocolado.
+  const { count: totalProtocolados, error: erroTotalProtocolados } = await supabase
     .from("laudos_gerados")
     .select("id", { count: "exact", head: true })
     .eq("processo_id", id)
     .eq("protocolado", true);
-  const temDocumentoProtocolado = Boolean(totalProtocolados);
+  if (erroTotalProtocolados) {
+    console.error(`Processo ${id}: falha ao contar documentos protocolados:`, erroTotalProtocolados.message);
+    erros.push("o bloqueio de exclusão");
+  }
+  // Falha aqui trata como "tem protocolado" (mais seguro bloquear a exclusão
+  // à toa do que liberar por engano) — nunca `Boolean(null)` viraria `false`.
+  const temDocumentoProtocolado = erroTotalProtocolados ? true : Boolean(totalProtocolados);
   // Fluxo AT: a aba Pós-laudo é a própria análise do laudo do perito JUDICIAL
   // (externo) — não depende de a perita ter gerado e protocolado um laudo aqui.
   const ehAssistenciaTecnica = processo.tipo_trabalho === "assistencia_tecnica";
@@ -123,7 +153,10 @@ export default async function ProcessoDetalhePage({
   let tipoLaudoNome: string | null = null;
   let primeiraSecaoId: string | null = null;
   if (processo.tipo_laudo_id) {
-    const [{ data: tipoLaudo }, { data: primeiraSecao }] = await Promise.all([
+    const [
+      { data: tipoLaudo, error: erroTipoLaudo },
+      { data: primeiraSecao, error: erroPrimeiraSecao },
+    ] = await Promise.all([
       supabase.from("tipos_laudo").select("*").eq("id", processo.tipo_laudo_id).single(),
       supabase
         .from("secoes")
@@ -133,6 +166,14 @@ export default async function ProcessoDetalhePage({
         .limit(1)
         .maybeSingle(),
     ]);
+    if (erroTipoLaudo) {
+      console.error(`Processo ${id}: falha ao buscar tipo de laudo:`, erroTipoLaudo.message);
+      erros.push("o tipo de laudo");
+    }
+    if (erroPrimeiraSecao) {
+      console.error(`Processo ${id}: falha ao buscar a primeira seção:`, erroPrimeiraSecao.message);
+      erros.push("o link de preenchimento do laudo");
+    }
     tipoLaudoNome = tipoLaudo?.nome ?? null;
     primeiraSecaoId = primeiraSecao?.id ?? null;
   }
@@ -162,6 +203,10 @@ export default async function ProcessoDetalhePage({
           <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">{titulo}</h1>
         </div>
       </div>
+
+      {erros.length > 0 && (
+        <BannerErroConsulta mensagem={`Não consegui carregar agora: ${erros.join(", ")}. O resto da página segue normal.`} />
+      )}
 
       <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6">
         <dl className="grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
@@ -255,6 +300,14 @@ export default async function ProcessoDetalhePage({
         solicitadoEm={processo.documentos_solicitados_em}
         descricao={processo.documentos_solicitados_descricao}
       />
+
+      {processo.tipo_trabalho === "pericia_judicial" && (
+        <ProximoMarcoHonorariosPanel
+          processoId={processo.id}
+          marcoEm={processo.honorarios_proximo_marco_em}
+          descricao={processo.honorarios_proximo_marco_descricao}
+        />
+      )}
 
       {processo.tipo_trabalho === "pericia_judicial" && (
         <PoloPartesPanel processoId={processo.id} partes={partes} />
