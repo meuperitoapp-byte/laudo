@@ -50,7 +50,9 @@ export default async function DashboardPage() {
   const [{ data: processosDb, error: erroProcessos }, itensPainel] = await Promise.all([
     supabase
       .from("processos")
-      .select("id, tipo_trabalho, status, situacao_processo, situacao_financeira, aceitou_nomeacao, agendamento_data"),
+      .select(
+        "id, tipo_trabalho, status, situacao_processo, situacao_financeira, aceitou_nomeacao, agendamento_data, honorarios_forma_pagamento",
+      ),
     montarPainel(supabase),
   ]);
   if (erroProcessos) {
@@ -80,14 +82,13 @@ export default async function DashboardPage() {
   );
   // Item #10 da fila de melhorias (19-20/09/2026): ela perguntou se dava pra
   // totalizar a situação financeira da Assistência Técnica também (ex.: "AT -
-  // Maria José - parcelado em 5x" / "AT - João da Silva - pago"). O totalizar
-  // por CATEGORIA (Pago/Não pago/Em parcelamento) já dá pra fazer com a coluna
-  // que já existe — os detalhes de forma de pagamento/parcelas (cartão/pix,
-  // quantas parcelas) são um campo novo, ainda sem a migration aprovada pelo
-  // Jeferson, então ficam de fora por ora.
-  const porSituacaoFinanceiraAT = ranquear(
-    ativos.filter((p) => p.tipo_trabalho === "assistencia_tecnica").map((p) => p.situacao_financeira),
-  );
+  // Maria José - parcelado em 5x - cartão" / "AT - João da Silva - pago -
+  // pix"). Categoria (Pago/Não pago/Em parcelamento) já existia; forma de
+  // pagamento (cartão/pix/boleto/transferência/outro) entrou com a migration
+  // de honorários em atraso (21/09/2026) — completa o pedido original dela.
+  const ativosAT = ativos.filter((p) => p.tipo_trabalho === "assistencia_tecnica");
+  const porSituacaoFinanceiraAT = ranquear(ativosAT.map((p) => p.situacao_financeira));
+  const porFormaPagamentoAT = ranquear(ativosAT.map((p) => p.honorarios_forma_pagamento));
   const porTipoTrabalho = ranquear(
     ativos.map((p) => (p.tipo_trabalho === "assistencia_tecnica" ? "Assistência Técnica" : "Perícia Judicial")),
   );
@@ -136,6 +137,13 @@ export default async function DashboardPage() {
           subtitulo="Pago / Não pago / Em parcelamento"
         >
           <RankedBarList itens={porSituacaoFinanceiraAT} />
+        </DashboardCard>
+
+        <DashboardCard
+          titulo="Forma de pagamento — Assistência Técnica"
+          subtitulo="Cartão e Pix não geram cobrança; Boleto e Transferência entram na Central de Prazos"
+        >
+          <RankedBarList itens={porFormaPagamentoAT} />
         </DashboardCard>
 
         <DashboardCard titulo="Perícia Judicial × Assistência Técnica">

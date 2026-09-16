@@ -54,13 +54,14 @@ pedido do Jeferson ("pode aplicar tudo"). Commits `8ab3250` até `596817d`:
 | 7 | Navegação reorganizada na estrutura PERICONS (só nav, sem módulo novo) | `596817d` |
 | 8 | Logo real + favicon + renomeia pra "Sistema PERICONS" | `f450a09` |
 | 9 | Excluir processo direto na lista | `3c32f06` |
-| 10 | Situação financeira da AT no dashboard (parcial — ver pendências) | `319fd9d` |
+| 10 | Situação financeira da AT no dashboard — **completo** (categoria + forma de pagamento) | `319fd9d`, `061e95b` |
 
-**Complemento ao item 10 (21/09/2026)**: migration de honorários em atraso
+**Item 10 fechado (21/09/2026)**: migration de honorários em atraso
 aprovada e aplicada (`supabase/migrations/20260921120000_processos_
 honorarios_atraso.sql`), com o campo de próximo marco (judicial) e forma de
-pagamento/vencimento (AT) já construídos — commit `061e95b`. Falta só somar
-isso numa visão do dashboard (ver pendências abaixo).
+pagamento/vencimento (AT) construídos (`061e95b`) e a granularidade de
+forma de pagamento (Cartão/Pix/Boleto/Transferência/Outro) levada pro
+dashboard — novo card "Forma de pagamento — Assistência Técnica".
 
 ## Escopo adicional #3 — Correção de tratamento de erro de consulta (dívida estrutural anterior à Fase 2)
 
