@@ -33,6 +33,7 @@ import {
 import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
 import { AT_MODALIDADE_ORDENADA, AT_MODALIDADE_ROTULOS, CICLO_STATUS_ROTULOS, FLUXO_ROTULOS } from "@/features/pos-laudo/rotulos";
 import { Selo } from "@/components/ui/badge";
+import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 import type { PosLaudoCicloStatus, PosLaudoFluxo } from "@/types/enums";
 import type { SnapshotPosLaudo } from "@/types/json-fields";
 
@@ -105,17 +106,27 @@ export default async function PosLaudoCicloPage({
   const { id: processoId, cicloId } = await params;
   const supabase = await createClient();
 
-  const { data: ciclo } = await supabase
+  const { data: ciclo, error: erroCiclo } = await supabase
     .from("pos_laudo_ciclos")
     .select("*")
     .eq("id", cicloId)
     .eq("processo_id", processoId)
     .single();
+  if (erroCiclo && erroCiclo.code !== "PGRST116") {
+    console.error(`Ciclo ${cicloId}: falha ao buscar o ciclo:`, erroCiclo.message);
+    return <ErroConsultaPagina titulo="Não foi possível carregar este ciclo agora" />;
+  }
   if (!ciclo) {
     notFound();
   }
 
-  const [{ data: documentos }, { data: pontos }, { data: processoSituacao }] = await Promise.all([
+  const erros: string[] = [];
+
+  const [
+    { data: documentos, error: erroDocumentos },
+    { data: pontos, error: erroPontos },
+    { data: processoSituacao, error: erroSituacao },
+  ] = await Promise.all([
     supabase
       .from("documentos")
       .select("id, nome_arquivo")
@@ -129,33 +140,57 @@ export default async function PosLaudoCicloPage({
       .order("ordem", { ascending: true }),
     supabase.from("processos").select("situacao_processo").eq("id", processoId).maybeSingle(),
   ]);
+  if (erroDocumentos) {
+    console.error(`Ciclo ${cicloId}: falha ao listar documentos do processo:`, erroDocumentos.message);
+    erros.push("os documentos do processo");
+  }
+  if (erroPontos) {
+    console.error(`Ciclo ${cicloId}: falha ao listar pontos:`, erroPontos.message);
+    erros.push("a matriz de pontos");
+  }
+  if (erroSituacao) {
+    console.error(`Ciclo ${cicloId}: falha ao buscar situação do processo:`, erroSituacao.message);
+    erros.push("a sugestão de situação do processo");
+  }
 
   // Documentos supervenientes do ciclo. Metadados em pos_laudo_documentos, o
   // arquivo em documentos (resolvido em consulta à parte + signed URL).
-  const { data: pldDb } = await supabase
+  const { data: pldDb, error: erroPld } = await supabase
     .from("pos_laudo_documentos")
     .select("*")
     .eq("ciclo_id", cicloId)
     .order("created_at", { ascending: true });
+  if (erroPld) {
+    console.error(`Ciclo ${cicloId}: falha ao listar documentos supervenientes:`, erroPld.message);
+    erros.push("os documentos supervenientes");
+  }
   const pldLista = pldDb ?? [];
 
   const docsSupervenientes: DocSuperveniente[] = [];
   if (pldLista.length > 0) {
-    const { data: docsDb } = await supabase
+    const { data: docsDb, error: erroDocsDb } = await supabase
       .from("documentos")
       .select("id, nome_arquivo, storage_path")
       .in(
         "id",
         pldLista.map((p) => p.documento_id),
       );
+    if (erroDocsDb) {
+      console.error(`Ciclo ${cicloId}: falha ao buscar arquivos supervenientes:`, erroDocsDb.message);
+      erros.push("os arquivos dos documentos supervenientes");
+    }
     const docPorId = new Map((docsDb ?? []).map((d) => [d.id, d]));
 
     const caminhos = (docsDb ?? []).map((d) => d.storage_path);
     let urlSup = new Map<string, string | null>();
     if (caminhos.length > 0) {
-      const { data: assinadas } = await supabase.storage
+      const { data: assinadas, error: erroAssinadas } = await supabase.storage
         .from(BUCKET_DOCUMENTOS)
         .createSignedUrls(caminhos, URL_ASSINADA_VALIDADE_SEGUNDOS);
+      if (erroAssinadas) {
+        console.error(`Ciclo ${cicloId}: falha ao gerar links dos supervenientes:`, erroAssinadas.message);
+        erros.push("os links de download dos documentos supervenientes");
+      }
       if (assinadas) urlSup = new Map(assinadas.map((a) => [a.path ?? "", a.signedUrl]));
     }
 
@@ -184,13 +219,17 @@ export default async function PosLaudoCicloPage({
   const pontosLista = pontos ?? [];
   let evidenciasPorPonto: Record<string, EvidenciaVinculo[]> = {};
   if (pontosLista.length > 0) {
-    const { data: evidencias } = await supabase
+    const { data: evidencias, error: erroEvidencias } = await supabase
       .from("pos_laudo_ponto_evidencias")
       .select("id, ponto_id, documento_id, observacao")
       .in(
         "ponto_id",
         pontosLista.map((p) => p.id),
       );
+    if (erroEvidencias) {
+      console.error(`Ciclo ${cicloId}: falha ao buscar evidências dos pontos:`, erroEvidencias.message);
+      erros.push("as evidências vinculadas aos pontos");
+    }
     evidenciasPorPonto = (evidencias ?? []).reduce<Record<string, EvidenciaVinculo[]>>((acc, e) => {
       (acc[e.ponto_id] ??= []).push({
         id: e.id,
@@ -201,17 +240,24 @@ export default async function PosLaudoCicloPage({
     }, {});
   }
 
-  const { data: quesitosCicloDb } = await supabase
+  const { data: quesitosCicloDb, error: erroQuesitosCiclo } = await supabase
     .from("pos_laudo_quesitos")
     .select("*")
     .eq("ciclo_id", cicloId)
     .order("numero");
+  if (erroQuesitosCiclo) {
+    console.error(`Ciclo ${cicloId}: falha ao listar quesitos do ciclo:`, erroQuesitosCiclo.message);
+    erros.push("os quesitos do ciclo");
+  }
   const quesitosCiclo = quesitosCicloDb ?? [];
 
   // ---- Fluxo Assistência Técnica (fatia 10): tela própria. Não usa conclusão
   // vigente, nem os compiladores judiciais. ----
   if (ciclo.fluxo === "assistencia_tecnica") {
-    const [{ data: atAnalise }, { data: versoesAtDb }] = await Promise.all([
+    const [
+      { data: atAnalise, error: erroAtAnalise },
+      { data: versoesAtDb, error: erroVersoesAt },
+    ] = await Promise.all([
       supabase.from("pos_laudo_at_analise").select("*").eq("ciclo_id", cicloId).maybeSingle(),
       supabase
         .from("laudos_gerados")
@@ -219,15 +265,27 @@ export default async function PosLaudoCicloPage({
         .eq("pos_laudo_ciclo_id", cicloId)
         .order("versao", { ascending: false }),
     ]);
+    if (erroAtAnalise) {
+      console.error(`Ciclo ${cicloId}: falha ao buscar análise AT:`, erroAtAnalise.message);
+      erros.push("a análise de Assistência Técnica");
+    }
+    if (erroVersoesAt) {
+      console.error(`Ciclo ${cicloId}: falha ao listar versões AT:`, erroVersoesAt.message);
+      erros.push("as versões já geradas");
+    }
     const versoesAtLista = versoesAtDb ?? [];
     const caminhosAt = versoesAtLista.flatMap((v) =>
       [v.storage_path_pdf, v.storage_path_docx].filter((p): p is string => Boolean(p)),
     );
     let urlPorCaminhoAt = new Map<string, string | null>();
     if (caminhosAt.length > 0) {
-      const { data: assinadasAt } = await supabase.storage
+      const { data: assinadasAt, error: erroAssinadasAt } = await supabase.storage
         .from(BUCKET_LAUDOS_GERADOS)
         .createSignedUrls(caminhosAt, URL_ASSINADA_VALIDADE_SEGUNDOS);
+      if (erroAssinadasAt) {
+        console.error(`Ciclo ${cicloId}: falha ao gerar links das versões AT:`, erroAssinadasAt.message);
+        erros.push("os links de download das versões geradas");
+      }
       if (assinadasAt) urlPorCaminhoAt = new Map(assinadasAt.map((a) => [a.path ?? "", a.signedUrl]));
     }
     const versoesAt: VersaoAtPosLaudo[] = versoesAtLista.map((v) => ({
@@ -285,6 +343,10 @@ export default async function PosLaudoCicloPage({
             {CICLO_STATUS_ROTULOS[ciclo.status as PosLaudoCicloStatus] ?? ciclo.status}
           </p>
         </div>
+
+        {erros.length > 0 && (
+          <BannerErroConsulta mensagem={`Não consegui carregar agora: ${erros.join(", ")}.`} />
+        )}
 
         <SituacaoProcessoSugestao
           processoId={processoId}
@@ -411,20 +473,28 @@ export default async function PosLaudoCicloPage({
   // mais recente" no diálogo de protocolar (gerar-pos-laudo-panel.tsx) compara
   // só dentro do próprio ciclo: é aqui que ela edita o rascunho entre uma
   // geração e outra, não entre ciclos diferentes.
-  const { data: versoesDb } = await supabase
+  const { data: versoesDb, error: erroVersoes } = await supabase
     .from("laudos_gerados")
     .select("*")
     .eq("pos_laudo_ciclo_id", cicloId)
     .order("versao", { ascending: false });
+  if (erroVersoes) {
+    console.error(`Ciclo ${cicloId}: falha ao listar versões geradas:`, erroVersoes.message);
+    erros.push("as versões já geradas");
+  }
   const versoesLista = versoesDb ?? [];
   const caminhosVersoes = versoesLista.flatMap((v) =>
     [v.storage_path_pdf, v.storage_path_docx].filter((p): p is string => Boolean(p)),
   );
   let urlPorCaminho = new Map<string, string | null>();
   if (caminhosVersoes.length > 0) {
-    const { data: assinadasVersoes } = await supabase.storage
+    const { data: assinadasVersoes, error: erroAssinadasVersoes } = await supabase.storage
       .from(BUCKET_LAUDOS_GERADOS)
       .createSignedUrls(caminhosVersoes, URL_ASSINADA_VALIDADE_SEGUNDOS);
+    if (erroAssinadasVersoes) {
+      console.error(`Ciclo ${cicloId}: falha ao gerar links das versões:`, erroAssinadasVersoes.message);
+      erros.push("os links de download das versões geradas");
+    }
     if (assinadasVersoes) urlPorCaminho = new Map(assinadasVersoes.map((a) => [a.path ?? "", a.signedUrl]));
   }
   const versoesPosLaudo: VersaoPosLaudo[] = versoesLista.map((v) => {
@@ -473,8 +543,8 @@ export default async function PosLaudoCicloPage({
     resultadoEsclarecimentos,
     resultadoRetificacao,
     resultadoComplementacao,
-    { data: itensRetificacaoDb },
-    { data: complementacaoDb },
+    { data: itensRetificacaoDb, error: erroItensRetificacao },
+    { data: complementacaoDb, error: erroComplementacao },
   ] = await Promise.all([
     compilarEsclarecimentos(processoId, cicloId),
     compilarRetificacao(processoId, cicloId),
@@ -482,6 +552,14 @@ export default async function PosLaudoCicloPage({
     supabase.from("pos_laudo_retificacao_itens").select("*").eq("ciclo_id", cicloId).order("ordem"),
     supabase.from("pos_laudo_complementacao").select("*").eq("ciclo_id", cicloId).maybeSingle(),
   ]);
+  if (erroItensRetificacao) {
+    console.error(`Ciclo ${cicloId}: falha ao listar itens de retificação:`, erroItensRetificacao.message);
+    erros.push("os itens de retificação");
+  }
+  if (erroComplementacao) {
+    console.error(`Ciclo ${cicloId}: falha ao buscar complementação:`, erroComplementacao.message);
+    erros.push("os dados de complementação");
+  }
   const itensRetificacao = itensRetificacaoDb ?? [];
 
   return (
@@ -505,6 +583,10 @@ export default async function PosLaudoCicloPage({
           O fluxo vem do tipo de trabalho do processo e não muda.
         </p>
       </div>
+
+      {erros.length > 0 && (
+        <BannerErroConsulta mensagem={`Não consegui carregar agora: ${erros.join(", ")}.`} />
+      )}
 
       <SituacaoProcessoSugestao
         processoId={processoId}

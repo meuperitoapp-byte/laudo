@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Selo } from "@/components/ui/badge";
 import { conclusaoVigenteAtual } from "@/features/pos-laudo/consultas";
 import { TIPO_DOCUMENTO_ROTULOS } from "@/features/pos-laudo/rotulos";
+import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 import type { LaudoGeradoTipo } from "@/types/enums";
 
 const dataHora = (iso: string) =>
@@ -40,16 +41,22 @@ export default async function LinhaDoTempoPage({
   const { id: processoId } = await params;
   const supabase = await createClient();
 
-  const { data: processo } = await supabase
+  const { data: processo, error: erroProcesso } = await supabase
     .from("processos")
     .select("id, numero_processo, periciando_nome, parte_autora")
     .eq("id", processoId)
     .single();
+  if (erroProcesso && erroProcesso.code !== "PGRST116") {
+    console.error(`Linha do tempo do processo ${processoId}: falha ao buscar processo:`, erroProcesso.message);
+    return <ErroConsultaPagina titulo="Não foi possível carregar a linha do tempo agora" />;
+  }
   if (!processo) {
     notFound();
   }
 
-  const [{ data: versoesDb }, conclusaoVigente] = await Promise.all([
+  const erros: string[] = [];
+
+  const [{ data: versoesDb, error: erroVersoes }, conclusaoVigente] = await Promise.all([
     supabase
       .from("laudos_gerados")
       .select("*")
@@ -57,6 +64,10 @@ export default async function LinhaDoTempoPage({
       .order("versao", { ascending: true }),
     conclusaoVigenteAtual(supabase, processoId),
   ]);
+  if (erroVersoes) {
+    console.error(`Linha do tempo do processo ${processoId}: falha ao listar versões:`, erroVersoes.message);
+    erros.push("as versões geradas");
+  }
   const versoes = versoesDb ?? [];
 
   // Números de ciclo pros links "Ciclo N" — uma consulta só pros ciclos
@@ -66,10 +77,14 @@ export default async function LinhaDoTempoPage({
   );
   let numeroCicloPorId = new Map<string, number>();
   if (idsCiclos.length > 0) {
-    const { data: ciclosDb } = await supabase
+    const { data: ciclosDb, error: erroCiclos } = await supabase
       .from("pos_laudo_ciclos")
       .select("id, numero_ciclo")
       .in("id", idsCiclos);
+    if (erroCiclos) {
+      console.error(`Linha do tempo do processo ${processoId}: falha ao buscar números de ciclo:`, erroCiclos.message);
+      erros.push("os links dos ciclos");
+    }
     numeroCicloPorId = new Map((ciclosDb ?? []).map((c) => [c.id, c.numero_ciclo]));
   }
 
@@ -100,6 +115,10 @@ export default async function LinhaDoTempoPage({
         </h1>
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">{titulo}</p>
       </div>
+
+      {erros.length > 0 && (
+        <BannerErroConsulta mensagem={`Não consegui carregar agora: ${erros.join(", ")}.`} />
+      )}
 
       {conclusaoVigente && (
         <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-nevoa-50 dark:bg-nevoa-900/60 p-4 space-y-1">

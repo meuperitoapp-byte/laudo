@@ -15,6 +15,7 @@ import type {
   PosLaudoNatureza,
   PosLaudoOrigem,
 } from "@/types/enums";
+import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 const dataCurta = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("pt-BR", { dateStyle: "short" }) : "—";
@@ -27,11 +28,15 @@ export default async function PosLaudoIndexPage({
   const { id: processoId } = await params;
   const supabase = await createClient();
 
-  const { data: processo } = await supabase
+  const { data: processo, error: erroProcesso } = await supabase
     .from("processos")
     .select("id, tipo_trabalho, numero_processo, periciando_nome, parte_autora")
     .eq("id", processoId)
     .single();
+  if (erroProcesso && erroProcesso.code !== "PGRST116") {
+    console.error(`Pós-laudo do processo ${processoId}: falha ao buscar processo:`, erroProcesso.message);
+    return <ErroConsultaPagina titulo="Não foi possível carregar o Pós-laudo agora" />;
+  }
   if (!processo) {
     notFound();
   }
@@ -41,7 +46,7 @@ export default async function PosLaudoIndexPage({
   // (externo), e pode ser um caso avulso.
   const ehAssistenciaTecnica = processo.tipo_trabalho === "assistencia_tecnica";
   if (!ehAssistenciaTecnica) {
-    const { data: laudoProtocolado } = await supabase
+    const { data: laudoProtocolado, error: erroGate } = await supabase
       .from("laudos_gerados")
       .select("id")
       .eq("processo_id", processoId)
@@ -49,24 +54,40 @@ export default async function PosLaudoIndexPage({
       .eq("protocolado", true)
       .limit(1)
       .maybeSingle();
+    // `.maybeSingle()` só devolve `data: null` sem erro quando de fato não há
+    // linha — qualquer `error` aqui é falha de leitura, nunca "gate fechado".
+    if (erroGate) {
+      console.error(`Pós-laudo do processo ${processoId}: falha ao checar gate de liberação:`, erroGate.message);
+      return <ErroConsultaPagina titulo="Não foi possível carregar o Pós-laudo agora" />;
+    }
     if (!laudoProtocolado) {
       notFound();
     }
   }
 
-  const { data: ciclos } = await supabase
+  const erros: string[] = [];
+
+  const { data: ciclos, error: erroCiclos } = await supabase
     .from("pos_laudo_ciclos")
     .select("*")
     .eq("processo_id", processoId)
     .order("numero_ciclo", { ascending: true });
+  if (erroCiclos) {
+    console.error(`Pós-laudo do processo ${processoId}: falha ao listar ciclos:`, erroCiclos.message);
+    erros.push("a lista de ciclos");
+  }
 
   const idsCiclos = (ciclos ?? []).map((c) => c.id);
   const pontosPorCiclo: Record<string, number> = {};
   if (idsCiclos.length > 0) {
-    const { data: pontos } = await supabase
+    const { data: pontos, error: erroPontos } = await supabase
       .from("pos_laudo_pontos")
       .select("ciclo_id")
       .in("ciclo_id", idsCiclos);
+    if (erroPontos) {
+      console.error(`Pós-laudo do processo ${processoId}: falha ao contar pontos:`, erroPontos.message);
+      erros.push("a contagem de pontos por ciclo");
+    }
     for (const p of pontos ?? []) {
       pontosPorCiclo[p.ciclo_id] = (pontosPorCiclo[p.ciclo_id] ?? 0) + 1;
     }
@@ -101,6 +122,11 @@ export default async function PosLaudoIndexPage({
           Ver linha do tempo →
         </Link>
       </div>
+
+      {erros.length > 0 && (
+        <BannerErroConsulta mensagem={`Não consegui carregar agora: ${erros.join(", ")}.`} />
+      )}
+
       {!ciclos || ciclos.length === 0 ? (
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
           Nenhum ciclo de pós-laudo ainda. Abra um quando o processo receber manifestação, pedido de
