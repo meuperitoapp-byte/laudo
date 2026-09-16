@@ -16,7 +16,7 @@ const interTight = Inter_Tight({
 });
 
 export const metadata: Metadata = {
-  title: "Sistema de Laudos Periciais",
+  title: "Sistema PERICONS",
   description: "Geração de laudos médico-periciais — uso interno, acesso restrito.",
 };
 

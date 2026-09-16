@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
 import { sendOtp, signInWithPassword } from "@/features/auth/actions";
 import { Botao } from "@/components/ui/button";
 
@@ -50,8 +51,9 @@ export function LoginForm({ erroInicial }: { erroInicial: "link_invalido" | null
     <main className="flex min-h-screen items-center justify-center bg-nevoa-25 dark:bg-nevoa-950 p-8">
       <div className="w-full max-w-sm space-y-6 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900 p-8">
         <div className="text-center space-y-1.5">
+          <Image src="/logo-pericons.png" alt="" width={44} height={44} className="h-11 w-11 object-contain mx-auto mb-1" priority />
           <h1 className="font-title text-xl font-semibold text-petroleo-600 dark:text-petroleo-400">
-            Sistema de Laudos Periciais
+            Sistema PERICONS
           </h1>
           <p className="text-sm text-nevoa-500 dark:text-nevoa-400">Dra. Fernanda — acesso restrito</p>
         </div>

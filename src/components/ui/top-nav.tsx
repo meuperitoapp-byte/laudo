@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LogoMark } from "./logo-mark";
 import { signOut } from "@/features/auth/actions";
 
 interface ItemNav {
@@ -32,9 +32,9 @@ export function TopNav({ email }: { email: string }) {
     <header className="bg-petroleo-700 dark:bg-nevoa-900 border-b border-petroleo-800/60 dark:border-nevoa-800 overflow-hidden">
       <div className="flex items-center gap-2 px-6 h-14 overflow-hidden">
         <Link href="/dashboard" className="flex items-center gap-2.5 pr-5 mr-1 shrink-0">
-          <LogoMark />
+          <Image src="/logo-pericons.png" alt="" width={32} height={32} className="h-8 w-8 object-contain" priority />
           <span className="font-title text-[15px] font-semibold text-white hidden sm:inline">
-            Sistema de Laudos Periciais
+            Sistema PERICONS
           </span>
         </Link>
 
