@@ -4,10 +4,15 @@ import { TarefaForm } from "@/features/central-prazos/tarefa-form";
 import { STATUS_TAREFA_SEED, RESPONSAVEL_TAREFA_SEED } from "@/features/central-prazos/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { identificarProcesso } from "@/features/central-prazos/agregador";
+import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 export default async function NovaTarefaPage() {
   const supabase = await createClient();
-  const [{ data: processosDb }, { data: statusDb }, { data: responsavelDb }] = await Promise.all([
+  const [
+    { data: processosDb, error: erroProcessos },
+    { data: statusDb, error: erroStatus },
+    { data: responsavelDb, error: erroResponsavel },
+  ] = await Promise.all([
     supabase
       .from("processos")
       .select("id, numero_processo, periciando_nome, parte_autora")
@@ -15,6 +20,9 @@ export default async function NovaTarefaPage() {
     supabase.from("central_tarefas").select("valor:status"),
     supabase.from("central_tarefas").select("valor:responsavel"),
   ]);
+  if (erroProcessos) console.error("Nova tarefa: falha ao buscar processos:", erroProcessos.message);
+  if (erroStatus) console.error("Nova tarefa: falha ao buscar sugestões de status:", erroStatus.message);
+  if (erroResponsavel) console.error("Nova tarefa: falha ao buscar sugestões de responsável:", erroResponsavel.message);
 
   const processos = (processosDb ?? []).map((p) => ({ id: p.id, label: identificarProcesso(p) }));
 
@@ -31,6 +39,9 @@ export default async function NovaTarefaPage() {
           Nova tarefa ou evento
         </h1>
       </div>
+      {erroProcessos && (
+        <BannerErroConsulta mensagem="Não consegui carregar a lista de processos agora — a tarefa pode ser salva mesmo assim, sem vincular a um processo." />
+      )}
       <TarefaForm
         tarefa={null}
         processos={processos}

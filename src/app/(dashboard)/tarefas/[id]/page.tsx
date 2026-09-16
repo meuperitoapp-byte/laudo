@@ -6,12 +6,18 @@ import { ExcluirTarefaBotao, ConcluirTarefaBotao } from "@/features/central-praz
 import { STATUS_TAREFA_SEED, RESPONSAVEL_TAREFA_SEED } from "@/features/central-prazos/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { identificarProcesso } from "@/features/central-prazos/agregador";
+import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 export default async function TarefaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: tarefa }, { data: processosDb }, { data: statusDb }, { data: responsavelDb }] = await Promise.all([
+  const [
+    { data: tarefa, error: erroTarefa },
+    { data: processosDb, error: erroProcessos },
+    { data: statusDb, error: erroStatus },
+    { data: responsavelDb, error: erroResponsavel },
+  ] = await Promise.all([
     supabase.from("central_tarefas").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("processos")
@@ -21,7 +27,16 @@ export default async function TarefaPage({ params }: { params: Promise<{ id: str
     supabase.from("central_tarefas").select("valor:responsavel"),
   ]);
 
+  // `.maybeSingle()` só devolve `data: null` sem erro quando de fato não há
+  // linha — qualquer `error` aqui é falha de leitura, nunca "não existe".
+  if (erroTarefa) {
+    console.error(`Tarefa ${id}: falha ao buscar:`, erroTarefa.message);
+    return <ErroConsultaPagina titulo="Não foi possível carregar esta tarefa agora" />;
+  }
   if (!tarefa) notFound();
+  if (erroProcessos) console.error(`Tarefa ${id}: falha ao buscar processos:`, erroProcessos.message);
+  if (erroStatus) console.error(`Tarefa ${id}: falha ao buscar sugestões de status:`, erroStatus.message);
+  if (erroResponsavel) console.error(`Tarefa ${id}: falha ao buscar sugestões de responsável:`, erroResponsavel.message);
 
   const processos = (processosDb ?? []).map((p) => ({ id: p.id, label: identificarProcesso(p) }));
 
@@ -41,6 +56,10 @@ export default async function TarefaPage({ params }: { params: Promise<{ id: str
         </div>
         <ExcluirTarefaBotao id={tarefa.id} />
       </div>
+
+      {erroProcessos && (
+        <BannerErroConsulta mensagem="Não consegui carregar a lista de processos agora — o vínculo com processo pode não aparecer certo." />
+      )}
 
       <TarefaForm
         tarefa={tarefa}
