@@ -7,6 +7,7 @@ import {
   VARA_ESPECIALIZACAO_SEED,
   mesclarSugestoes,
 } from "@/features/processos/catalogos";
+import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 export default async function EditarProcessoPage({
   params,
@@ -17,13 +18,13 @@ export default async function EditarProcessoPage({
   const supabase = await createClient();
 
   const [
-    { data: processo },
-    { data: tiposLaudo },
-    { data: varasDb },
-    { data: comarcasDb },
-    { data: financeirasDb },
-    { data: acoesDb },
-    { data: escritoriosDb },
+    { data: processo, error: erroProcesso },
+    { data: tiposLaudo, error: erroTiposLaudo },
+    { data: varasDb, error: erroVaras },
+    { data: comarcasDb, error: erroComarcas },
+    { data: financeirasDb, error: erroFinanceiras },
+    { data: acoesDb, error: erroAcoes },
+    { data: escritoriosDb, error: erroEscritorios },
   ] = await Promise.all([
     supabase.from("processos").select("*").eq("id", id).single(),
     supabase.from("tipos_laudo").select("*").eq("ativo", true).order("ordem", { ascending: true }),
@@ -34,8 +35,26 @@ export default async function EditarProcessoPage({
     supabase.from("processos").select("valor:escritorio_indicacao").not("escritorio_indicacao", "is", null),
   ]);
 
+  // Mesmo critério do restante da auditoria: erro real na consulta do
+  // processo NUNCA pode virar notFound() (ela leria como "caso sumiu").
+  if (erroProcesso && erroProcesso.code !== "PGRST116") {
+    console.error(`Editar processo ${id}: falha ao buscar processo:`, erroProcesso.message);
+    return <ErroConsultaPagina titulo="Não foi possível carregar este processo para edição agora" />;
+  }
   if (!processo) {
     notFound();
+  }
+  if (erroTiposLaudo) {
+    console.error(`Editar processo ${id}: falha ao buscar tipos de laudo:`, erroTiposLaudo.message);
+  }
+  for (const [rotulo, erro] of [
+    ["varas", erroVaras],
+    ["comarcas", erroComarcas],
+    ["situações financeiras", erroFinanceiras],
+    ["ações/objetos", erroAcoes],
+    ["escritórios de indicação", erroEscritorios],
+  ] as const) {
+    if (erro) console.error(`Editar processo ${id}: falha ao buscar sugestões de ${rotulo}:`, erro.message);
   }
 
   return (
@@ -51,6 +70,9 @@ export default async function EditarProcessoPage({
           Editar dados do processo
         </h1>
       </div>
+      {erroTiposLaudo && (
+        <BannerErroConsulta mensagem="Não consegui carregar os tipos de laudo agora — recarregue a página antes de trocar a natureza do processo." />
+      )}
       <ProcessoForm
         modo="editar"
         processo={processo}

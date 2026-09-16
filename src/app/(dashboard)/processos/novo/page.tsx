@@ -7,6 +7,7 @@ import {
   VARA_ESPECIALIZACAO_SEED,
   mesclarSugestoes,
 } from "@/features/processos/catalogos";
+import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 const TIPOS_VALIDOS = ["pericia_judicial", "assistencia_tecnica"] as const;
 type TipoTrabalho = (typeof TIPOS_VALIDOS)[number];
@@ -33,12 +34,12 @@ export default async function NovoProcessoPage({
 
   const supabase = await createClient();
   const [
-    { data: tiposLaudo },
-    { data: varasDb },
-    { data: comarcasDb },
-    { data: financeirasDb },
-    { data: acoesDb },
-    { data: escritoriosDb },
+    { data: tiposLaudo, error: erroTiposLaudo },
+    { data: varasDb, error: erroVaras },
+    { data: comarcasDb, error: erroComarcas },
+    { data: financeirasDb, error: erroFinanceiras },
+    { data: acoesDb, error: erroAcoes },
+    { data: escritoriosDb, error: erroEscritorios },
   ] = await Promise.all([
     supabase.from("tipos_laudo").select("*").eq("ativo", true).order("ordem", { ascending: true }),
     supabase.from("processos").select("valor:vara_numero").not("vara_numero", "is", null),
@@ -47,6 +48,22 @@ export default async function NovoProcessoPage({
     supabase.from("processos").select("valor:acao_objeto").not("acao_objeto", "is", null),
     supabase.from("processos").select("valor:escritorio_indicacao").not("escritorio_indicacao", "is", null),
   ]);
+
+  // `tiposLaudo` é crítico (sem ele não dá pra escolher a natureza do
+  // processo) — os demais só alimentam sugestão de autocomplete, então uma
+  // falha ali é registrada mas não bloqueia o cadastro.
+  if (erroTiposLaudo) {
+    console.error("Novo processo: falha ao buscar tipos de laudo:", erroTiposLaudo.message);
+  }
+  for (const [rotulo, erro] of [
+    ["varas", erroVaras],
+    ["comarcas", erroComarcas],
+    ["situações financeiras", erroFinanceiras],
+    ["ações/objetos", erroAcoes],
+    ["escritórios de indicação", erroEscritorios],
+  ] as const) {
+    if (erro) console.error(`Novo processo: falha ao buscar sugestões de ${rotulo}:`, erro.message);
+  }
 
   const rotuloTipo = tipoTrabalho === "pericia_judicial" ? "Perícia Judicial" : "Assistência Técnica";
 
@@ -63,6 +80,9 @@ export default async function NovoProcessoPage({
           Novo processo — {rotuloTipo}
         </h1>
       </div>
+      {erroTiposLaudo && (
+        <BannerErroConsulta mensagem="Não consegui carregar os tipos de laudo agora — recarregue a página antes de escolher a natureza do processo." />
+      )}
       <ProcessoForm
         modo="criar"
         tipoTrabalhoInicial={tipoTrabalho}
