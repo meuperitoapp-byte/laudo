@@ -83,6 +83,14 @@ export const SITUACOES_FINANCEIRAS_SEED = [
 export const SITUACOES_FINANCEIRAS_AT = ["Pago", "Não pago", "Em parcelamento"] as const;
 
 /**
+ * Forma de pagamento — só Assistência Técnica, honorários em atraso (migration
+ * 20260921120000). Catálogo fechado igual a SITUACOES_FINANCEIRAS_AT: texto
+ * livre no banco, fechamento é convenção de UI. Cartão/pix nunca geram
+ * lembrete de cobrança na Central de Prazos (não precisam de cobrança).
+ */
+export const HONORARIOS_FORMA_PAGAMENTO_AT = ["Cartão", "Pix", "Boleto", "Transferência", "Outro"] as const;
+
+/**
  * Especialização da vara (Cível, do Trabalho, de Família e Sucessões,
  * Criminal…) — entra como sugestão no combobox de "Número da vara", onde a
  * perita já registra o número junto com a especialização (ex.: "3ª Vara

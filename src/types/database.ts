@@ -237,6 +237,14 @@ export type ProcessosRow = {
   // --- Dashboard/relatórios (migration 20260919120000) ---
   /** Escritório/advogado que indicou o caso — distinto de advogado_escritorio (AT: quem contratou). Vale pros dois tipos de trabalho. */
   escritorio_indicacao: string | null
+  // --- Honorários em atraso (migration 20260921120000) ---
+  /** JUDICIAL só. Data do PRÓXIMO marco de pagamento combinado — nunca calculada, sempre o que falta (não histórico). */
+  honorarios_proximo_marco_em: string | null
+  honorarios_proximo_marco_descricao: string | null
+  /** ASSISTÊNCIA TÉCNICA só. Catálogo fechado na UI (cartão/pix/boleto/transferência/outro), texto livre sem CHECK. */
+  honorarios_forma_pagamento: string | null
+  /** ASSISTÊNCIA TÉCNICA só. Data de vencimento do contrato, fixa desde o cadastro. */
+  honorarios_vencimento: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -302,6 +310,10 @@ export type ProcessosInsert = ComDefaults<
   | 'documentos_solicitados_em'
   | 'documentos_solicitados_descricao'
   | 'escritorio_indicacao'
+  | 'honorarios_proximo_marco_em'
+  | 'honorarios_proximo_marco_descricao'
+  | 'honorarios_forma_pagamento'
+  | 'honorarios_vencimento'
   | 'created_by'
   | 'created_at'
   | 'updated_at'

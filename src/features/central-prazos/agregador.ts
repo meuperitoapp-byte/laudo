@@ -12,8 +12,10 @@
  * cadastro manual de tarefa/evento avulso) como a 9ª fonte — a única que lê
  * dado que ela mesma escreveu em vez de inferir de outra tabela. Fatia 3,
  * parte "documentos pendentes" (18/09/2026), plugou a 8ª fonte
- * (`processos.documentos_solicitados_em`) — a parte "atraso de pagamento"
- * continua fora, pendente de resposta da Dra. Fernanda (ver plano §6.2).
+ * (`processos.documentos_solicitados_em`). Honorários em atraso (21/09/2026,
+ * plano §6.2) plugou a 10ª fonte, com dois ramos: judicial (próximo marco
+ * combinado, prazo real) e Assistência Técnica (vencimento de contrato,
+ * só boleto/transferência, só enquanto não "Pago").
  */
 
 import type { createClient } from "@/lib/supabase/server";
@@ -40,7 +42,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   const { data: processosDb } = await supabase
     .from("processos")
     .select(
-      "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao",
+      "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, situacao_financeira",
     )
     .eq("status", "em_andamento");
   const processos = processosDb ?? [];
@@ -326,6 +328,52 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       ordenacao: t.data,
       href: `/tarefas/${t.id}`,
     });
+  }
+
+  // ---- 10. Honorários em atraso (fatia 6.2) — mesma fonte, dois ramos ----
+  // Dois mecanismos DIFERENTES (nunca um campo genérico de vencimento
+  // forçando os dois casos no mesmo molde — instrução do Jeferson, ver
+  // docs/plano-modulo-central-prazos.md).
+  for (const p of processos) {
+    // JUDICIAL — prazo REAL (ela mesma confirmou a data, não é inferência):
+    // diferente de "documentos pendentes"/"liberação sem recebimento", que
+    // nunca têm data real e por isso ficam em sem_prazo.
+    if (p.tipo_trabalho === "pericia_judicial" && p.honorarios_proximo_marco_em) {
+      itens.push({
+        id: `honorarios_marco_judicial-${p.id}`,
+        categoria: "honorarios_marco_judicial",
+        titulo: `Próximo marco de honorários — ${identificarProcesso(p)}`,
+        subtitulo: p.honorarios_proximo_marco_descricao,
+        providencia: PROVIDENCIA_POR_CATEGORIA.honorarios_marco_judicial,
+        nivel: nivelPorPrazo(p.honorarios_proximo_marco_em, hoje),
+        prazo: p.honorarios_proximo_marco_em,
+        dataContexto: null,
+        ordenacao: p.honorarios_proximo_marco_em,
+        href: `/processos/${p.id}`,
+      });
+    }
+
+    // ASSISTÊNCIA TÉCNICA — só boleto/transferência geram lembrete (cartão e
+    // pix não precisam de cobrança), e só enquanto não estiver "Pago".
+    if (
+      p.tipo_trabalho === "assistencia_tecnica" &&
+      p.honorarios_vencimento &&
+      (p.honorarios_forma_pagamento === "Boleto" || p.honorarios_forma_pagamento === "Transferência") &&
+      p.situacao_financeira !== "Pago"
+    ) {
+      itens.push({
+        id: `honorarios_atraso_at-${p.id}`,
+        categoria: "honorarios_atraso_at",
+        titulo: `Pagamento (${p.honorarios_forma_pagamento}) — ${identificarProcesso(p)}`,
+        subtitulo: null,
+        providencia: PROVIDENCIA_POR_CATEGORIA.honorarios_atraso_at,
+        nivel: nivelPorPrazo(p.honorarios_vencimento, hoje),
+        prazo: p.honorarios_vencimento,
+        dataContexto: null,
+        ordenacao: p.honorarios_vencimento,
+        href: `/processos/${p.id}/editar`,
+      });
+    }
   }
 
   return ordenarPainel(itens);

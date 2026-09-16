@@ -105,6 +105,8 @@ export async function createProcesso(formData: FormData): Promise<ActionResult> 
     insert.cliente_parte_assistida = optionalText(formData, "cliente_parte_assistida");
     insert.advogado_escritorio = optionalText(formData, "advogado_escritorio");
     insert.periciando_nome = optionalText(formData, "periciando_nome");
+    insert.honorarios_forma_pagamento = optionalText(formData, "honorarios_forma_pagamento");
+    insert.honorarios_vencimento = optionalText(formData, "honorarios_vencimento");
   }
 
   const { data, error } = await supabase
@@ -159,6 +161,8 @@ export async function updateProcesso(
     update.cliente_parte_assistida = optionalText(formData, "cliente_parte_assistida");
     update.advogado_escritorio = optionalText(formData, "advogado_escritorio");
     update.periciando_nome = optionalText(formData, "periciando_nome");
+    update.honorarios_forma_pagamento = optionalText(formData, "honorarios_forma_pagamento");
+    update.honorarios_vencimento = optionalText(formData, "honorarios_vencimento");
   }
 
   const { error } = await supabase.from("processos").update(update).eq("id", processoId);
@@ -259,6 +263,32 @@ export async function salvarDocumentosSolicitados(
   const dados: ProcessosUpdate = em
     ? { documentos_solicitados_em: em, documentos_solicitados_descricao: descricao }
     : { documentos_solicitados_em: null, documentos_solicitados_descricao: null };
+
+  const { error } = await supabase.from("processos").update(dados).eq("id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}`);
+  revalidatePath("/hoje");
+  return { success: true };
+}
+
+/**
+ * "Próximo marco" de honorários (Perícia Judicial só) — mesmo padrão de
+ * `salvarDocumentosSolicitados`: estado do caso, preenchido e limpo
+ * manualmente por ela, nunca calculado (não existe fórmula de parcelamento
+ * judicial). Guarda sempre o PRÓXIMO marco que falta, não um histórico —
+ * `em: null` limpa os dois campos juntos, nunca deixa descrição órfã.
+ */
+export async function salvarProximoMarcoHonorarios(
+  processoId: string,
+  em: string | null,
+  descricao: string | null,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createClient();
+
+  const dados: ProcessosUpdate = em
+    ? { honorarios_proximo_marco_em: em, honorarios_proximo_marco_descricao: descricao }
+    : { honorarios_proximo_marco_em: null, honorarios_proximo_marco_descricao: null };
 
   const { error } = await supabase.from("processos").update(dados).eq("id", processoId);
   if (error) return { error: error.message };

@@ -4,7 +4,11 @@ import { useState, useTransition } from "react";
 import { createProcesso, updateProcesso } from "@/features/processos/actions";
 import { Botao } from "@/components/ui/button";
 import { ComboboxCatalogo } from "@/components/ui/combobox-catalogo";
-import { SITUACOES_FINANCEIRAS_AT, SITUACOES_PROCESSO_ORDENADA } from "@/features/processos/catalogos";
+import {
+  SITUACOES_FINANCEIRAS_AT,
+  SITUACOES_PROCESSO_ORDENADA,
+  HONORARIOS_FORMA_PAGAMENTO_AT,
+} from "@/features/processos/catalogos";
 import type { ProcessosRow, TiposLaudoRow } from "@/types/database";
 import type { EtapaContratada } from "@/types/enums";
 
@@ -607,12 +611,50 @@ export function ProcessoForm({
               />
             </div>
           ) : (
-            <CampoMoeda
-              id="valor_processo"
-              name="valor_processo"
-              rotulo="Valor do Serviço de Assistência Técnica"
-              defaultValue={processo?.valor_processo}
-            />
+            <>
+              <CampoMoeda
+                id="valor_processo"
+                name="valor_processo"
+                rotulo="Valor do Serviço de Assistência Técnica"
+                defaultValue={processo?.valor_processo}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="honorarios_forma_pagamento" className={labelClass}>
+                    Forma de pagamento
+                  </label>
+                  <select
+                    id="honorarios_forma_pagamento"
+                    name="honorarios_forma_pagamento"
+                    className={inputClass}
+                    defaultValue={processo?.honorarios_forma_pagamento ?? ""}
+                  >
+                    <option value="">Selecione...</option>
+                    {HONORARIOS_FORMA_PAGAMENTO_AT.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="honorarios_vencimento" className={labelClass}>
+                    Vencimento do contrato
+                  </label>
+                  <input
+                    id="honorarios_vencimento"
+                    name="honorarios_vencimento"
+                    type="date"
+                    className={inputClass}
+                    defaultValue={processo?.honorarios_vencimento ?? ""}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-nevoa-500 dark:text-nevoa-400">
+                Cartão e Pix não geram lembrete de cobrança — só Boleto e Transferência aparecem na Central de
+                Prazos, enquanto a situação financeira acima não estiver &ldquo;Pago&rdquo;.
+              </p>
+            </>
           )}
 
           {/* Justiça Gratuita e Aceitou Nomeação só existem no fluxo judicial. */}

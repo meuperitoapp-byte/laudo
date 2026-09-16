@@ -29,7 +29,9 @@ export interface ItemPainel {
     | "agendamento_marcado"
     | "liberacao_sem_recebimento"
     | "tarefa_manual"
-    | "documentos_pendentes";
+    | "documentos_pendentes"
+    | "honorarios_marco_judicial"
+    | "honorarios_atraso_at";
   titulo: string;
   subtitulo: string | null;
   /** Texto fixo por categoria (ver rotulos.ts) pras fontes automáticas; pra `tarefa_manual` é a descrição que ela mesma digitou (ou um fallback genérico quando em branco). Nunca vazio. */

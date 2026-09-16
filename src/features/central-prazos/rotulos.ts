@@ -54,4 +54,6 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   tarefa_manual: "Ver detalhes da tarefa.",
   /** Fallback só — quando ela preencheu o que foi pedido, esse texto vira a providência (ver agregador.ts). */
   documentos_pendentes: "Cobrar documentos com o advogado/parte.",
+  honorarios_marco_judicial: "Confirmar se o marco combinado foi cumprido.",
+  honorarios_atraso_at: "Cobrar o pagamento pendente.",
 };
