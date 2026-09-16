@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TarefaForm } from "@/features/central-prazos/tarefa-form";
-import { TarefaAcoes } from "@/features/central-prazos/tarefa-acoes";
-import { STATUS_TAREFA_SEED } from "@/features/central-prazos/catalogos";
+import { ExcluirTarefaBotao, ConcluirTarefaBotao } from "@/features/central-prazos/tarefa-acoes";
+import { STATUS_TAREFA_SEED, RESPONSAVEL_TAREFA_SEED } from "@/features/central-prazos/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { identificarProcesso } from "@/features/central-prazos/agregador";
 
@@ -11,13 +11,14 @@ export default async function TarefaPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: tarefa }, { data: processosDb }, { data: statusDb }] = await Promise.all([
+  const [{ data: tarefa }, { data: processosDb }, { data: statusDb }, { data: responsavelDb }] = await Promise.all([
     supabase.from("central_tarefas").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("processos")
       .select("id, numero_processo, periciando_nome, parte_autora")
       .order("created_at", { ascending: false }),
     supabase.from("central_tarefas").select("valor:status"),
+    supabase.from("central_tarefas").select("valor:responsavel"),
   ]);
 
   if (!tarefa) notFound();
@@ -38,14 +39,17 @@ export default async function TarefaPage({ params }: { params: Promise<{ id: str
             {tarefa.tipo === "evento" ? "Evento" : "Tarefa"}
           </h1>
         </div>
-        <TarefaAcoes id={tarefa.id} concluida={tarefa.concluida_em !== null} />
+        <ExcluirTarefaBotao id={tarefa.id} />
       </div>
 
       <TarefaForm
         tarefa={tarefa}
         processos={processos}
         statusSugestoes={mesclarSugestoes(STATUS_TAREFA_SEED, statusDb)}
+        responsavelSugestoes={mesclarSugestoes(RESPONSAVEL_TAREFA_SEED, responsavelDb)}
       />
+
+      <ConcluirTarefaBotao id={tarefa.id} tipo={tarefa.tipo} concluida={tarefa.concluida_em !== null} />
     </main>
   );
 }

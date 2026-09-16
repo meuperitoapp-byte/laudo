@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { criarTarefaCentral, atualizarTarefaCentral } from "./actions";
 import { Botao } from "@/components/ui/button";
@@ -29,17 +29,21 @@ export interface ProcessoOpcao {
  * criar e editar. `tipo` decide o formulário desde a primeira pergunta
  * ("Evento ou Tarefa?") — `hora` só aparece pra evento, nunca um campo
  * "opcional" pendurado numa tarefa (distinção que a Dra. Fernanda confirmou
- * duas vezes).
+ * duas vezes). Rótulos por caso de uso (item #2 da fila de melhorias,
+ * 19-20/09/2026) — ela achou a explicação técnica anterior ("data-limite"/
+ * "hora marcada") pouco clara pra equipe.
  */
 export function TarefaForm({
   tarefa,
   processos,
   statusSugestoes,
+  responsavelSugestoes,
 }: {
   /** null = criar; presente = editar. */
   tarefa: CentralTarefasRow | null;
   processos: ProcessoOpcao[];
   statusSugestoes: string[];
+  responsavelSugestoes: string[];
 }) {
   const router = useRouter();
   const editando = tarefa !== null;
@@ -48,6 +52,11 @@ export function TarefaForm({
   const [erro, setErro] = useState<string | null>(null);
   const [mensagemOk, setMensagemOk] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Só um limite de conveniência no navegador (evita já mostrar erro depois
+  // de enviar) — a validação de verdade é sempre no servidor, no fuso dela
+  // (`dataNoPassado` em actions.ts), nunca confia só nisso.
+  const hojeCliente = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   function handleSubmit(formData: FormData) {
     setErro(null);
@@ -80,7 +89,7 @@ export function TarefaForm({
               checked={tipo === "tarefa"}
               onChange={() => setTipo("tarefa")}
             />
-            Tarefa (data-limite)
+            Tarefa <span className="text-nevoa-500 dark:text-nevoa-400">(serviço interno)</span>
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -90,7 +99,7 @@ export function TarefaForm({
               checked={tipo === "evento"}
               onChange={() => setTipo("evento")}
             />
-            Evento (hora marcada)
+            Evento <span className="text-nevoa-500 dark:text-nevoa-400">(perícia, palestra, congresso...)</span>
           </label>
         </div>
       </div>
@@ -124,6 +133,7 @@ export function TarefaForm({
             id="data"
             name="data"
             type="date"
+            min={hojeCliente}
             defaultValue={tarefa?.data ?? ""}
             required
             className={inputClass}
@@ -148,7 +158,7 @@ export function TarefaForm({
 
       <div>
         <label htmlFor="status" className={labelClass}>
-          Status
+          Status{tipo === "evento" ? " (opcional)" : ""}
         </label>
         <ComboboxCatalogo
           id="status"
@@ -156,7 +166,25 @@ export function TarefaForm({
           sugestoes={statusSugestoes}
           valorInicial={tarefa?.status ?? ""}
           rotuloNovo="Novo status"
-          required
+          required={tipo === "tarefa"}
+        />
+        {tipo === "evento" && (
+          <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+            Esse catálogo é de serviço interno — não se aplica a evento, deixe em branco se não fizer sentido.
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="responsavel" className={labelClass}>
+          Responsável (opcional — quem deve executar)
+        </label>
+        <ComboboxCatalogo
+          id="responsavel"
+          name="responsavel"
+          sugestoes={responsavelSugestoes}
+          valorInicial={tarefa?.responsavel ?? ""}
+          rotuloNovo="Novo responsável"
         />
       </div>
 

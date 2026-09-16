@@ -46,6 +46,25 @@ export function hojeIsoBrasil(agora: Date = new Date()): string {
 }
 
 /**
+ * "HH:MM" de agora no fuso dela — par de `hojeIsoBrasil`, usado só pra
+ * bloquear cadastro de evento com horário já passado NO DIA DE HOJE
+ * (comparar hora só faz sentido quando a data já é hoje; dia futuro não
+ * precisa dessa checagem). Item #6 da fila de melhorias (19-20/09/2026):
+ * "bloquear... pra não permitir fraude da equipe em dizer que agendou e eu
+ * que não vi".
+ */
+export function horaAgoraBrasil(agora: Date = new Date()): string {
+  const partes = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(agora);
+  const parte = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? "";
+  return `${parte("hour")}:${parte("minute")}`;
+}
+
+/**
  * A régua de cor da Dra. Fernanda: verde ≤7 dias, amarelo ≤3 dias, laranja
  * no último dia, vermelho vencida — mapeada pros 6 níveis (Programada e Sem
  * prazo ficam sem cor, de propósito, fora dessa régua). `prazoIso === null`

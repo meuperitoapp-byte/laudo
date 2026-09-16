@@ -988,13 +988,15 @@ export type CentralTarefasRow = {
   data: string
   /** time do Postgres, 'HH:MM:SS' — só quando tipo='evento' (CHECK no banco). */
   hora: string | null
-  /** Vocabulário livre, sem CHECK — ver central-prazos/catalogos.ts. */
-  status: string
+  /** Vocabulário livre, sem CHECK — ver central-prazos/catalogos.ts. Obrigatório só pra tipo='tarefa' (CHECK no banco); opcional pra evento. */
+  status: string | null
   status_alterado_em: string
   /** Quando preenchida, sempre vence o cálculo automático de nível. */
   nivel_urgencia_manual: NivelUrgencia | null
   /** Fato explícito e independente de `status` — null = ainda pendente. */
   concluida_em: string | null
+  /** Quem deve executar — texto livre, catálogo editável. Muda ao longo do fluxo. */
+  responsavel: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -1005,9 +1007,11 @@ export type CentralTarefasInsert = ComDefaults<
   | 'processo_id'
   | 'descricao'
   | 'hora'
+  | 'status'
   | 'status_alterado_em'
   | 'nivel_urgencia_manual'
   | 'concluida_em'
+  | 'responsavel'
   | 'created_by'
   | 'created_at'
   | 'updated_at'

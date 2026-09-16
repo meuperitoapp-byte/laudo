@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { hojeIsoBrasil, horaAgoraBrasil } from "./regras";
 import type { CentralTarefasInsert, CentralTarefasUpdate } from "@/types/database";
 import type { TipoCentralTarefa, NivelUrgencia } from "@/types/enums";
 
@@ -18,11 +19,33 @@ function textoOuNull(v: FormDataEntryValue | null): string | null {
 }
 
 /**
+ * Bloqueia data (tarefa) ou data+hora (evento) no passado — controle
+ * antifraude pedido por ela (item #6, 19-20/09/2026): "para não permitir
+ * fraude da equipe em dizer que agendou e eu que não vi". Comparação sempre
+ * no fuso dela (`America/Sao_Paulo`), nunca `new Date()` cru do servidor.
+ * Tarefa com data de HOJE passa (prazo pode ser "até o fim do dia hoje");
+ * evento com hora de hoje só passa se ainda não tiver passado.
+ */
+function dataNoPassado(tipo: TipoCentralTarefa, data: string, hora: string | null): string | null {
+  const hoje = hojeIsoBrasil();
+  if (data < hoje) {
+    return `A data ${tipo === "evento" ? "do evento" : "limite"} não pode ser no passado.`;
+  }
+  if (tipo === "evento" && data === hoje && hora && hora < horaAgoraBrasil()) {
+    return "O horário do evento já passou hoje — ajuste a data ou o horário.";
+  }
+  return null;
+}
+
+/**
  * Cadastro manual de tarefa/evento avulso (fatia 2 da Central de Prazos).
  * `tipo='evento'` exige `hora` (o CHECK do banco garante isso de novo, mas
  * validar aqui devolve mensagem em português em vez do erro cru do
- * Postgres). Redireciona pra tela da tarefa recém-criada em vez de voltar
- * pro `/hoje` — ela normalmente quer conferir/ajustar algo antes de sair.
+ * Postgres). `status` só é obrigatório pra tarefa — pra evento é opcional
+ * (item #3, 19-20/09/2026: o catálogo de status é vocabulário de serviço
+ * interno, não se aplica a perícia presencial/palestra). Redireciona pra
+ * tela da tarefa recém-criada em vez de voltar pro `/hoje` — ela
+ * normalmente quer conferir/ajustar algo antes de sair.
  */
 export async function criarTarefaCentral(formData: FormData): Promise<ActionResult> {
   const supabase = await createClient();
@@ -42,8 +65,11 @@ export async function criarTarefaCentral(formData: FormData): Promise<ActionResu
   const hora = textoOuNull(formData.get("hora"));
   if (tipo === "evento" && !hora) return { error: "Evento precisa de horário marcado." };
 
+  const erroData = dataNoPassado(tipo, data, tipo === "evento" ? hora : null);
+  if (erroData) return { error: erroData };
+
   const status = textoOuNull(formData.get("status"));
-  if (!status) return { error: "Informe o status." };
+  if (tipo === "tarefa" && !status) return { error: "Informe o status." };
 
   const insert: CentralTarefasInsert = {
     processo_id: textoOuNull(formData.get("processo_id")),
@@ -52,7 +78,8 @@ export async function criarTarefaCentral(formData: FormData): Promise<ActionResu
     descricao: textoOuNull(formData.get("descricao")),
     data,
     hora: tipo === "evento" ? hora : null,
-    status,
+    status: tipo === "tarefa" ? status : null,
+    responsavel: textoOuNull(formData.get("responsavel")),
     created_by: user?.id ?? null,
   };
 
@@ -67,7 +94,8 @@ export async function criarTarefaCentral(formData: FormData): Promise<ActionResu
  * `status_alterado_em` só é gravado de novo quando `status` realmente muda
  * (comparado com o valor já salvo) — nunca a cada edição da tarefa, senão o
  * "há quantos dias está pendente" reiniciaria toda vez que ela corrigisse um
- * detalhe qualquer.
+ * detalhe qualquer. Mesmas validações de `criarTarefaCentral` (status
+ * opcional pra evento, data/hora não pode ser no passado).
  */
 export async function atualizarTarefaCentral(id: string, formData: FormData): Promise<ActionResult> {
   const supabase = await createClient();
@@ -87,8 +115,12 @@ export async function atualizarTarefaCentral(id: string, formData: FormData): Pr
   const hora = textoOuNull(formData.get("hora"));
   if (tipo === "evento" && !hora) return { error: "Evento precisa de horário marcado." };
 
+  const erroData = dataNoPassado(tipo, data, tipo === "evento" ? hora : null);
+  if (erroData) return { error: erroData };
+
   const status = textoOuNull(formData.get("status"));
-  if (!status) return { error: "Informe o status." };
+  if (tipo === "tarefa" && !status) return { error: "Informe o status." };
+  const statusFinal = tipo === "tarefa" ? status : null;
 
   const nivelManualBruto = textoOuNull(formData.get("nivel_urgencia_manual"));
   const nivelManual =
@@ -103,10 +135,11 @@ export async function atualizarTarefaCentral(id: string, formData: FormData): Pr
     descricao: textoOuNull(formData.get("descricao")),
     data,
     hora: tipo === "evento" ? hora : null,
-    status,
+    status: statusFinal,
+    responsavel: textoOuNull(formData.get("responsavel")),
     nivel_urgencia_manual: nivelManual,
   };
-  if (status !== atual.status) {
+  if (statusFinal !== atual.status) {
     update.status_alterado_em = new Date().toISOString();
   }
 
@@ -132,6 +165,7 @@ export async function marcarTarefaConcluida(id: string, concluida: boolean): Pro
   if (error) return { error: error.message };
 
   revalidatePath("/hoje");
+  revalidatePath("/tarefas/concluidas");
   revalidatePath(`/tarefas/${id}`);
   return { success: true };
 }
