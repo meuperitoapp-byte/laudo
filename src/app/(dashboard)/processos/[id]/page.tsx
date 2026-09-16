@@ -7,8 +7,13 @@ import { PoloPartesPanel } from "@/features/processos/polo-partes-panel";
 import { ExcluirProcessoButton } from "@/features/processos/excluir-processo-button";
 import { DocumentosPendentesPanel } from "@/features/processos/documentos-pendentes-panel";
 import { ProximoMarcoHonorariosPanel } from "@/features/processos/proximo-marco-honorarios-panel";
+import { ReuniaoEstrategiaPericialPanel } from "@/features/processos/reuniao-estrategia-pericial-panel";
+import { AnexoEtapaAtPanel } from "@/features/processos/anexo-etapa-at-panel";
 import { varianteSituacaoProcesso } from "@/features/processos/catalogos";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
+import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
+
+const URL_ASSINADA_VALIDADE_SEGUNDOS = 60 * 60;
 
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   pericia_judicial: "Perícia Judicial",
@@ -97,45 +102,80 @@ export default async function ProcessoDetalhePage({
 
   const erros: string[] = [];
 
-  const { data: partesDb, error: erroPartes } = await supabase
-    .from("processo_partes")
-    .select("*")
-    .eq("processo_id", id)
-    .order("ordem", { ascending: true });
+  // Fluxo AT: a aba Pós-laudo é a própria análise do laudo do perito JUDICIAL
+  // (externo) — não depende de a perita ter gerado e protocolado um laudo aqui.
+  const ehAssistenciaTecnica = processo.tipo_trabalho === "assistencia_tecnica";
+  // Painéis de ação por etapa da AT (item 2 do lote pós-Fase-2, 21/09/2026)
+  // — só aparecem quando a etapa correspondente foi contratada.
+  const temEstrategiaPericial = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("estrategia_pericial") ?? false);
+  const temAnaliseContestacao = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("analise_contestacao") ?? false);
+
+  // As 5 consultas abaixo só dependem do `id` do processo (já em mãos) ou de
+  // flags já calculadas acima — nenhuma depende do RESULTADO de outra, então
+  // disparam juntas em vez de uma atrás da outra (eram até 6 idas e voltas
+  // sequenciais antes; corrigido em 22/09/2026, relato de lentidão ao trocar
+  // de módulo). `tipoLaudo`/`primeiraSecao` e `anexosDb` só entram quando se
+  // aplicam, senão viram uma promessa já resolvida com `data: null`.
+  const [
+    { data: partesDb, error: erroPartes },
+    { data: laudoProtocolado, error: erroLaudoProtocolado },
+    { count: totalProtocolados, error: erroTotalProtocolados },
+    tipoLaudoResultado,
+    primeiraSecaoResultado,
+    { data: anexosDb, error: erroAnexos },
+  ] = await Promise.all([
+    supabase.from("processo_partes").select("*").eq("processo_id", id).order("ordem", { ascending: true }),
+    // Gate do Módulo Pós-Laudo: a aba só abre quando existe um laudo (tipo =
+    // 'laudo') marcado como protocolado — ver marcarLaudoProtocolado / migration 20260905120000.
+    supabase
+      .from("laudos_gerados")
+      .select("id")
+      .eq("processo_id", id)
+      .eq("tipo", "laudo")
+      .eq("protocolado", true)
+      .limit(1)
+      .maybeSingle(),
+    // Gate da exclusão: qualquer documento protocolado (não só o laudo
+    // principal — inclui saídas de pós-laudo e do Fluxo Principal) bloqueia a
+    // exclusão do processo, de propósito (documento protocolado é registro
+    // oficial já entregue nos autos). Ver excluirProcesso, mesmo critério.
+    supabase.from("laudos_gerados").select("id", { count: "exact", head: true }).eq("processo_id", id).eq("protocolado", true),
+    processo.tipo_laudo_id
+      ? supabase.from("tipos_laudo").select("*").eq("id", processo.tipo_laudo_id).single()
+      : Promise.resolve({ data: null, error: null }),
+    processo.tipo_laudo_id
+      ? supabase
+          .from("secoes")
+          .select("id")
+          .eq("tipo_laudo_id", processo.tipo_laudo_id)
+          .order("ordem")
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    temAnaliseContestacao
+      ? supabase
+          .from("documentos")
+          .select("id, nome_arquivo, storage_path")
+          .eq("processo_id", id)
+          .eq("etapa_at", "analise_contestacao")
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  const { data: tipoLaudo, error: erroTipoLaudo } = tipoLaudoResultado;
+  const { data: primeiraSecao, error: erroPrimeiraSecao } = primeiraSecaoResultado;
+
   if (erroPartes) {
     console.error(`Processo ${id}: falha ao buscar partes:`, erroPartes.message);
     erros.push("as partes do processo");
   }
   const partes = partesDb ?? [];
 
-  // Gate do Módulo Pós-Laudo: a aba só abre quando existe um laudo (tipo =
-  // 'laudo') marcado como protocolado — ver marcarLaudoProtocolado / migration
-  // 20260905120000.
-  const { data: laudoProtocolado, error: erroLaudoProtocolado } = await supabase
-    .from("laudos_gerados")
-    .select("id")
-    .eq("processo_id", id)
-    .eq("tipo", "laudo")
-    .eq("protocolado", true)
-    .limit(1)
-    .maybeSingle();
   if (erroLaudoProtocolado) {
     console.error(`Processo ${id}: falha ao checar laudo protocolado:`, erroLaudoProtocolado.message);
     erros.push("a liberação do Pós-laudo");
   }
   const temLaudoProtocolado = Boolean(laudoProtocolado);
 
-  // Gate da exclusão: qualquer documento protocolado (não só o laudo
-  // principal — inclui saídas de pós-laudo e do Fluxo Principal) bloqueia a
-  // exclusão do processo, de propósito (documento protocolado é registro
-  // oficial já entregue nos autos). Ver excluirProcesso, mesmo critério.
-  // Erro aqui NUNCA pode virar "0 protocolados" silencioso — isso liberaria
-  // a exclusão de um processo que na verdade tem documento protocolado.
-  const { count: totalProtocolados, error: erroTotalProtocolados } = await supabase
-    .from("laudos_gerados")
-    .select("id", { count: "exact", head: true })
-    .eq("processo_id", id)
-    .eq("protocolado", true);
   if (erroTotalProtocolados) {
     console.error(`Processo ${id}: falha ao contar documentos protocolados:`, erroTotalProtocolados.message);
     erros.push("o bloqueio de exclusão");
@@ -143,40 +183,48 @@ export default async function ProcessoDetalhePage({
   // Falha aqui trata como "tem protocolado" (mais seguro bloquear a exclusão
   // à toa do que liberar por engano) — nunca `Boolean(null)` viraria `false`.
   const temDocumentoProtocolado = erroTotalProtocolados ? true : Boolean(totalProtocolados);
-  // Fluxo AT: a aba Pós-laudo é a própria análise do laudo do perito JUDICIAL
-  // (externo) — não depende de a perita ter gerado e protocolado um laudo aqui.
-  const ehAssistenciaTecnica = processo.tipo_trabalho === "assistencia_tecnica";
   const podeAbrirPosLaudo = temLaudoProtocolado || ehAssistenciaTecnica;
+
+  if (erroTipoLaudo) {
+    console.error(`Processo ${id}: falha ao buscar tipo de laudo:`, erroTipoLaudo.message);
+    erros.push("o tipo de laudo");
+  }
+  if (erroPrimeiraSecao) {
+    console.error(`Processo ${id}: falha ao buscar a primeira seção:`, erroPrimeiraSecao.message);
+    erros.push("o link de preenchimento do laudo");
+  }
+  const tipoLaudoNome = tipoLaudo?.nome ?? null;
+  const primeiraSecaoId = primeiraSecao?.id ?? null;
+
+  if (erroAnexos) {
+    console.error(`Processo ${id}: falha ao buscar anexo da análise da contestação:`, erroAnexos.message);
+    erros.push("o anexo da análise da contestação");
+  }
+  let anexosContestacao: { id: string; nomeArquivo: string; signedUrl: string | null }[] = [];
+  if (temAnaliseContestacao) {
+    const lista = anexosDb ?? [];
+    let urlPorCaminho = new Map<string, string | null>();
+    if (lista.length > 0) {
+      const { data: assinadas, error: erroAssinadas } = await supabase.storage
+        .from(BUCKET_DOCUMENTOS)
+        .createSignedUrls(
+          lista.map((d) => d.storage_path),
+          URL_ASSINADA_VALIDADE_SEGUNDOS,
+        );
+      if (erroAssinadas) {
+        console.error(`Processo ${id}: falha ao gerar link do anexo:`, erroAssinadas.message);
+        erros.push("os links do anexo da análise da contestação");
+      }
+      if (assinadas) urlPorCaminho = new Map(assinadas.map((a) => [a.path ?? "", a.signedUrl]));
+    }
+    anexosContestacao = lista.map((d) => ({
+      id: d.id,
+      nomeArquivo: d.nome_arquivo,
+      signedUrl: urlPorCaminho.get(d.storage_path) ?? null,
+    }));
+  }
   const nomesPoloAtivo = partes.filter((p) => p.polo === "ativo").map((p) => p.nome);
   const nomesPoloPassivo = partes.filter((p) => p.polo === "passivo").map((p) => p.nome);
-
-  let tipoLaudoNome: string | null = null;
-  let primeiraSecaoId: string | null = null;
-  if (processo.tipo_laudo_id) {
-    const [
-      { data: tipoLaudo, error: erroTipoLaudo },
-      { data: primeiraSecao, error: erroPrimeiraSecao },
-    ] = await Promise.all([
-      supabase.from("tipos_laudo").select("*").eq("id", processo.tipo_laudo_id).single(),
-      supabase
-        .from("secoes")
-        .select("id")
-        .eq("tipo_laudo_id", processo.tipo_laudo_id)
-        .order("ordem")
-        .limit(1)
-        .maybeSingle(),
-    ]);
-    if (erroTipoLaudo) {
-      console.error(`Processo ${id}: falha ao buscar tipo de laudo:`, erroTipoLaudo.message);
-      erros.push("o tipo de laudo");
-    }
-    if (erroPrimeiraSecao) {
-      console.error(`Processo ${id}: falha ao buscar a primeira seção:`, erroPrimeiraSecao.message);
-      erros.push("o link de preenchimento do laudo");
-    }
-    tipoLaudoNome = tipoLaudo?.nome ?? null;
-    primeiraSecaoId = primeiraSecao?.id ?? null;
-  }
 
   // Título: no judicial, o nº do processo (ou nome). Na AT ainda pode não haver
   // processo — usa a sigla da 1ª etapa contratada + nome do periciado
@@ -306,6 +354,22 @@ export default async function ProcessoDetalhePage({
           processoId={processo.id}
           marcoEm={processo.honorarios_proximo_marco_em}
           descricao={processo.honorarios_proximo_marco_descricao}
+        />
+      )}
+
+      {temEstrategiaPericial && (
+        <ReuniaoEstrategiaPericialPanel
+          processoId={processo.id}
+          reuniaoEm={processo.estrategia_pericial_reuniao_em}
+        />
+      )}
+
+      {temAnaliseContestacao && (
+        <AnexoEtapaAtPanel
+          processoId={processo.id}
+          etapa="analise_contestacao"
+          tituloEtapa="Análise da contestação"
+          documentos={anexosContestacao}
         />
       )}
 

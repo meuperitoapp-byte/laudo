@@ -47,13 +47,25 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const hoje = hojeIsoBrasil();
 
-  const [{ data: processosDb, error: erroProcessos }, itensPainel] = await Promise.all([
+  // As 3 consultas abaixo são independentes — nenhuma usa dado de outra —
+  // então disparam juntas em vez de uma atrás da outra. `escritoriosDb`
+  // continua numa QUERY separada de propósito (se algo estiver errado só
+  // nessa coluna, ex.: migration ainda não propagada, o resto do dashboard
+  // continua de pé), mas "separada" e "sequencial" são coisas diferentes —
+  // rodar em paralelo não muda o isolamento de erro. Corrigido em 22/09/2026
+  // (relato de lentidão ao trocar de módulo).
+  const [
+    { data: processosDb, error: erroProcessos },
+    itensPainel,
+    { data: escritoriosDb, error: erroEscritorios },
+  ] = await Promise.all([
     supabase
       .from("processos")
       .select(
         "id, tipo_trabalho, status, situacao_processo, situacao_financeira, aceitou_nomeacao, agendamento_data, honorarios_forma_pagamento",
       ),
     montarPainel(supabase),
+    supabase.from("processos").select("escritorio_indicacao"),
   ]);
   if (erroProcessos) {
     // Nunca deixa isso virar "0 processos" silencioso — o erro cru é mais
@@ -63,10 +75,6 @@ export default async function DashboardPage() {
   const processos = processosDb ?? [];
   const ativos = processos.filter((p) => p.status === "em_andamento");
 
-  // Coluna nova (escritorio_indicacao) buscada à parte, de propósito: se
-  // algo estiver errado só com ela (ex.: migration ainda não propagada),
-  // o resto do dashboard continua de pé em vez de zerar tudo junto.
-  const { data: escritoriosDb, error: erroEscritorios } = await supabase.from("processos").select("escritorio_indicacao");
   if (erroEscritorios) {
     console.error("Dashboard: falha ao buscar escritorio_indicacao:", erroEscritorios.message);
   }

@@ -35,31 +35,92 @@ export function identificarProcesso(p: { numero_processo: string | null; pericia
 export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel[]> {
   const hoje = hojeIsoBrasil();
 
-  // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um processo
-  // finalizado/arquivado não é "o que fazer hoje", mesmo que alguma coluna
-  // antiga tenha ficado sem preencher (ex.: aceitou_nomeacao nunca setado
-  // num processo de anos atrás, de antes de a coluna existir).
-  const { data: processosDb } = await supabase
-    .from("processos")
-    .select(
-      "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, situacao_financeira",
-    )
-    .eq("status", "em_andamento");
+  // As 7 consultas abaixo são todas INDEPENDENTES entre si — nenhuma usa
+  // dado de outra no WHERE, só cruzam em memória depois (via processoPorId).
+  // Antes rodavam uma de cada vez (7 idas e voltas sequenciais ao Supabase);
+  // isso é chamado por /hoje E por /dashboard, então cada navegação pra essas
+  // duas telas pagava esse custo inteiro. Corrigido em 22/09/2026 (relato de
+  // lentidão ao trocar de módulo) — ver [[performance-navegacao]].
+  const [
+    { data: processosDb },
+    { data: ciclosDb },
+    { data: laudosDb },
+    { data: atDb },
+    { data: docsDb },
+    { data: processosComLaudoDb },
+    { data: tarefasDb },
+  ] = await Promise.all([
+    // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
+    // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
+    // alguma coluna antiga tenha ficado sem preencher (ex.: aceitou_nomeacao
+    // nunca setado num processo de anos atrás, de antes de a coluna existir).
+    supabase
+      .from("processos")
+      .select(
+        "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, situacao_financeira",
+      )
+      .eq("status", "em_andamento"),
+    // Fonte 1 — ciclos de pós-laudo abertos.
+    supabase
+      .from("pos_laudo_ciclos")
+      .select("id, processo_id, numero_ciclo, prazo, created_at")
+      .eq("status", "aberto"),
+    // Fonte 2 — laudo (V1) pronto, ainda não protocolado.
+    supabase
+      .from("laudos_gerados")
+      .select("id, processo_id, versao, created_at")
+      .eq("tipo", "laudo")
+      .eq("protocolado", false)
+      .order("versao", { ascending: false }),
+    // Fonte 3 — saídas de Assistência Técnica não protocoladas.
+    supabase
+      .from("laudos_gerados")
+      .select("id, processo_id, pos_laudo_ciclo_id, tipo, entregue_ao_advogado_em, created_at")
+      .in("tipo", TIPOS_SAIDA_AT)
+      .eq("protocolado", false),
+    // Fonte 4 — documentos marcados como ilegíveis/insuficientes.
+    supabase.from("documentos").select("id, processo_id, nome_arquivo, created_at").eq("ilegivel_insuficiente", true),
+    // Fonte 6 (parte 1) — quais processos já têm laudo, pra excluir da fonte de agendamento.
+    supabase.from("laudos_gerados").select("processo_id").eq("tipo", "laudo"),
+    // Fonte 9 (parte 1) — tarefas/eventos manuais em aberto.
+    supabase
+      .from("central_tarefas")
+      .select("id, processo_id, tipo, titulo, descricao, data, hora, status, nivel_urgencia_manual")
+      .is("concluida_em", null),
+  ]);
   const processos = processosDb ?? [];
   const processoPorId = new Map(processos.map((p) => [p.id, p]));
+  const tarefas = tarefasDb ?? [];
 
+  // Segunda rodada, só pro que genuinamente depende do resultado da
+  // primeira (número de ciclo dos ids referenciados por fontes 1+3; nome dos
+  // processos referenciados por tarefas que apontam pra processo inativo) —
+  // as duas são independentes ENTRE SI, então também disparam juntas.
   const idsCiclos = new Set<string>();
+  for (const c of ciclosDb ?? []) idsCiclos.add(c.id);
+  for (const a of atDb ?? []) {
+    if (a.pos_laudo_ciclo_id) idsCiclos.add(a.pos_laudo_ciclo_id);
+  }
+  const idsProcessosTarefas = Array.from(
+    new Set(tarefas.map((t) => t.processo_id).filter((pid): pid is string => pid !== null && !processoPorId.has(pid))),
+  );
+  const [{ data: numerosDb }, { data: processosExtraDb }] = await Promise.all([
+    idsCiclos.size > 0
+      ? supabase.from("pos_laudo_ciclos").select("id, numero_ciclo").in("id", Array.from(idsCiclos))
+      : Promise.resolve({ data: null, error: null }),
+    idsProcessosTarefas.length > 0
+      ? supabase.from("processos").select("id, numero_processo, periciando_nome, parte_autora").in("id", idsProcessosTarefas)
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  const numeroCicloPorId = new Map((numerosDb ?? []).map((c) => [c.id, c.numero_ciclo]));
+  const identificacaoExtra = new Map((processosExtraDb ?? []).map((p) => [p.id, identificarProcesso(p)]));
+
   const itens: ItemPainel[] = [];
 
   // ---- 1. Ciclos de pós-laudo abertos (a única fonte com prazo de verdade) ----
-  const { data: ciclosDb } = await supabase
-    .from("pos_laudo_ciclos")
-    .select("id, processo_id, numero_ciclo, prazo, created_at")
-    .eq("status", "aberto");
   for (const c of ciclosDb ?? []) {
     const processo = processoPorId.get(c.processo_id);
     if (!processo) continue; // processo não ativo — fora da Central
-    idsCiclos.add(c.id);
     itens.push({
       id: `ciclo_aberto-${c.id}`,
       categoria: "ciclo_aberto",
@@ -75,12 +136,6 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   }
 
   // ---- 2. Laudo (V1) pronto, ainda não protocolado — só a versão mais recente por processo ----
-  const { data: laudosDb } = await supabase
-    .from("laudos_gerados")
-    .select("id, processo_id, versao, created_at")
-    .eq("tipo", "laudo")
-    .eq("protocolado", false)
-    .order("versao", { ascending: false });
   const laudosLista = laudosDb ?? [];
   const laudoMaisRecentePorProcesso = new Map<string, (typeof laudosLista)[number]>();
   for (const l of laudosLista) {
@@ -104,25 +159,8 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   }
 
   // ---- 3. Saídas de Assistência Técnica não protocoladas (entregues ou não) ----
-  const { data: atDb } = await supabase
-    .from("laudos_gerados")
-    .select("id, processo_id, pos_laudo_ciclo_id, tipo, entregue_ao_advogado_em, created_at")
-    .in("tipo", TIPOS_SAIDA_AT)
-    .eq("protocolado", false);
-  for (const a of atDb ?? []) {
-    if (a.pos_laudo_ciclo_id) idsCiclos.add(a.pos_laudo_ciclo_id);
-  }
-
-  // Números de ciclo pros títulos/links das saídas AT (pode incluir ciclo já encerrado — um parecer sem entrega continua pendente mesmo com o ciclo fechado).
-  let numeroCicloPorId = new Map<string, number>();
-  if (idsCiclos.size > 0) {
-    const { data: numerosDb } = await supabase
-      .from("pos_laudo_ciclos")
-      .select("id, numero_ciclo")
-      .in("id", Array.from(idsCiclos));
-    numeroCicloPorId = new Map((numerosDb ?? []).map((c) => [c.id, c.numero_ciclo]));
-  }
-
+  // (números de ciclo pros títulos/links já resolvidos em numeroCicloPorId, acima —
+  // pode incluir ciclo já encerrado: um parecer sem entrega continua pendente mesmo com o ciclo fechado)
   for (const a of atDb ?? []) {
     const processo = processoPorId.get(a.processo_id);
     if (!processo || !a.pos_laudo_ciclo_id) continue;
@@ -160,10 +198,6 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   }
 
   // ---- 4. Documentos marcados como ilegíveis/insuficientes ----
-  const { data: docsDb } = await supabase
-    .from("documentos")
-    .select("id, processo_id, nome_arquivo, created_at")
-    .eq("ilegivel_insuficiente", true);
   for (const d of docsDb ?? []) {
     if (!d.processo_id) continue;
     const processo = processoPorId.get(d.processo_id);
@@ -208,7 +242,6 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   // a data do agendamento (já passada) competir como "vencida" seria ruído,
   // não sinal (mesmo cuidado que motivou não incluir liberacao_solicitada_em
   // como prazo).
-  const { data: processosComLaudoDb } = await supabase.from("laudos_gerados").select("processo_id").eq("tipo", "laudo");
   const processosComLaudo = new Set((processosComLaudoDb ?? []).map((l) => l.processo_id));
   for (const p of processos) {
     if (p.tipo_trabalho !== "pericia_judicial" || !p.agendamento_data || processosComLaudo.has(p.id)) continue;
@@ -285,28 +318,10 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   // a tarefa é criação explícita dela, não inferência do sistema sobre um
   // processo específico — um processo finalizado com uma tarefa avulsa
   // ainda aberta continua sendo algo que ela decidiu acompanhar. Só
-  // `concluida_em is null` decide se aparece.
-  const { data: tarefasDb } = await supabase
-    .from("central_tarefas")
-    .select("id, processo_id, tipo, titulo, descricao, data, hora, status, nivel_urgencia_manual")
-    .is("concluida_em", null);
-  const tarefas = tarefasDb ?? [];
-
-  // Identificação dos processos vinculados — busca só os que NÃO estão no
-  // mapa de processos ativos (tarefa pode apontar pra um processo já
-  // finalizado/arquivado, que ainda assim precisa de rótulo no título).
-  const idsProcessosTarefas = Array.from(
-    new Set(tarefas.map((t) => t.processo_id).filter((id): id is string => id !== null && !processoPorId.has(id))),
-  );
-  let identificacaoExtra = new Map<string, string>();
-  if (idsProcessosTarefas.length > 0) {
-    const { data: processosExtraDb } = await supabase
-      .from("processos")
-      .select("id, numero_processo, periciando_nome, parte_autora")
-      .in("id", idsProcessosTarefas);
-    identificacaoExtra = new Map((processosExtraDb ?? []).map((p) => [p.id, identificarProcesso(p)]));
-  }
-
+  // `concluida_em is null` decide se aparece. Identificação dos processos
+  // vinculados que NÃO estão no mapa de processos ativos (tarefa pode
+  // apontar pra um processo já finalizado/arquivado) já resolvida em
+  // identificacaoExtra, acima.
   for (const t of tarefas) {
     const nomeProcesso = t.processo_id
       ? (processoPorId.has(t.processo_id) ? identificarProcesso(processoPorId.get(t.processo_id)!) : identificacaoExtra.get(t.processo_id))
