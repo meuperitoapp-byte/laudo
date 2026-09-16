@@ -39,7 +39,7 @@ export default async function PreenchimentoSecaoPage({
 
   if (!processo.tipo_laudo_id) {
     return (
-      <main className="p-8 max-w-xl space-y-4">
+      <main className="p-8 max-w-xl mx-auto space-y-4">
         <Link
           href={`/processos/${processoId}`}
           className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400"

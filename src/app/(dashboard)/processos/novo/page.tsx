@@ -24,7 +24,7 @@ export default async function NovoProcessoPage({
   // definido via ?tipo= na URL.
   if (!tipoTrabalho) {
     return (
-      <main className="p-8 max-w-2xl">
+      <main className="p-8 max-w-2xl mx-auto">
         <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mb-6">Novo processo</h1>
         <EscolhaTipoTrabalho />
       </main>
@@ -51,7 +51,7 @@ export default async function NovoProcessoPage({
   const rotuloTipo = tipoTrabalho === "pericia_judicial" ? "Perícia Judicial" : "Assistência Técnica";
 
   return (
-    <main className="p-8 max-w-2xl space-y-6">
+    <main className="p-8 max-w-2xl mx-auto space-y-6">
       <div>
         <Link
           href="/processos/novo"

@@ -39,7 +39,7 @@ export default async function EditarProcessoPage({
   }
 
   return (
-    <main className="p-8 max-w-2xl space-y-6">
+    <main className="p-8 max-w-2xl mx-auto space-y-6">
       <div>
         <Link
           href={`/processos/${id}`}

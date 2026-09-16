@@ -77,7 +77,7 @@ export default async function DocumentosPage({
     processo.numero_processo || processo.periciando_nome || processo.parte_autora || "Processo sem identificação";
 
   return (
-    <main className="p-8">
+    <main className="p-8 max-w-4xl mx-auto">
       <Link
         href={`/processos/${processoId}`}
         className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400"

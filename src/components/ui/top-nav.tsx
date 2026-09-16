@@ -29,8 +29,8 @@ export function TopNav({ email }: { email: string }) {
   const pathname = usePathname();
 
   return (
-    <header className="bg-petroleo-700 dark:bg-nevoa-900 border-b border-petroleo-800/60 dark:border-nevoa-800">
-      <div className="flex items-center gap-2 px-6 h-14">
+    <header className="bg-petroleo-700 dark:bg-nevoa-900 border-b border-petroleo-800/60 dark:border-nevoa-800 overflow-hidden">
+      <div className="flex items-center gap-2 px-6 h-14 overflow-hidden">
         <Link href="/dashboard" className="flex items-center gap-2.5 pr-5 mr-1 shrink-0">
           <LogoMark />
           <span className="font-title text-[15px] font-semibold text-white hidden sm:inline">
@@ -38,7 +38,7 @@ export function TopNav({ email }: { email: string }) {
           </span>
         </Link>
 
-        <nav className="flex items-center gap-1 flex-1 overflow-x-auto">
+        <nav className="flex items-center gap-1 flex-1 min-w-0">
           {ITENS.map((item) => {
             const ativo = pathname === item.href || pathname.startsWith(item.href + "/");
             return (

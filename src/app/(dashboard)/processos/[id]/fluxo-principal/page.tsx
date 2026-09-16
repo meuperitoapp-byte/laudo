@@ -113,7 +113,7 @@ export default async function FluxoPrincipalPage({
     processo.numero_processo || processo.periciando_nome || processo.parte_autora || "Processo sem identificação";
 
   return (
-    <main className="p-8 max-w-3xl space-y-10">
+    <main className="p-8 max-w-3xl mx-auto space-y-10">
       <div>
         <Link
           href={`/processos/${processoId}`}

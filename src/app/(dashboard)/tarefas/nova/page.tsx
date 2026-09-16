@@ -18,7 +18,7 @@ export default async function NovaTarefaPage() {
   const processos = (processosDb ?? []).map((p) => ({ id: p.id, label: identificarProcesso(p) }));
 
   return (
-    <main className="p-8 max-w-2xl space-y-6">
+    <main className="p-8 max-w-2xl mx-auto space-y-6">
       <div>
         <Link
           href="/hoje"

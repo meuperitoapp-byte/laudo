@@ -87,7 +87,7 @@ export default async function LinhaDoTempoPage({
     v.titulo || TIPO_DOCUMENTO_ROTULOS[v.tipo as LaudoGeradoTipo] || v.tipo;
 
   return (
-    <main className="p-8 max-w-3xl space-y-6">
+    <main className="p-8 max-w-3xl mx-auto space-y-6">
       <Link
         href={`/processos/${processoId}/pos-laudo`}
         className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400"
