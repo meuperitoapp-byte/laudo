@@ -56,17 +56,54 @@ pedido do Jeferson ("pode aplicar tudo"). Commits `8ab3250` até `596817d`:
 | 9 | Excluir processo direto na lista | `3c32f06` |
 | 10 | Situação financeira da AT no dashboard (parcial — ver pendências) | `319fd9d` |
 
+**Complemento ao item 10 (21/09/2026)**: migration de honorários em atraso
+aprovada e aplicada (`supabase/migrations/20260921120000_processos_
+honorarios_atraso.sql`), com o campo de próximo marco (judicial) e forma de
+pagamento/vencimento (AT) já construídos — commit `061e95b`. Falta só somar
+isso numa visão do dashboard (ver pendências abaixo).
+
+## Escopo adicional #3 — Correção de tratamento de erro de consulta (dívida estrutural anterior à Fase 2)
+
+Diferente dos itens #1 e #2 acima: **não é redesign nem pedido da Dra.
+Fernanda** — é conserto de um defeito estrutural que já existia no código
+antes da própria Fase 2, só descoberto em 21/09/2026 ao investigar o bug do
+dashboard "0 processos" (`b7596db`, escopo adicional #1).
+
+**Causa raiz**: o cliente Supabase nunca lança exceção numa consulta que
+falha — só devolve `{ data, error }`. Todo trecho que lia só `data` e
+ignorava `error` fazia uma falha real de leitura (RLS, instabilidade,
+coluna não propagada) virar silenciosamente "vazio"/"não encontrado" em vez
+de mostrar que algo deu errado. Auditado e corrigido em TODAS as páginas do
+grupo `(dashboard)` que consultam o Supabase — não só o dashboard.
+
+**Caso mais grave encontrado**: em `processos/[id]/page.tsx`, uma falha de
+consulta no processo caía no mesmo `notFound()` de um registro que de fato
+não existe — ela veria "processo não encontrado" e concluiria que perdeu o
+caso, quando era só uma falha de leitura passageira. Mesmo padrão
+encontrado e corrigido em mais 5 telas que usam `.single()`/`.maybeSingle()`
+como gate de "existe ou não". Também corrigido um risco de segurança lateral
+em `processos/page.tsx`: se a consulta de documentos protocolados falhasse,
+o botão de excluir liberaria processos que na verdade têm documento
+protocolado — agora falha vira "bloqueado", nunca "liberado por engano".
+
+Commits (21/09/2026): `a22cbcb`, `15cb479`, `2190ee0`, `aca1d14`, `f471adb`,
+`e7380fc`, `eb5f042` — 16 arquivos ao todo (toda a árvore de
+`processos/[id]/*`, `processos/novo`, `processos/[id]/editar`,
+`tarefas/nova`, `tarefas/[id]`, `respostas-reutilizaveis`, `configuracoes`,
+`processos` lista), mais o componente compartilhado `components/ui/erro-
+consulta.tsx`.
+
 ## Pendências que ficam fora deste fechamento
 
 Não fazem parte do que já foi entregue/cobrado até aqui:
 
-- **Migration de honorários em atraso** — desenho aprovado em 15/09/2026,
-  migration escrita em `supabase/migrations/20260921120000_processos_
-  honorarios_atraso.sql`, ainda não aplicada nem codada na tela. Item #10 da
-  fila (parte de forma de pagamento/parcelas da AT) depende dela.
 - **Item #7 de verdade** (Agenda, Financeiro, Relacionamento e Biblioteca
   Pericial como funcionalidade, não só como nome no menu) — precisa de
   conversa de escopo/orçamento própria, não está nesta Fase 2 nem na fila de
   10 melhorias.
+- **Item #10 da fila, parte de forma de pagamento/parcelas da AT no
+  dashboard** — a migration de honorários em atraso (aprovada e aplicada em
+  21/09/2026) já resolve o registro do dado; falta só somar isso numa visão
+  do dashboard, não pedido ainda.
 - Staffing/papéis/RLS (quem faz o quê no sistema) — leitura confirmada pela
   Dra. Fernanda, construção ainda não orçada.
