@@ -9,6 +9,7 @@ import {
   mesclarSugestoes,
   varianteSituacaoProcesso,
 } from "@/features/processos/catalogos";
+import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 import type { TipoTrabalhoProcesso } from "@/types/enums";
 
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
@@ -60,17 +61,30 @@ export default async function ProcessosPage({
   if (f.dataInicial) query = query.gte("created_at", f.dataInicial);
   if (f.dataFinal) query = query.lte("created_at", `${f.dataFinal}T23:59:59.999Z`);
 
-  const [{ data: processos }, { data: tiposLaudo }, { data: partesDb }, { data: financeirasDb }, { data: protocoladosDb }] =
-    await Promise.all([
-      query,
-      supabase.from("tipos_laudo").select("id, nome").order("ordem", { ascending: true }),
-      supabase.from("processo_partes").select("processo_id, polo, nome, ordem").eq("polo", "ativo").order("ordem"),
-      supabase.from("processos").select("valor:situacao_financeira").not("situacao_financeira", "is", null),
-      // Mesmo gate de exclusão do detalhe do processo (ver [id]/page.tsx):
-      // qualquer documento protocolado bloqueia excluir. Buscado em lote aqui
-      // pra ExcluirProcessoButton, sem duplicar a query por linha da tabela.
-      supabase.from("laudos_gerados").select("processo_id").eq("protocolado", true),
-    ]);
+  const [
+    { data: processos, error: erroProcessos },
+    { data: tiposLaudo, error: erroTiposLaudo },
+    { data: partesDb, error: erroPartes },
+    { data: financeirasDb, error: erroFinanceiras },
+    { data: protocoladosDb, error: erroProtocolados },
+  ] = await Promise.all([
+    query,
+    supabase.from("tipos_laudo").select("id, nome").order("ordem", { ascending: true }),
+    supabase.from("processo_partes").select("processo_id, polo, nome, ordem").eq("polo", "ativo").order("ordem"),
+    supabase.from("processos").select("valor:situacao_financeira").not("situacao_financeira", "is", null),
+    // Mesmo gate de exclusão do detalhe do processo (ver [id]/page.tsx):
+    // qualquer documento protocolado bloqueia excluir. Buscado em lote aqui
+    // pra ExcluirProcessoButton, sem duplicar a query por linha da tabela.
+    supabase.from("laudos_gerados").select("processo_id").eq("protocolado", true),
+  ]);
+  // Mesma classe de bug do dashboard "0 processos" (21/09/2026): sem checar
+  // `error`, a lista principal falhando viraria "Nenhum processo em
+  // andamento" — estado vazio normal, mas enganoso.
+  if (erroProcessos) console.error("Processos: falha ao listar:", erroProcessos.message);
+  if (erroTiposLaudo) console.error("Processos: falha ao buscar tipos de laudo:", erroTiposLaudo.message);
+  if (erroPartes) console.error("Processos: falha ao buscar partes:", erroPartes.message);
+  if (erroFinanceiras) console.error("Processos: falha ao buscar situações financeiras:", erroFinanceiras.message);
+  if (erroProtocolados) console.error("Processos: falha ao buscar documentos protocolados:", erroProtocolados.message);
 
   const nomePorTipoLaudo = new Map((tiposLaudo ?? []).map((t) => [t.id, t.nome]));
   const primeiroNomePoloAtivoPorProcesso = new Map<string, string>();
@@ -79,7 +93,12 @@ export default async function ProcessosPage({
       primeiroNomePoloAtivoPorProcesso.set(parte.processo_id, parte.nome);
     }
   }
-  const processosComDocumentoProtocolado = new Set((protocoladosDb ?? []).map((l) => l.processo_id));
+  // Erro na consulta de protocolados NUNCA pode virar "nenhum protocolado" —
+  // isso liberaria a exclusão de processos que na verdade tem documento
+  // protocolado. `null` sinaliza "não sei" pro botão tratar como bloqueado.
+  const processosComDocumentoProtocolado = erroProtocolados
+    ? null
+    : new Set((protocoladosDb ?? []).map((l) => l.processo_id));
 
   const filtrouAlgo = Object.values(f).some((v) => v);
 
@@ -105,6 +124,10 @@ export default async function ProcessosPage({
         </Link>
       </div>
 
+      {erroProcessos && (
+        <BannerErroConsulta mensagem={`Não consegui carregar os processos agora: ${erroProcessos.message}. A lista abaixo não é confiável até isso ser corrigido.`} />
+      )}
+
       <ProcessosFiltros
         tiposLaudo={tiposLaudo ?? []}
         situacoesFinanceiras={mesclarSugestoes(SITUACOES_FINANCEIRAS_SEED, financeirasDb)}
@@ -112,9 +135,11 @@ export default async function ProcessosPage({
 
       {!processos || processos.length === 0 ? (
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
-          {filtrouAlgo
-            ? "Nenhum processo encontrado com esses filtros."
-            : "Nenhum processo em andamento. Use os filtros acima para ver os finalizados."}
+          {erroProcessos
+            ? "Não foi possível carregar os processos agora."
+            : filtrouAlgo
+              ? "Nenhum processo encontrado com esses filtros."
+              : "Nenhum processo em andamento. Use os filtros acima para ver os finalizados."}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-nevoa-200 dark:border-nevoa-800">
@@ -172,7 +197,9 @@ export default async function ProcessosPage({
                   <td className="py-2.5 px-4">
                     <ExcluirProcessoButton
                       processoId={p.id}
-                      temDocumentoProtocolado={processosComDocumentoProtocolado.has(p.id)}
+                      temDocumentoProtocolado={
+                        processosComDocumentoProtocolado === null || processosComDocumentoProtocolado.has(p.id)
+                      }
                     />
                   </td>
                 </tr>
