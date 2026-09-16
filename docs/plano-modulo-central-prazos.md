@@ -384,7 +384,16 @@ nunca ter marco combinado; isso é normal, não uma lacuna). A única coisa que 
 compartilham é entrar na mesma Central de Prazos no final — que é justamente o ponto da
 Central: agregar fontes heterogêneas num painel só, sem forçar homogeneidade na origem.
 
-**Ainda não codado** — aguardando o Jeferson aprovar este desenho antes da migration.
+**Aprovado pelo Jeferson (15/09/2026)** — migration escrita em
+`supabase/migrations/20260921120000_processos_honorarios_atraso.sql`
+(`honorarios_proximo_marco_em`/`_descricao` pro judicial,
+`honorarios_forma_pagamento`/`honorarios_vencimento` pra AT), ainda **não
+aplicada** — aguardando o Jeferson rodar no SQL Editor do Supabase. Depois
+de aplicada, falta: tipos TS (`database.ts`), campos no formulário de
+processo (rótulo do judicial precisa deixar explícito que é o "**próximo**
+marco", não um marco fixo — pode haver mais de um ao longo do processo), e
+a 9ª/10ª fonte do agregador da Central de Prazos (os dois ramos descritos
+acima). Nada disso foi codado ainda.
 
 ## 6.1 Ordenação — por que item sem data nunca compete com o que está vencendo
 
