@@ -12,6 +12,7 @@ import { ReguaEnxuta } from "@/features/fluxo-principal/regua-enxuta";
 import type { VersaoDocumento } from "@/features/fluxo-principal/gerar-documento-panel";
 import type { DocumentoProtocoladoAceite } from "@/features/fluxo-principal/aceitou-nomeacao-sugestao";
 import type { LaudoGeradoTipo } from "@/types/enums";
+import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 const URL_ASSINADA_VALIDADE_SEGUNDOS = 60 * 60;
 
@@ -46,7 +47,12 @@ export default async function FluxoPrincipalPage({
   const { id: processoId } = await params;
   const supabase = await createClient();
 
-  const [{ data: processo }, { data: config }, { data: versoesDb }, { data: laudoPrincipal }] = await Promise.all([
+  const [
+    { data: processo, error: erroProcesso },
+    { data: config, error: erroConfig },
+    { data: versoesDb, error: erroVersoes },
+    { data: laudoPrincipal, error: erroLaudoPrincipal },
+  ] = await Promise.all([
     supabase.from("processos").select("*").eq("id", processoId).single(),
     supabase.from("configuracoes").select("*").maybeSingle(),
     supabase
@@ -65,18 +71,40 @@ export default async function FluxoPrincipalPage({
       .limit(1)
       .maybeSingle(),
   ]);
+  if (erroProcesso && erroProcesso.code !== "PGRST116") {
+    console.error(`Fluxo Principal do processo ${processoId}: falha ao buscar processo:`, erroProcesso.message);
+    return <ErroConsultaPagina titulo="Não foi possível carregar o Fluxo Principal agora" />;
+  }
   if (!processo) notFound();
   if (processo.tipo_trabalho !== "pericia_judicial") {
     notFound();
+  }
+
+  const erros: string[] = [];
+  if (erroConfig) {
+    console.error(`Fluxo Principal do processo ${processoId}: falha ao buscar configurações:`, erroConfig.message);
+    erros.push("os dados bancários cadastrados");
+  }
+  if (erroVersoes) {
+    console.error(`Fluxo Principal do processo ${processoId}: falha ao listar versões:`, erroVersoes.message);
+    erros.push("os documentos já gerados");
+  }
+  if (erroLaudoPrincipal) {
+    console.error(`Fluxo Principal do processo ${processoId}: falha ao checar laudo protocolado:`, erroLaudoPrincipal.message);
+    erros.push("a régua de progresso");
   }
 
   const versoes = versoesDb ?? [];
   const caminhos = versoes.flatMap((v) => [v.storage_path_pdf, v.storage_path_docx].filter((c): c is string => Boolean(c)));
   let urlPorCaminho = new Map<string, string | null>();
   if (caminhos.length > 0) {
-    const { data: assinadas } = await supabase.storage
+    const { data: assinadas, error: erroAssinadas } = await supabase.storage
       .from(BUCKET_LAUDOS_GERADOS)
       .createSignedUrls(caminhos, URL_ASSINADA_VALIDADE_SEGUNDOS);
+    if (erroAssinadas) {
+      console.error(`Fluxo Principal do processo ${processoId}: falha ao gerar links:`, erroAssinadas.message);
+      erros.push("os links de download");
+    }
     if (assinadas) urlPorCaminho = new Map(assinadas.map((a) => [a.path ?? "", a.signedUrl]));
   }
 
@@ -126,6 +154,10 @@ export default async function FluxoPrincipalPage({
         </h1>
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">{titulo}</p>
       </div>
+
+      {erros.length > 0 && (
+        <BannerErroConsulta mensagem={`Não consegui carregar agora: ${erros.join(", ")}.`} />
+      )}
 
       <ReguaEnxuta processo={processo} laudoPrincipalProtocoladoEm={laudoPrincipal?.protocolado_em ?? null} />
 

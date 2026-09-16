@@ -18,6 +18,7 @@ import type {
   RespostaPersistida,
 } from "@/features/preenchimento/rastreabilidade-tipos";
 import type { ValorSelecionado } from "@/types/json-fields";
+import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 export default async function PreenchimentoSecaoPage({
   params,
@@ -27,12 +28,16 @@ export default async function PreenchimentoSecaoPage({
   const { id: processoId, secaoId } = await params;
   const supabase = await createClient();
 
-  const { data: processo } = await supabase
+  const { data: processo, error: erroProcesso } = await supabase
     .from("processos")
     .select("id, tipo_laudo_id, periciando_nome")
     .eq("id", processoId)
     .single();
 
+  if (erroProcesso && erroProcesso.code !== "PGRST116") {
+    console.error(`Preenchimento do processo ${processoId}: falha ao buscar processo:`, erroProcesso.message);
+    return <ErroConsultaPagina titulo="Não foi possível carregar o preenchimento agora" />;
+  }
   if (!processo) {
     notFound();
   }
@@ -54,7 +59,11 @@ export default async function PreenchimentoSecaoPage({
     );
   }
 
-  const [{ data: tipoLaudo }, { data: secoes }, { data: reutilizaveisData }] = await Promise.all([
+  const [
+    { data: tipoLaudo, error: erroTipoLaudo },
+    { data: secoes, error: erroSecoes },
+    { data: reutilizaveisData, error: erroReutilizaveis },
+  ] = await Promise.all([
     supabase.from("tipos_laudo").select("nome").eq("id", processo.tipo_laudo_id).single(),
     supabase
       .from("secoes")
@@ -71,18 +80,46 @@ export default async function PreenchimentoSecaoPage({
       .select("*")
       .or(`tipo_laudo_id.eq.${processo.tipo_laudo_id},tipo_laudo_id.is.null`),
   ]);
+  if (erroTipoLaudo && erroTipoLaudo.code !== "PGRST116") {
+    console.error(`Preenchimento do processo ${processoId}: falha ao buscar tipo de laudo:`, erroTipoLaudo.message);
+  }
+  if (erroReutilizaveis) {
+    console.error(`Preenchimento do processo ${processoId}: falha ao buscar respostas reutilizáveis:`, erroReutilizaveis.message);
+  }
 
+  // `secoes` vazia é um estado real (modelo do laudo sem seção nenhuma) — mas
+  // uma FALHA de consulta não pode virar o mesmo notFound(): ela veria "não
+  // encontrado" achando que o laudo sumiu, quando é só leitura instável.
+  if (erroSecoes) {
+    console.error(`Preenchimento do processo ${processoId}: falha ao buscar seções:`, erroSecoes.message);
+    return <ErroConsultaPagina titulo="Não foi possível carregar as seções do laudo agora" />;
+  }
   if (!secoes || secoes.length === 0) {
     notFound();
   }
 
   const secaoIds = secoes.map((s) => s.id);
 
-  const [{ data: campos }, { data: respostasProcesso }, { data: respostasSecao }] = await Promise.all([
+  const [
+    { data: campos, error: erroCampos },
+    { data: respostasProcesso, error: erroRespostasProcesso },
+    { data: respostasSecao, error: erroRespostasSecao },
+  ] = await Promise.all([
     supabase.from("campos_secao").select("*").in("secao_id", secaoIds).order("ordem"),
     supabase.from("respostas_processo").select("*").eq("processo_id", processoId),
     supabase.from("respostas_secao").select("*").eq("processo_id", processoId),
   ]);
+  // Falha em qualquer uma dessas três é grave o bastante pra não deixar
+  // renderizar o formulário como se as respostas já salvas estivessem vazias
+  // (ela editaria em cima de um estado que parece "em branco", risco de
+  // sobrescrever/perder resposta já dada). Página inteira de erro aqui.
+  if (erroCampos || erroRespostasProcesso || erroRespostasSecao) {
+    console.error(
+      `Preenchimento do processo ${processoId}: falha ao buscar campos/respostas:`,
+      erroCampos?.message ?? erroRespostasProcesso?.message ?? erroRespostasSecao?.message,
+    );
+    return <ErroConsultaPagina titulo="Não foi possível carregar as respostas já salvas agora" />;
+  }
 
   const todosCampos = campos ?? [];
   const todasRespostasProcesso = respostasProcesso ?? [];
@@ -96,15 +133,21 @@ export default async function PreenchimentoSecaoPage({
   // conclusão. resposta_evidencias não tem processo_id direto — filtra pelos
   // ids de respostas_processo deste processo.
   const respostaProcessoIds = todasRespostasProcesso.map((r) => r.id);
-  const { data: documentosDoProcesso } = await supabase
+  const { data: documentosDoProcesso, error: erroDocumentos } = await supabase
     .from("documentos")
     .select("id, nome_arquivo, tipo, categoria")
     .eq("processo_id", processoId)
     .order("ordem");
-  const { data: evidenciasData } =
+  if (erroDocumentos) {
+    console.error(`Preenchimento do processo ${processoId}: falha ao buscar documentos p/ rastreabilidade:`, erroDocumentos.message);
+  }
+  const { data: evidenciasData, error: erroEvidencias } =
     respostaProcessoIds.length > 0
       ? await supabase.from("resposta_evidencias").select("*").in("resposta_id", respostaProcessoIds)
-      : { data: [] };
+      : { data: [], error: null };
+  if (erroEvidencias) {
+    console.error(`Preenchimento do processo ${processoId}: falha ao buscar evidências:`, erroEvidencias.message);
+  }
 
   // Visibilidade das seções: avalia secoes.condicao contra as respostas já
   // salvas do processo inteiro (CLAUDE.md, "Regra: campos condicionais").

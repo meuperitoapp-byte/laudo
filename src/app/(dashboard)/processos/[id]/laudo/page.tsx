@@ -6,6 +6,7 @@ import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
 import { ConclusaoVigenteInicial } from "@/features/pos-laudo/conclusao-vigente-inicial";
 import { conclusaoVigenteAtual, extrairConclusaoDoLaudo } from "@/features/pos-laudo/consultas";
 import { Selo } from "@/components/ui/badge";
+import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 const URL_ASSINADA_VALIDADE_SEGUNDOS = 60 * 60; // 1 hora — a página gera de novo a cada carregamento
 
@@ -17,19 +18,27 @@ export default async function LaudoPage({
   const { id: processoId } = await params;
   const supabase = await createClient();
 
-  const [resultado, { data: versoesDb }] = await Promise.all([
+  const [resultado, { data: versoesDb, error: erroVersoes }] = await Promise.all([
     compilarLaudo(processoId),
     supabase.from("laudos_gerados").select("*").eq("processo_id", processoId).order("versao", { ascending: false }),
   ]);
+  if (erroVersoes) {
+    console.error(`Laudo do processo ${processoId}: falha ao listar versões:`, erroVersoes.message);
+  }
 
   const lista = versoesDb ?? [];
   const caminhos = lista.flatMap((v) => [v.storage_path_pdf, v.storage_path_docx].filter((p): p is string => Boolean(p)));
 
   let urlPorCaminho = new Map<string, string | null>();
+  let erroLinks = false;
   if (caminhos.length > 0) {
-    const { data: assinadas } = await supabase.storage
+    const { data: assinadas, error: erroAssinadas } = await supabase.storage
       .from(BUCKET_LAUDOS_GERADOS)
       .createSignedUrls(caminhos, URL_ASSINADA_VALIDADE_SEGUNDOS);
+    if (erroAssinadas) {
+      console.error(`Laudo do processo ${processoId}: falha ao gerar links assinados:`, erroAssinadas.message);
+      erroLinks = true;
+    }
     if (assinadas) {
       urlPorCaminho = new Map(assinadas.map((a) => [a.path ?? "", a.signedUrl]));
     }
@@ -82,6 +91,16 @@ export default async function LaudoPage({
           </Link>
         )}
       </div>
+
+      {(erroVersoes || erroLinks) && (
+        <BannerErroConsulta
+          mensagem={
+            erroVersoes
+              ? "Não consegui carregar as versões já geradas agora — pode haver documentos que não estão aparecendo."
+              : "Não consegui gerar os links de download agora."
+          }
+        />
+      )}
 
       {resultado.status === "erro" && (
         <p className="text-sm rounded-lg border border-vinho-600/30 bg-vinho-100 text-vinho-700 dark:border-vinho-400/30 dark:bg-vinho-950 dark:text-vinho-400 px-4 py-3">
