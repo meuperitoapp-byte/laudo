@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { User } from "lucide-react";
 import { signOut } from "@/features/auth/actions";
 
 interface ItemNav {
@@ -38,9 +40,27 @@ const ITENS: ItemNav[] = [
  * Component), que passa `email` como prop. Fundo escuro (petroleo-700) em
  * vez do branco anterior: é a peça que dá "cara de sistema" mencionada pela
  * Dra. Fernanda — todo o resto da tela permanece claro, só esta faixa muda.
+ *
+ * O e-mail não fica mais visível direto na barra (22/09/2026, pedido dela)
+ * — some espaço fixo com nomes de e-mail longos, que agora sobra pros itens
+ * de navegação. Fica atrás de um ícone de perfil, num menu que abre ao
+ * clicar (mesmo lugar de onde sai o "Sair").
  */
 export function TopNav({ email }: { email: string }) {
   const pathname = usePathname();
+  const [menuAberto, setMenuAberto] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuAberto) return;
+    function aoClicarFora(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuAberto(false);
+      }
+    }
+    document.addEventListener("mousedown", aoClicarFora);
+    return () => document.removeEventListener("mousedown", aoClicarFora);
+  }, [menuAberto]);
 
   return (
     <header className="bg-petroleo-700 dark:bg-nevoa-900 border-b border-petroleo-800/60 dark:border-nevoa-800 overflow-hidden">
@@ -52,14 +72,14 @@ export function TopNav({ email }: { email: string }) {
           </span>
         </Link>
 
-        <nav className="nav-scroll flex items-center gap-1 flex-1 min-w-0 overflow-x-auto overflow-y-visible">
+        <nav className="nav-scroll flex items-center gap-2 flex-1 min-w-0 overflow-x-auto overflow-y-visible">
           {ITENS.map((item) => {
             const ativo = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`relative px-3 py-2 text-sm whitespace-nowrap transition-colors rounded-md ${
+                className={`relative px-3.5 py-2 text-sm whitespace-nowrap transition-colors rounded-md ${
                   ativo
                     ? "text-white font-medium bg-white/10"
                     : "text-petroleo-100/75 hover:text-white hover:bg-white/5"
@@ -72,13 +92,32 @@ export function TopNav({ email }: { email: string }) {
           })}
         </nav>
 
-        <div className="flex items-center gap-4 text-sm shrink-0 pl-4">
-          <span className="text-petroleo-100/70 hidden md:inline">{email}</span>
-          <form action={signOut}>
-            <button type="submit" className="text-petroleo-100/80 hover:text-white transition-colors">
-              Sair
-            </button>
-          </form>
+        <div ref={menuRef} className="relative shrink-0 pl-2">
+          <button
+            type="button"
+            onClick={() => setMenuAberto((v) => !v)}
+            aria-label="Perfil"
+            aria-expanded={menuAberto}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-petroleo-100/80 hover:bg-white/15 hover:text-white transition-colors"
+          >
+            <User className="h-4 w-4" />
+          </button>
+
+          {menuAberto && (
+            <div className="absolute right-0 top-[calc(100%+8px)] w-64 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900 shadow-lg py-2 text-sm z-20">
+              <p className="px-4 py-1.5 text-nevoa-500 dark:text-nevoa-400 truncate" title={email}>
+                {email}
+              </p>
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  className="w-full text-left px-4 py-1.5 text-nevoa-700 dark:text-nevoa-300 hover:bg-nevoa-100 dark:hover:bg-nevoa-800"
+                >
+                  Sair
+                </button>
+              </form>
+            </div>
+          )}
         </div>
       </div>
     </header>
