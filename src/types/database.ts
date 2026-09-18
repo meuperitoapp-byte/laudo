@@ -528,6 +528,34 @@ export type RespostasReutilizaveisInsert = ComDefaults<
 export type RespostasReutilizaveisUpdate = Partial<RespostasReutilizaveisRow>
 
 // ============================================================================
+// biblioteca_pericial
+// ============================================================================
+export type CategoriaBibliotecaPericial =
+  | 'quesitos_por_area'
+  | 'teses'
+  | 'literatura'
+  | 'legislacao_normas'
+  | 'conitec_natjus_pcdt'
+  | 'protocolos_diretrizes'
+  | 'jurisprudencia_tecnica'
+export type BibliotecaPericialRow = {
+  id: string
+  categoria: CategoriaBibliotecaPericial
+  area_pericial: string | null
+  titulo: string
+  conteudo: string
+  fonte: string | null
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type BibliotecaPericialInsert = ComDefaults<
+  BibliotecaPericialRow,
+  'id' | 'area_pericial' | 'fonte' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type BibliotecaPericialUpdate = Partial<BibliotecaPericialRow>
+
+// ============================================================================
 // quesitos
 // ============================================================================
 export type QuesitosRow = {
@@ -1111,6 +1139,12 @@ export interface Database {
         Row: RespostasReutilizaveisRow
         Insert: RespostasReutilizaveisInsert
         Update: RespostasReutilizaveisUpdate
+        Relationships: []
+      }
+      biblioteca_pericial: {
+        Row: BibliotecaPericialRow
+        Insert: BibliotecaPericialInsert
+        Update: BibliotecaPericialUpdate
         Relationships: []
       }
       quesitos: {
