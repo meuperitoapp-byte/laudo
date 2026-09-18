@@ -1,35 +1,11 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { FolderKanban, CalendarClock, ListChecks, Scale } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { montarPainel } from "@/features/central-prazos/agregador";
 import { hojeIsoBrasil } from "@/features/central-prazos/regras";
-import { RankedBarList, type ItemBarra } from "@/components/ui/ranked-bar-list";
+import { RankedBarList, ranquear } from "@/components/ui/ranked-bar-list";
 import { StatTile } from "@/components/ui/stat-tile";
-
-/** Conta ocorrências de um valor (texto livre, pode ser null) e devolve ranqueado, maior primeiro. */
-function ranquear(valores: (string | null)[], rotuloVazio = "Não informado"): ItemBarra[] {
-  const contagem = new Map<string, number>();
-  for (const v of valores) {
-    const chave = v?.trim() || rotuloVazio;
-    contagem.set(chave, (contagem.get(chave) ?? 0) + 1);
-  }
-  return Array.from(contagem.entries())
-    .map(([rotulo, valor]) => ({ rotulo, valor }))
-    .sort((a, b) => b.valor - a.valor);
-}
-
-function DashboardCard({ titulo, subtitulo, children }: { titulo: string; subtitulo?: string; children: ReactNode }) {
-  return (
-    <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-5">
-      <div className="mb-4">
-        <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">{titulo}</h2>
-        {subtitulo && <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">{subtitulo}</p>}
-      </div>
-      {children}
-    </div>
-  );
-}
+import { DashboardCard } from "@/components/ui/dashboard-card";
 
 /**
  * Dashboard — porta de entrada analítica do sistema (pedido da Dra.

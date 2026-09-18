@@ -4,6 +4,18 @@ export interface ItemBarra {
   href?: string;
 }
 
+/** Conta ocorrências de um valor (texto livre, pode ser null) e devolve ranqueado, maior primeiro — usado pelo Dashboard e pelo Financeiro. */
+export function ranquear(valores: (string | null)[], rotuloVazio = "Não informado"): ItemBarra[] {
+  const contagem = new Map<string, number>();
+  for (const v of valores) {
+    const chave = v?.trim() || rotuloVazio;
+    contagem.set(chave, (contagem.get(chave) ?? 0) + 1);
+  }
+  return Array.from(contagem.entries())
+    .map(([rotulo, valor]) => ({ rotulo, valor }))
+    .sort((a, b) => b.valor - a.valor);
+}
+
 /**
  * Lista de barras horizontais ranqueadas — forma escolhida (skill de
  * dataviz) pra distribuições com muitas categorias (situação do processo

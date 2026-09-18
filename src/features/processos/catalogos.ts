@@ -36,13 +36,15 @@ export const SITUACAO_PROCESSO_POS_LAUDO = "Manifestação/complementação/escl
  */
 export const SITUACAO_PROCESSO_RECUSA = "Recusa do encargo";
 export const SITUACAO_PROCESSO_DEVOLUCAO = "Devolução do encargo";
+/** Usado também pelo Financeiro (seção "Propostas") pra filtrar processos judiciais com proposta de honorários em aberto — não confundir com "Propostas" comercial do CRM (ainda travado). */
+export const SITUACAO_PROCESSO_PROPOSTA_HONORARIOS = "Proposta de honorários";
 
 export const SITUACOES_PROCESSO_ORDENADA = [
   "Sem processo",
   "Aceite",
   SITUACAO_PROCESSO_RECUSA,
   SITUACAO_PROCESSO_DEVOLUCAO,
-  "Proposta de honorários",
+  SITUACAO_PROCESSO_PROPOSTA_HONORARIOS,
   "Agendamento de perícia",
   "Comunicação de ausência do periciando",
   "Novo agendamento",
