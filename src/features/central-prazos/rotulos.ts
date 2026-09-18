@@ -56,4 +56,37 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   documentos_pendentes: "Cobrar documentos com o advogado/parte.",
   honorarios_marco_judicial: "Confirmar se o marco combinado foi cumprido.",
   honorarios_atraso_at: "Cobrar o pagamento pendente.",
+  reuniao_estrategia_pericial: "Preparar e realizar a reunião com o advogado.",
+};
+
+/**
+ * Agrupamento por categoria pra Agenda (módulo novo, 23/09/2026) — mesma
+ * lista de fontes do painel de "Hoje", só reorganizada em 4 grupos
+ * (Perícias | Reuniões | Prazos | Tarefas) em vez de nível de urgência.
+ * "Calendário" não é um grupo à parte — é a visão cronológica em si,
+ * que junta todos os 4. Sem grupo "Sem prazo": Agenda só mostra item com
+ * data real (calendário não plota o que não tem quando).
+ */
+export const GRUPO_AGENDA_ROTULOS = {
+  pericias: "Perícias",
+  reunioes: "Reuniões",
+  prazos: "Prazos",
+  tarefas: "Tarefas",
+} as const;
+export type GrupoAgenda = keyof typeof GRUPO_AGENDA_ROTULOS;
+
+export const GRUPO_AGENDA_POR_CATEGORIA: Record<ItemPainel["categoria"], GrupoAgenda> = {
+  agendamento_marcado: "pericias",
+  reuniao_estrategia_pericial: "reunioes",
+  tarefa_manual: "tarefas",
+  ciclo_aberto: "prazos",
+  laudo_sem_protocolar: "prazos",
+  at_sem_entrega: "prazos",
+  at_entregue_sem_protocolo: "prazos",
+  documento_ilegivel: "prazos",
+  nomeacao_sem_decisao: "prazos",
+  liberacao_sem_recebimento: "prazos",
+  documentos_pendentes: "prazos",
+  honorarios_marco_judicial: "prazos",
+  honorarios_atraso_at: "prazos",
 };

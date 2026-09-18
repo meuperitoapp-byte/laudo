@@ -15,7 +15,9 @@
  * (`processos.documentos_solicitados_em`). Honorários em atraso (21/09/2026,
  * plano §6.2) plugou a 10ª fonte, com dois ramos: judicial (próximo marco
  * combinado, prazo real) e Assistência Técnica (vencimento de contrato,
- * só boleto/transferência, só enquanto não "Pago").
+ * só boleto/transferência, só enquanto não "Pago"). Reunião de Estratégia
+ * pericial (23/09/2026) plugou a 11ª fonte — primeiro tipo de "Reunião" a
+ * alimentar a Agenda (ver rotulos.ts, GRUPO_AGENDA_POR_CATEGORIA).
  */
 
 import type { createClient } from "@/lib/supabase/server";
@@ -57,7 +59,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     supabase
       .from("processos")
       .select(
-        "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, situacao_financeira",
+        "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, situacao_financeira, estrategia_pericial_reuniao_em",
       )
       .eq("status", "em_andamento"),
     // Fonte 1 — ciclos de pós-laudo abertos.
@@ -387,6 +389,26 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
         dataContexto: null,
         ordenacao: p.honorarios_vencimento,
         href: `/processos/${p.id}/editar`,
+      });
+    }
+  }
+
+  // ---- 11. Reunião de Estratégia pericial (AT) — primeira fonte de "Reuniões" da Agenda ----
+  // Único tipo de reunião que existe no sistema hoje (migration 20260922120000).
+  // Prazo REAL (ela mesma marcou a data) — mesmo critério de honorários_proximo_marco_em.
+  for (const p of processos) {
+    if (p.tipo_trabalho === "assistencia_tecnica" && p.estrategia_pericial_reuniao_em) {
+      itens.push({
+        id: `reuniao_estrategia_pericial-${p.id}`,
+        categoria: "reuniao_estrategia_pericial",
+        titulo: `Reunião — Estratégia pericial — ${identificarProcesso(p)}`,
+        subtitulo: null,
+        providencia: PROVIDENCIA_POR_CATEGORIA.reuniao_estrategia_pericial,
+        nivel: nivelPorPrazo(p.estrategia_pericial_reuniao_em, hoje),
+        prazo: p.estrategia_pericial_reuniao_em,
+        dataContexto: null,
+        ordenacao: p.estrategia_pericial_reuniao_em,
+        href: `/processos/${p.id}`,
       });
     }
   }
