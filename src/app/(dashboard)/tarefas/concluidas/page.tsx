@@ -26,7 +26,7 @@ export default async function TarefasConcluidasPage() {
   if (error) console.error("Erro ao carregar tarefas concluídas:", error);
 
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-6">
+    <main className="p-8 max-w-[1600px] mx-auto space-y-6">
       <div>
         <Link
           href="/hoje"

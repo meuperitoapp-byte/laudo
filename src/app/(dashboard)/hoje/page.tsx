@@ -59,7 +59,7 @@ export default async function HojePage({
   const semPrazo = itens.filter((i) => i.nivel === "sem_prazo");
 
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-6">
+    <main className="p-8 max-w-[1600px] mx-auto space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">

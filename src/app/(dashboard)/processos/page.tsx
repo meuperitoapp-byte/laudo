@@ -111,7 +111,7 @@ export default async function ProcessosPage({
       : "/processos/novo";
 
   return (
-    <main className="p-8 max-w-6xl mx-auto space-y-6">
+    <main className="p-8 max-w-[1600px] mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Demandas</h1>

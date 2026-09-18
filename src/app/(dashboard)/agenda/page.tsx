@@ -1,48 +1,36 @@
 import Link from "next/link";
-import { CalendarX2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Selo } from "@/components/ui/badge";
 import { montarPainel } from "@/features/central-prazos/agregador";
-import { hojeIsoBrasil, paraDiasUtc, NIVEL_ORDEM } from "@/features/central-prazos/regras";
+import { hojeIsoBrasil, NIVEL_ORDEM } from "@/features/central-prazos/regras";
 import {
-  NIVEL_ROTULOS,
-  NIVEL_SELO_VARIANTE,
-  URGENTE_BADGE_CLASSE,
   GRUPO_AGENDA_ROTULOS,
   GRUPO_AGENDA_POR_CATEGORIA,
   type GrupoAgenda,
 } from "@/features/central-prazos/rotulos";
 import type { ItemPainel } from "@/features/central-prazos/tipos";
 
-const dataCurta = (iso: string) => {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : new Date(iso).toLocaleDateString("pt-BR", { dateStyle: "short" });
+const DIAS_SEMANA_CURTO = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+const NOMES_MES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+/** "YYYY-MM-DD" a partir de dias desde a época UTC — inverso de `paraDiasUtc`. */
+function isoDeDiasUtc(dias: number): string {
+  const d = new Date(dias * 86_400_000);
+  const ano = d.getUTCFullYear();
+  const mes = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dia = String(d.getUTCDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
+/** Mesma dupla de tons (100/600 claro, 950/400 escuro) do `Selo` compartilhado — hover só varia a opacidade pra não depender de mais um tom por cor. */
+const GRUPO_PILL_CLASSE: Record<GrupoAgenda, string> = {
+  pericias: "bg-musgo-100 text-musgo-600 dark:bg-musgo-950 dark:text-musgo-400 hover:opacity-75",
+  reunioes: "bg-petroleo-100 text-petroleo-600 dark:bg-petroleo-700 dark:text-petroleo-400 hover:opacity-75",
+  prazos: "bg-vinho-100 text-vinho-600 dark:bg-vinho-950 dark:text-vinho-400 hover:opacity-75",
+  tarefas: "bg-ambar-100 text-ambar-600 dark:bg-ambar-950 dark:text-ambar-400 hover:opacity-75",
 };
-
-const DIAS_SEMANA = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
-
-/** Cabeçalho de cada grupo de data — "Hoje"/"Amanhã"/"Atrasado" quando aplicável, senão dia da semana + data. */
-function rotuloData(iso: string, hoje: string): string {
-  const dias = paraDiasUtc(iso) - paraDiasUtc(hoje);
-  if (dias === 0) return `Hoje — ${dataCurta(iso)}`;
-  if (dias === 1) return `Amanhã — ${dataCurta(iso)}`;
-  if (dias < 0) return `Atrasado (${dataCurta(iso)})`;
-  const diaSemana = DIAS_SEMANA[new Date(`${iso}T12:00:00`).getDay()];
-  return `${diaSemana.charAt(0).toUpperCase()}${diaSemana.slice(1)} — ${dataCurta(iso)}`;
-}
-
-/** Mesmo selo de nível usado em /hoje — duplicado aqui de propósito, é pouca coisa pra duas telas só. */
-function SeloNivel({ item }: { item: ItemPainel }) {
-  const rotulo = NIVEL_ROTULOS[item.nivel];
-  if (item.nivel === "urgente") {
-    return (
-      <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${URGENTE_BADGE_CLASSE}`}>
-        {rotulo}
-      </span>
-    );
-  }
-  return <Selo variante={NIVEL_SELO_VARIANTE[item.nivel] ?? "neutro"}>{rotulo}</Selo>;
-}
 
 const FILTROS: { valor: GrupoAgenda | "todos"; rotulo: string }[] = [
   { valor: "todos", rotulo: "Todos" },
@@ -52,54 +40,81 @@ const FILTROS: { valor: GrupoAgenda | "todos"; rotulo: string }[] = [
   { valor: "tarefas", rotulo: GRUPO_AGENDA_ROTULOS.tarefas },
 ];
 
+type BuscaParams = { ano: number; mes: number; grupo: GrupoAgenda | "todos"; q: string };
+
+function querystring(params: Partial<BuscaParams>, base: BuscaParams): string {
+  const efetivo = { ...base, ...params };
+  const sp = new URLSearchParams();
+  sp.set("ano", String(efetivo.ano));
+  sp.set("mes", String(efetivo.mes));
+  if (efetivo.grupo !== "todos") sp.set("grupo", efetivo.grupo);
+  if (efetivo.q.trim()) sp.set("q", efetivo.q.trim());
+  return `/agenda?${sp.toString()}`;
+}
+
 /**
- * Agenda unificada (item já combinado desde 19/09/2026, construído em
- * 23/09/2026) — mesma fonte de dados de /hoje (`montarPainel`), só
- * reorganizada por DATA em vez de por nível de urgência: aqui o que
- * importa é "quando", lá é "quão urgente". Só entram itens com prazo REAL
- * (`item.prazo !== null`) — "sem prazo" não tem o que plotar num
- * calendário, continua exclusivo de /hoje.
+ * Agenda unificada — grade mensal (pedido da Dra. Fernanda, 18/09/2026, com
+ * referência visual de calendário mensal colorido por tipo). Substitui a
+ * primeira versão em lista cronológica (commit `80a5c9e`): mesma fonte de
+ * dados (`montarPainel`), só a apresentação muda de lista pra grade.
  *
- * "Calendário" não é uma fonte à parte, é a própria visão cronológica.
- * "Reuniões" hoje só tem um tipo (Estratégia pericial, AT) — cresce
- * sozinho conforme mais tipos de reunião forem cadastrados no sistema.
- * Filtro por pessoa/área fica de fora (depende da decisão de papéis, ainda
- * em aberto) — o filtro aqui é só por tipo de item.
+ * Navegação por mês via query string (`ano`/`mes`) — sem seletor de
+ * ano/mês por dropdown de propósito: um `<select>` que auto-envia exige
+ * Client Component, e o padrão do app inteiro pra filtro é link/querystring
+ * em Server Component (mesmo padrão de /hoje e da versão anterior da
+ * Agenda). "Perito ou Assistente" (filtro do modelo de referência) fica de
+ * fora — depende da decisão de papéis/permissões, ainda em aberto.
  */
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ grupo?: string }>;
+  searchParams: Promise<{ ano?: string; mes?: string; grupo?: string; q?: string }>;
 }) {
-  const { grupo } = await searchParams;
-  const grupoAtivo: GrupoAgenda | "todos" = FILTROS.some((f) => f.valor === grupo) ? (grupo as GrupoAgenda) : "todos";
+  const sp = await searchParams;
+  const hoje = hojeIsoBrasil();
+  const hojeAno = Number(hoje.slice(0, 4));
+  const hojeMes = Number(hoje.slice(5, 7));
+
+  const anoAtivo = Number(sp.ano) || hojeAno;
+  const mesAtivo = Number(sp.mes) >= 1 && Number(sp.mes) <= 12 ? Number(sp.mes) : hojeMes;
+  const grupoAtivo: GrupoAgenda | "todos" = FILTROS.some((f) => f.valor === sp.grupo) ? (sp.grupo as GrupoAgenda) : "todos";
+  const q = sp.q ?? "";
+  const base: BuscaParams = { ano: anoAtivo, mes: mesAtivo, grupo: grupoAtivo, q };
 
   const supabase = await createClient();
   const itens = await montarPainel(supabase);
-  const hoje = hojeIsoBrasil();
 
   const comData = itens.filter((i): i is ItemPainel & { prazo: string } => i.prazo !== null);
-  const filtrados =
-    grupoAtivo === "todos" ? comData : comData.filter((i) => GRUPO_AGENDA_POR_CATEGORIA[i.categoria] === grupoAtivo);
+  const porGrupo = grupoAtivo === "todos" ? comData : comData.filter((i) => GRUPO_AGENDA_POR_CATEGORIA[i.categoria] === grupoAtivo);
+  const filtrados = q.trim() ? porGrupo.filter((i) => i.titulo.toLowerCase().includes(q.trim().toLowerCase())) : porGrupo;
 
-  const ordenados = [...filtrados].sort((a, b) => {
-    const porData = a.prazo.localeCompare(b.prazo);
-    if (porData !== 0) return porData;
-    return NIVEL_ORDEM[a.nivel] - NIVEL_ORDEM[b.nivel];
-  });
-
-  const grupos: { data: string; itens: ItemPainel[] }[] = [];
-  for (const item of ordenados) {
-    const ultimo = grupos.at(-1);
-    if (ultimo && ultimo.data === item.prazo) {
-      ultimo.itens.push(item);
-    } else {
-      grupos.push({ data: item.prazo, itens: [item] });
-    }
+  const itensPorData = new Map<string, ItemPainel[]>();
+  for (const item of filtrados) {
+    const lista = itensPorData.get(item.prazo) ?? [];
+    lista.push(item);
+    itensPorData.set(item.prazo, lista);
+  }
+  for (const lista of itensPorData.values()) {
+    lista.sort((a, b) => NIVEL_ORDEM[a.nivel] - NIVEL_ORDEM[b.nivel] || a.ordenacao.localeCompare(b.ordenacao));
   }
 
+  // Primeiro e último dia do mês ativo, em dias UTC desde a época.
+  const primeiroDiaMes = Date.UTC(anoAtivo, mesAtivo - 1, 1) / 86_400_000;
+  const ultimoDiaMes = Date.UTC(anoAtivo, mesAtivo, 0) / 86_400_000;
+  const inicioGrade = primeiroDiaMes - (new Date(primeiroDiaMes * 86_400_000).getUTCDay());
+  const fimGrade = ultimoDiaMes + (6 - new Date(ultimoDiaMes * 86_400_000).getUTCDay());
+
+  const dias: { iso: string; noMes: boolean }[] = [];
+  for (let d = inicioGrade; d <= fimGrade; d++) {
+    const iso = isoDeDiasUtc(d);
+    dias.push({ iso, noMes: iso.slice(5, 7) === String(mesAtivo).padStart(2, "0") });
+  }
+
+  const mesAnterior = mesAtivo === 1 ? { ano: anoAtivo - 1, mes: 12 } : { ano: anoAtivo, mes: mesAtivo - 1 };
+  const mesSeguinte = mesAtivo === 12 ? { ano: anoAtivo + 1, mes: 1 } : { ano: anoAtivo, mes: mesAtivo + 1 };
+
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-6">
+    <main className="p-8 max-w-[1600px] mx-auto space-y-6">
       <div>
         <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Agenda</h1>
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">
@@ -112,6 +127,49 @@ export default async function AgendaPage({
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Link
+            href={querystring(mesAnterior, base)}
+            className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 px-3 py-1.5 text-sm text-nevoa-600 hover:bg-nevoa-100 dark:text-nevoa-300 dark:hover:bg-nevoa-800"
+            aria-label="Mês anterior"
+          >
+            ‹
+          </Link>
+          <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-50 w-52 text-center">
+            {NOMES_MES[mesAtivo - 1]} de {anoAtivo}
+          </h2>
+          <Link
+            href={querystring(mesSeguinte, base)}
+            className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 px-3 py-1.5 text-sm text-nevoa-600 hover:bg-nevoa-100 dark:text-nevoa-300 dark:hover:bg-nevoa-800"
+            aria-label="Próximo mês"
+          >
+            ›
+          </Link>
+          {(anoAtivo !== hojeAno || mesAtivo !== hojeMes) && (
+            <Link
+              href={querystring({ ano: hojeAno, mes: hojeMes }, base)}
+              className="ml-1 rounded-lg px-3 py-1.5 text-sm font-medium text-petroleo-600 hover:bg-nevoa-100 dark:text-petroleo-400 dark:hover:bg-nevoa-800"
+            >
+              Hoje
+            </Link>
+          )}
+        </div>
+
+        <form method="get" action="/agenda" className="flex items-center gap-2">
+          <input type="hidden" name="ano" value={anoAtivo} />
+          <input type="hidden" name="mes" value={mesAtivo} />
+          {grupoAtivo !== "todos" && <input type="hidden" name="grupo" value={grupoAtivo} />}
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Procurar pelo nº do processo ou título"
+            className="w-72 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900 px-3 py-1.5 text-sm text-nevoa-800 dark:text-nevoa-100 placeholder:text-nevoa-400 focus:outline-none focus:ring-2 focus:ring-petroleo-500"
+          />
+        </form>
+      </div>
+
       <div className="flex flex-wrap gap-2 border-b border-nevoa-200 dark:border-nevoa-800">
         {FILTROS.map((f) => {
           const contagem =
@@ -120,7 +178,7 @@ export default async function AgendaPage({
           return (
             <Link
               key={f.valor}
-              href={f.valor === "todos" ? "/agenda" : `/agenda?grupo=${f.valor}`}
+              href={querystring({ grupo: f.valor }, base)}
               className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 ativo
                   ? "border-petroleo-600 text-petroleo-700 dark:border-petroleo-400 dark:text-petroleo-400"
@@ -133,46 +191,51 @@ export default async function AgendaPage({
         })}
       </div>
 
-      {grupos.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 bg-white dark:bg-nevoa-900/40 px-6 py-14 text-center">
-          <CalendarX2 className="h-8 w-8 text-nevoa-400 dark:text-nevoa-600" />
-          <p className="text-sm text-nevoa-600 dark:text-nevoa-400 max-w-sm">
-            Nada com data marcada por aqui no momento.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {grupos.map((g) => (
-            <div key={g.data} className="space-y-2">
-              <h2 className="font-title text-xs font-semibold uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400 pt-2">
-                {rotuloData(g.data, hoje)}
-              </h2>
-              <ol className="space-y-2">
-                {g.itens.map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      href={item.href}
-                      className="flex flex-wrap items-center gap-3 rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 px-4 py-3.5 text-sm transition-colors hover:border-petroleo-400 dark:hover:border-petroleo-600"
-                    >
-                      <SeloNivel item={item} />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-nevoa-900 dark:text-nevoa-100 truncate">{item.titulo}</p>
-                        <p className="text-nevoa-500 dark:text-nevoa-400">
-                          {item.providencia}
-                          {item.subtitulo ? ` · ${item.subtitulo}` : ""}
-                        </p>
-                      </div>
-                      <span className="text-xs text-nevoa-400 dark:text-nevoa-600 shrink-0">
-                        {GRUPO_AGENDA_ROTULOS[GRUPO_AGENDA_POR_CATEGORIA[item.categoria]]}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ol>
+      <div className="grid grid-cols-7 gap-px rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-nevoa-200 dark:bg-nevoa-800 overflow-hidden">
+        {DIAS_SEMANA_CURTO.map((d) => (
+          <div
+            key={d}
+            className="bg-nevoa-50 dark:bg-nevoa-900 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400"
+          >
+            {d}
+          </div>
+        ))}
+        {dias.map((d) => {
+          const itensDoDia = itensPorData.get(d.iso) ?? [];
+          const numero = Number(d.iso.slice(8, 10));
+          const ehHoje = d.iso === hoje;
+          return (
+            <div
+              key={d.iso}
+              className={`min-h-[112px] p-1.5 flex flex-col gap-1 ${
+                d.noMes ? "bg-white dark:bg-nevoa-900" : "bg-nevoa-25 dark:bg-nevoa-950/40"
+              }`}
+            >
+              <span
+                className={`text-xs font-medium self-start px-1.5 rounded-full ${
+                  ehHoje
+                    ? "bg-petroleo-600 text-white dark:bg-petroleo-500"
+                    : d.noMes
+                      ? "text-nevoa-600 dark:text-nevoa-300"
+                      : "text-nevoa-300 dark:text-nevoa-600"
+                }`}
+              >
+                {numero}
+              </span>
+              {itensDoDia.map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  title={item.titulo}
+                  className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] leading-tight truncate transition-opacity ${GRUPO_PILL_CLASSE[GRUPO_AGENDA_POR_CATEGORIA[item.categoria]]}`}
+                >
+                  <span className="truncate">{item.titulo}</span>
+                </Link>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </main>
   );
 }

@@ -239,7 +239,7 @@ export default async function ProcessoDetalhePage({
       : processo.numero_processo || nomePericiado || "Processo sem identificação";
 
   return (
-    <main className="p-8 space-y-6 max-w-4xl mx-auto">
+    <main className="p-8 space-y-6 max-w-[1600px] mx-auto">
       <div>
         <Link
           href="/processos"
