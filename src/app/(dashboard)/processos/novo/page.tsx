@@ -5,6 +5,7 @@ import { EscolhaTipoTrabalho } from "@/features/processos/escolha-tipo-trabalho"
 import {
   SITUACOES_FINANCEIRAS_SEED,
   VARA_ESPECIALIZACAO_SEED,
+  ORGAO_CLASSE_SEED,
   mesclarSugestoes,
 } from "@/features/processos/catalogos";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
@@ -40,6 +41,7 @@ export default async function NovoProcessoPage({
     { data: financeirasDb, error: erroFinanceiras },
     { data: acoesDb, error: erroAcoes },
     { data: escritoriosDb, error: erroEscritorios },
+    { data: orgaosClasseDb, error: erroOrgaosClasse },
   ] = await Promise.all([
     supabase.from("tipos_laudo").select("*").eq("ativo", true).order("ordem", { ascending: true }),
     supabase.from("processos").select("valor:vara_numero").not("vara_numero", "is", null),
@@ -47,6 +49,7 @@ export default async function NovoProcessoPage({
     supabase.from("processos").select("valor:situacao_financeira").not("situacao_financeira", "is", null),
     supabase.from("processos").select("valor:acao_objeto").not("acao_objeto", "is", null),
     supabase.from("processos").select("valor:escritorio_indicacao").not("escritorio_indicacao", "is", null),
+    supabase.from("processos").select("valor:orgao_classe").not("orgao_classe", "is", null),
   ]);
 
   // `tiposLaudo` é crítico (sem ele não dá pra escolher a natureza do
@@ -61,6 +64,7 @@ export default async function NovoProcessoPage({
     ["situações financeiras", erroFinanceiras],
     ["ações/objetos", erroAcoes],
     ["escritórios de indicação", erroEscritorios],
+    ["órgãos de classe", erroOrgaosClasse],
   ] as const) {
     if (erro) console.error(`Novo processo: falha ao buscar sugestões de ${rotulo}:`, erro.message);
   }
@@ -92,6 +96,7 @@ export default async function NovoProcessoPage({
         sugestoesFinanceira={mesclarSugestoes(SITUACOES_FINANCEIRAS_SEED, financeirasDb)}
         sugestoesAcaoObjeto={mesclarSugestoes([], acoesDb)}
         sugestoesEscritorioIndicacao={mesclarSugestoes([], escritoriosDb)}
+        sugestoesOrgaoClasse={mesclarSugestoes(ORGAO_CLASSE_SEED, orgaosClasseDb)}
       />
     </main>
   );

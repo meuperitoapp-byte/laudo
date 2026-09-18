@@ -114,18 +114,18 @@ export default async function ProcessosPage({
     <main className="p-8 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Processos</h1>
+          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Demandas</h1>
           <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">
-            {processos?.length ?? 0} {processos?.length === 1 ? "processo listado" : "processos listados"}
+            {processos?.length ?? 0} {processos?.length === 1 ? "demanda listada" : "demandas listadas"}
           </p>
         </div>
         <Link href={hrefNovo} className={classesBotao("primaria")}>
-          Novo processo
+          Nova demanda
         </Link>
       </div>
 
       {erroProcessos && (
-        <BannerErroConsulta mensagem={`Não consegui carregar os processos agora: ${erroProcessos.message}. A lista abaixo não é confiável até isso ser corrigido.`} />
+        <BannerErroConsulta mensagem={`Não consegui carregar as demandas agora: ${erroProcessos.message}. A lista abaixo não é confiável até isso ser corrigido.`} />
       )}
 
       <ProcessosFiltros
@@ -136,10 +136,10 @@ export default async function ProcessosPage({
       {!processos || processos.length === 0 ? (
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
           {erroProcessos
-            ? "Não foi possível carregar os processos agora."
+            ? "Não foi possível carregar as demandas agora."
             : filtrouAlgo
-              ? "Nenhum processo encontrado com esses filtros."
-              : "Nenhum processo em andamento. Use os filtros acima para ver os finalizados."}
+              ? "Nenhuma demanda encontrada com esses filtros."
+              : "Nenhuma demanda em andamento. Use os filtros acima para ver as finalizadas."}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-nevoa-200 dark:border-nevoa-800">
@@ -147,7 +147,7 @@ export default async function ProcessosPage({
             <thead>
               <tr className="text-left bg-nevoa-50 dark:bg-nevoa-900 border-b border-nevoa-200 dark:border-nevoa-800">
                 <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400">
-                  Processo / Periciando(a)
+                  Demanda / Periciando(a)
                 </th>
                 <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400">
                   Tipo de trabalho

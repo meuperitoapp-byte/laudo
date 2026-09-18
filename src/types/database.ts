@@ -245,6 +245,12 @@ export type ProcessosRow = {
   honorarios_forma_pagamento: string | null
   /** ASSISTÊNCIA TÉCNICA só. Data de vencimento do contrato, fixa desde o cadastro. */
   honorarios_vencimento: string | null
+  // --- AT — ação por etapa (migration 20260922120000) ---
+  /** Só etapa "estrategia_pericial". Data da reunião de explicações técnicas com o advogado — preenchida/limpa manualmente. */
+  estrategia_pericial_reuniao_em: string | null
+  // --- AT — Área da demanda (migration 20260923120000) ---
+  /** Só Assistência Técnica. Conselho profissional do objeto da demanda (CRM/CRO/CRP/CREFITO/COREN) — catálogo editável. */
+  orgao_classe: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -314,6 +320,8 @@ export type ProcessosInsert = ComDefaults<
   | 'honorarios_proximo_marco_descricao'
   | 'honorarios_forma_pagamento'
   | 'honorarios_vencimento'
+  | 'estrategia_pericial_reuniao_em'
+  | 'orgao_classe'
   | 'created_by'
   | 'created_at'
   | 'updated_at'
@@ -362,6 +370,8 @@ export type DocumentosRow = {
   data_documento: string | null
   paginas: number | null
   enviado_por: string | null
+  /** Só Assistência Técnica: código de EtapaContratada ao qual este documento pertence (migration 20260922120000). Independente de `categoria`. */
+  etapa_at: string | null
   created_at: string
   updated_at: string
 }
@@ -379,6 +389,7 @@ export type DocumentosInsert = ComDefaults<
   | 'data_documento'
   | 'paginas'
   | 'enviado_por'
+  | 'etapa_at'
   | 'created_at'
   | 'updated_at'
 >

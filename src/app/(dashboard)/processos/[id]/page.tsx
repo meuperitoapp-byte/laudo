@@ -259,7 +259,9 @@ export default async function ProcessoDetalhePage({
       <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6">
         <dl className="grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
           <Campo rotulo="Tipo de trabalho">{TIPO_TRABALHO_ROTULOS[processo.tipo_trabalho] ?? processo.tipo_trabalho}</Campo>
-          <Campo rotulo="Tipo de laudo">{tipoLaudoNome ?? "—"}</Campo>
+          <Campo rotulo={processo.tipo_trabalho === "assistencia_tecnica" ? "Área da demanda" : "Tipo de laudo"}>
+            {tipoLaudoNome ?? "—"}
+          </Campo>
 
           {processo.tipo_trabalho === "pericia_judicial" && (
             <>

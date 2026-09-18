@@ -83,6 +83,10 @@ export async function uploadDocumento(processoId: string, formData: FormData): P
     data_documento: textoOuNull(formData.get("data_documento")),
     paginas: numeroOuNull(formData.get("paginas")),
     enviado_por: user?.id ?? null,
+    // Só Assistência Técnica (ver migration 20260922120000) — marca que este
+    // documento pertence a uma etapa contratada específica (ex.: o anexo da
+    // "Análise da contestação"). Independente de `categoria`.
+    etapa_at: textoOuNull(formData.get("etapa_at")),
   };
 
   const { error: erroInsert } = await supabase.from("documentos").insert(insert);
@@ -92,6 +96,9 @@ export async function uploadDocumento(processoId: string, formData: FormData): P
   }
 
   revalidatePath(`/processos/${processoId}/documentos`);
+  // Documento pode aparecer também no painel de etapa da tela do processo
+  // (AnexoEtapaAtPanel) quando `etapa_at` está preenchido.
+  revalidatePath(`/processos/${processoId}`);
   return { success: true };
 }
 
@@ -159,6 +166,7 @@ export async function excluirDocumento(documentoId: string, processoId: string):
   }
 
   revalidatePath(`/processos/${processoId}/documentos`);
+  revalidatePath(`/processos/${processoId}`);
   return { success: true };
 }
 

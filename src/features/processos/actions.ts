@@ -105,6 +105,7 @@ export async function createProcesso(formData: FormData): Promise<ActionResult> 
     insert.cliente_parte_assistida = optionalText(formData, "cliente_parte_assistida");
     insert.advogado_escritorio = optionalText(formData, "advogado_escritorio");
     insert.periciando_nome = optionalText(formData, "periciando_nome");
+    insert.orgao_classe = optionalText(formData, "orgao_classe");
     insert.honorarios_forma_pagamento = optionalText(formData, "honorarios_forma_pagamento");
     insert.honorarios_vencimento = optionalText(formData, "honorarios_vencimento");
   }
@@ -161,6 +162,7 @@ export async function updateProcesso(
     update.cliente_parte_assistida = optionalText(formData, "cliente_parte_assistida");
     update.advogado_escritorio = optionalText(formData, "advogado_escritorio");
     update.periciando_nome = optionalText(formData, "periciando_nome");
+    update.orgao_classe = optionalText(formData, "orgao_classe");
     update.honorarios_forma_pagamento = optionalText(formData, "honorarios_forma_pagamento");
     update.honorarios_vencimento = optionalText(formData, "honorarios_vencimento");
   }
@@ -295,5 +297,28 @@ export async function salvarProximoMarcoHonorarios(
 
   revalidatePath(`/processos/${processoId}`);
   revalidatePath("/hoje");
+  return { success: true };
+}
+
+/**
+ * Data da reunião de explicações técnicas com o advogado (Assistência
+ * Técnica, etapa "Estratégia pericial") — item 2 do lote pós-Fase-2
+ * (21/09/2026). Só a data (sem local/modalidade/participantes — não
+ * pedido). Preenchida e limpa manualmente por ela; não alimenta a Central
+ * de Prazos (não é prazo que vence, é registro do que já foi combinado).
+ */
+export async function salvarReuniaoEstrategiaPericial(
+  processoId: string,
+  data: string | null,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("processos")
+    .update({ estrategia_pericial_reuniao_em: data })
+    .eq("id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}`);
   return { success: true };
 }

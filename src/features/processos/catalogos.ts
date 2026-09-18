@@ -91,6 +91,14 @@ export const SITUACOES_FINANCEIRAS_AT = ["Pago", "Não pago", "Em parcelamento"]
 export const HONORARIOS_FORMA_PAGAMENTO_AT = ["Cartão", "Pix", "Boleto", "Transferência", "Outro"] as const;
 
 /**
+ * Órgão de classe — só Assistência Técnica (migration 20260923120000).
+ * Catálogo EDITÁVEL (diferente de HONORARIOS_FORMA_PAGAMENTO_AT): a demanda
+ * pode envolver profissional de saúde de conselho fora dessa lista, então a
+ * tela usa ComboboxCatalogo (sugestão, não trava) em vez de <select> fechado.
+ */
+export const ORGAO_CLASSE_SEED = ["CRM", "CRO", "CRP", "CREFITO", "COREN"] as const;
+
+/**
  * Especialização da vara (Cível, do Trabalho, de Família e Sucessões,
  * Criminal…) — entra como sugestão no combobox de "Número da vara", onde a
  * perita já registra o número junto com a especialização (ex.: "3ª Vara

@@ -8,6 +8,7 @@ import {
   SITUACOES_FINANCEIRAS_AT,
   SITUACOES_PROCESSO_ORDENADA,
   HONORARIOS_FORMA_PAGAMENTO_AT,
+  ORGAO_CLASSE_SEED,
 } from "@/features/processos/catalogos";
 import type { ProcessosRow, TiposLaudoRow } from "@/types/database";
 import type { EtapaContratada } from "@/types/enums";
@@ -181,6 +182,7 @@ export function ProcessoForm({
   sugestoesFinanceira,
   sugestoesAcaoObjeto,
   sugestoesEscritorioIndicacao,
+  sugestoesOrgaoClasse,
 }: {
   modo: "criar" | "editar";
   processo?: ProcessosRow | null;
@@ -193,6 +195,8 @@ export function ProcessoForm({
   sugestoesFinanceira: string[];
   sugestoesAcaoObjeto: string[];
   sugestoesEscritorioIndicacao: string[];
+  /** Assistência Técnica apenas — catálogo editável (CRM/CRO/CRP/CREFITO/COREN). */
+  sugestoesOrgaoClasse: string[];
 }) {
   const editando = modo === "editar" && processo != null;
 
@@ -469,6 +473,19 @@ export function ProcessoForm({
               />
             </div>
           </div>
+          <div>
+            <label htmlFor="orgao_classe" className={labelClass}>
+              Órgão de classe
+            </label>
+            <ComboboxCatalogo
+              id="orgao_classe"
+              name="orgao_classe"
+              sugestoes={sugestoesOrgaoClasse}
+              valorInicial={processo?.orgao_classe ?? ""}
+              rotuloNovo="Novo órgão de classe"
+              placeholder="Ex.: CRM, CRO, CRP..."
+            />
+          </div>
           <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
             Contratante e advogado vão no cabeçalho do Parecer Técnico gerado.
           </p>
@@ -492,7 +509,17 @@ export function ProcessoForm({
       )}
 
       {tipoTrabalho && (
-        <Cartao titulo={tipoForaDoForm ? "Natureza do processo (tipo de laudo)" : "2. Natureza do processo (tipo de laudo)"}>
+        <Cartao
+          titulo={
+            mostraAssistencia
+              ? tipoForaDoForm
+                ? "Área da demanda"
+                : "2. Área da demanda"
+              : tipoForaDoForm
+                ? "Natureza do processo (tipo de laudo)"
+                : "2. Natureza do processo (tipo de laudo)"
+          }
+        >
           <select
             name="tipo_laudo_id"
             className={inputClass}
