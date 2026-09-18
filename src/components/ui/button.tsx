@@ -31,7 +31,7 @@ const VARIANTES: Record<Variante, string> = {
   secundaria:
     "bg-transparent text-nevoa-600 border border-nevoa-300 hover:bg-nevoa-50 hover:text-nevoa-900 " +
     "dark:text-nevoa-400 dark:border-nevoa-700 dark:hover:bg-nevoa-800 dark:hover:text-nevoa-100",
-  perigo: "bg-vinho-600 text-white hover:bg-vinho-700",
+  perigo: "bg-vinho-600 text-white hover:bg-vinho-700 dark:bg-vinho-700 dark:hover:bg-vinho-600",
   "perigo-fantasma":
     "bg-transparent text-vinho-600 hover:bg-vinho-100 " + "dark:text-vinho-400 dark:hover:bg-vinho-950",
 };

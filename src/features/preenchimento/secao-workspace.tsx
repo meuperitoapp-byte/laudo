@@ -251,12 +251,14 @@ export function SecaoWorkspace({
                 key={s.id}
                 type="button"
                 onClick={() => irPara(s.id)}
+                disabled={salvando}
                 aria-current={ativa ? "true" : undefined}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors ${
+                aria-busy={salvando && ativa ? "true" : undefined}
+                className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors disabled:cursor-wait ${
                   ativa
                     ? "bg-petroleo-100 text-petroleo-700 font-medium dark:bg-petroleo-950/60 dark:text-petroleo-300"
                     : "text-nevoa-700 hover:bg-nevoa-100 dark:text-nevoa-300 dark:hover:bg-nevoa-800/60"
-                }`}
+                } ${salvando && !ativa ? "opacity-50" : ""}`}
               >
                 <span
                   aria-hidden
@@ -275,7 +277,7 @@ export function SecaoWorkspace({
         </nav>
       </aside>
 
-      <main className="flex-1 overflow-y-auto p-8 max-w-3xl">
+      <main className="flex-1 overflow-y-auto p-8 max-w-3xl mx-auto">
         <h1 className="font-title text-xl font-semibold text-nevoa-900 dark:text-nevoa-50 mb-1">{secaoAtualTitulo}</h1>
         {estrutural && (
           <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mb-6">

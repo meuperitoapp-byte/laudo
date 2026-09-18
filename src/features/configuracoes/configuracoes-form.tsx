@@ -91,7 +91,7 @@ function FormAtivo({
           <img
             src={urlAtual}
             alt={titulo}
-            className="max-h-28 rounded-md border border-nevoa-200 dark:border-nevoa-800 bg-white p-2"
+            className="max-h-28 rounded-md border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-100 p-2"
           />
         </div>
       ) : (

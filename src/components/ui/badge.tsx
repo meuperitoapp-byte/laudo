@@ -24,7 +24,7 @@ const VARIANTES: Record<Variante, { badge: string; ponto: string }> = {
   },
   neutro: {
     badge: "bg-nevoa-100 text-nevoa-600 dark:bg-nevoa-800 dark:text-nevoa-400",
-    ponto: "bg-nevoa-400",
+    ponto: "bg-nevoa-400 dark:bg-nevoa-500",
   },
 };
 

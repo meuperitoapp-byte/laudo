@@ -563,7 +563,7 @@ export default async function PosLaudoCicloPage({
   const itensRetificacao = itensRetificacaoDb ?? [];
 
   return (
-    <main className="p-8 max-w-2xl space-y-8">
+    <main className="p-8 max-w-2xl mx-auto space-y-8">
       <Link
         href={`/processos/${processoId}/pos-laudo`}
         className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400"
