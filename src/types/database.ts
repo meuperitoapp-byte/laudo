@@ -28,6 +28,7 @@ import type {
   TipoVara,
   JusticaGratuita,
   AceitouNomeacao,
+  NotaFiscalEmitida,
   TipoDocumento,
   EtapaContratada,
   PosLaudoFluxo,
@@ -194,6 +195,9 @@ export type ProcessosRow = {
   justica_gratuita: JusticaGratuita | null
   aceitou_nomeacao: AceitouNomeacao | null
   url_processo: string | null
+  /** null = ainda não registrado. Ver migration 20260925120000. */
+  nota_fiscal_emitida: NotaFiscalEmitida | null
+  nota_fiscal_numero: string | null
   /** Ação / Objeto da Perícia ou Assistência (texto livre + catálogo). Separado de tipo_laudo_id. */
   acao_objeto: string | null
   // --- Fluxo Principal do Perito Judicial (migration 20260911120000) ---
@@ -283,6 +287,8 @@ export type ProcessosInsert = ComDefaults<
   | 'aceitou_nomeacao'
   | 'url_processo'
   | 'acao_objeto'
+  | 'nota_fiscal_emitida'
+  | 'nota_fiscal_numero'
   | 'nomeacao_id'
   | 'nomeacao_data'
   | 'nomeacao_ciencia_data'
@@ -554,6 +560,23 @@ export type BibliotecaPericialInsert = ComDefaults<
   'id' | 'area_pericial' | 'fonte' | 'criado_por' | 'created_at' | 'updated_at'
 >
 export type BibliotecaPericialUpdate = Partial<BibliotecaPericialRow>
+
+// ============================================================================
+// despesas
+// ============================================================================
+export type DespesasRow = {
+  id: string
+  data: string
+  categoria: string | null
+  descricao: string
+  /** numeric(14,2) do Postgres — chega como number pelo supabase-js. */
+  valor: number
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type DespesasInsert = ComDefaults<DespesasRow, 'id' | 'categoria' | 'criado_por' | 'created_at' | 'updated_at'>
+export type DespesasUpdate = Partial<DespesasRow>
 
 // ============================================================================
 // quesitos
@@ -1145,6 +1168,12 @@ export interface Database {
         Row: BibliotecaPericialRow
         Insert: BibliotecaPericialInsert
         Update: BibliotecaPericialUpdate
+        Relationships: []
+      }
+      despesas: {
+        Row: DespesasRow
+        Insert: DespesasInsert
+        Update: DespesasUpdate
         Relationships: []
       }
       quesitos: {

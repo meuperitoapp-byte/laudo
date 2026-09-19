@@ -24,6 +24,9 @@ export type TipoVara = 'federal' | 'estadual' | 'trabalho'
 /** processos.justica_gratuita (S/N no formulário) */
 export type JusticaGratuita = 'sim' | 'nao'
 
+/** processos.nota_fiscal_emitida — null = ainda não registrado (nunca presume 'nao' por omissão). */
+export type NotaFiscalEmitida = 'sim' | 'nao'
+
 /**
  * processos.aceitou_nomeacao (S/N/D — 'destituida' = destituída do cargo,
  * remoção pelo juízo). 'encargo_declinado' (migration 20260914120000) =

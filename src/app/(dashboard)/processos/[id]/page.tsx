@@ -8,6 +8,7 @@ import { ExcluirProcessoButton } from "@/features/processos/excluir-processo-but
 import { DocumentosPendentesPanel } from "@/features/processos/documentos-pendentes-panel";
 import { ProximoMarcoHonorariosPanel } from "@/features/processos/proximo-marco-honorarios-panel";
 import { ReuniaoEstrategiaPericialPanel } from "@/features/processos/reuniao-estrategia-pericial-panel";
+import { NotaFiscalPanel } from "@/features/processos/nota-fiscal-panel";
 import { AnexoEtapaAtPanel } from "@/features/processos/anexo-etapa-at-panel";
 import { varianteSituacaoProcesso } from "@/features/processos/catalogos";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
@@ -358,6 +359,12 @@ export default async function ProcessoDetalhePage({
           descricao={processo.honorarios_proximo_marco_descricao}
         />
       )}
+
+      <NotaFiscalPanel
+        processoId={processo.id}
+        emitida={processo.nota_fiscal_emitida}
+        numero={processo.nota_fiscal_numero}
+      />
 
       {temEstrategiaPericial && (
         <ReuniaoEstrategiaPericialPanel

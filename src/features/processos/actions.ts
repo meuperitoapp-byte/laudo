@@ -10,6 +10,7 @@ import type {
   AceitouNomeacao,
   EtapaContratada,
   JusticaGratuita,
+  NotaFiscalEmitida,
   TipoTrabalhoProcesso,
   TipoVara,
 } from "@/types/enums";
@@ -316,6 +317,24 @@ export async function salvarReuniaoEstrategiaPericial(
   const { error } = await supabase
     .from("processos")
     .update({ estrategia_pericial_reuniao_em: data })
+    .eq("id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}`);
+  return { success: true };
+}
+
+/** Pedido da Dra. Fernanda ao ver o Financeiro (19/09/2026): marcar se a nota fiscal foi emitida e o número. `numero` só faz sentido junto com `emitida === "sim"` — a UI (NotaFiscalPanel) garante isso, sem CHECK no banco. */
+export async function salvarNotaFiscal(
+  processoId: string,
+  emitida: NotaFiscalEmitida,
+  numero: string | null,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("processos")
+    .update({ nota_fiscal_emitida: emitida, nota_fiscal_numero: numero })
     .eq("id", processoId);
   if (error) return { error: error.message };
 

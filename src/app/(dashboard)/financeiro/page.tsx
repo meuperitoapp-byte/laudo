@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { Wallet, HandCoins, TriangleAlert, FileText } from "lucide-react";
+import { Wallet, HandCoins, TriangleAlert, FileText, TrendingDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { montarPainel, identificarProcesso } from "@/features/central-prazos/agregador";
 import { StatTile } from "@/components/ui/stat-tile";
 import { DashboardCard } from "@/components/ui/dashboard-card";
 import { RankedBarList, ranquear } from "@/components/ui/ranked-bar-list";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
-import { SITUACAO_PROCESSO_PROPOSTA_HONORARIOS } from "@/features/processos/catalogos";
+import { SITUACAO_PROCESSO_PROPOSTA_HONORARIOS, mesclarSugestoes } from "@/features/processos/catalogos";
+import { DespesasPanel } from "@/features/financeiro/despesas-panel";
+import { DESPESA_CATEGORIA_SEED } from "@/features/financeiro/catalogos";
 
 type ProcessoFinanceiro = {
   id: string;
@@ -24,6 +26,8 @@ type ProcessoFinanceiro = {
   honorarios_proximo_marco_descricao: string | null;
   honorarios_forma_pagamento: string | null;
   honorarios_vencimento: string | null;
+  nota_fiscal_emitida: "sim" | "nao" | null;
+  nota_fiscal_numero: string | null;
 };
 
 /** Duplicado de propósito (mesmo helper existe em processos/[id]/page.tsx) — é pouca coisa pra justificar um util compartilhado por 2 telas. */
@@ -87,23 +91,26 @@ function ListaProcessos({
  * diferente e maior, ainda travado na decisão de papéis/permissões (ver
  * memória [[fila-melhorias-set-2026-parte2]]).
  *
- * "Repasse/Especialistas" e "Relatórios" (da lista original dela) ficam
- * de fora desta versão — não existe hoje nenhum campo no banco pra
- * repasse a terceiros, e um formato de relatório específico nunca foi
- * definido. Sinalizado na própria tela, não é esquecimento.
+ * "Saídas" (despesas) e nota fiscal por processo entraram em 19/09/2026,
+ * a pedido dela depois de ver a v1 (só tinha entradas). "Relatórios" (da
+ * lista original) continua de fora — formato nunca foi definido.
+ * Sinalizado na própria tela, não é esquecimento.
  */
 export default async function FinanceiroPage() {
   const supabase = await createClient();
 
-  const [{ data: processosDb, error: erroProcessos }, itensPainel] = await Promise.all([
-    supabase
-      .from("processos")
-      .select(
-        "id, tipo_trabalho, situacao_processo, situacao_financeira, numero_processo, periciando_nome, parte_autora, honorario_apresentado, honorario_arbitrado, liberacao_solicitada_em, honorarios_recebidos_em, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento",
-      ),
-    montarPainel(supabase),
-  ]);
+  const [{ data: processosDb, error: erroProcessos }, itensPainel, { data: despesasDb, error: erroDespesas }] =
+    await Promise.all([
+      supabase
+        .from("processos")
+        .select(
+          "id, tipo_trabalho, situacao_processo, situacao_financeira, numero_processo, periciando_nome, parte_autora, honorario_apresentado, honorario_arbitrado, liberacao_solicitada_em, honorarios_recebidos_em, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, nota_fiscal_emitida, nota_fiscal_numero",
+        ),
+      montarPainel(supabase),
+      supabase.from("despesas").select("*").order("data", { ascending: false }),
+    ]);
   if (erroProcessos) console.error("Financeiro: falha ao buscar processos:", erroProcessos.message);
+  if (erroDespesas) console.error("Financeiro: falha ao buscar despesas:", erroDespesas.message);
 
   const processos: ProcessoFinanceiro[] = processosDb ?? [];
   const judiciais = processos.filter((p) => p.tipo_trabalho === "pericia_judicial");
@@ -127,6 +134,13 @@ export default async function FinanceiroPage() {
   const porSituacaoFinanceiraJudicial = ranquear(judiciais.map((p) => p.situacao_financeira));
   const porSituacaoFinanceiraAT = ranquear(at.map((p) => p.situacao_financeira));
 
+  const despesas = despesasDb ?? [];
+  const totalDespesas = despesas.reduce((soma, d) => soma + d.valor, 0);
+  const categoriasDespesasSugestoes = mesclarSugestoes(
+    DESPESA_CATEGORIA_SEED,
+    despesas.map((d) => d.categoria),
+  );
+
   return (
     <main className="p-8 max-w-[1600px] mx-auto space-y-6">
       <div>
@@ -137,11 +151,11 @@ export default async function FinanceiroPage() {
         </p>
       </div>
 
-      {erroProcessos && (
-        <BannerErroConsulta mensagem="Não consegui carregar todos os processos agora — os números abaixo podem estar incompletos." />
+      {(erroProcessos || erroDespesas) && (
+        <BannerErroConsulta mensagem="Não consegui carregar tudo agora — os números abaixo podem estar incompletos." />
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatTile
           rotulo="A receber (Judicial)"
           valor={moedaBRL(totalAReceberJudicial)}
@@ -152,6 +166,7 @@ export default async function FinanceiroPage() {
           valor={moedaBRL(totalRecebidoJudicial)}
           icone={<HandCoins className="h-5 w-5" />}
         />
+        <StatTile rotulo="Saídas" valor={moedaBRL(totalDespesas)} icone={<TrendingDown className="h-5 w-5" />} />
         <StatTile rotulo="AT pendentes" valor={atPendentes} icone={<TriangleAlert className="h-5 w-5" />} />
         <StatTile rotulo="Propostas em aberto" valor={propostas.length} icone={<FileText className="h-5 w-5" />} />
       </div>
@@ -168,13 +183,15 @@ export default async function FinanceiroPage() {
           />
         </DashboardCard>
 
-        <DashboardCard titulo="Recebidos" subtitulo="Judicial — mais recentes primeiro">
+        <DashboardCard titulo="Recebidos" subtitulo="Judicial — mais recentes primeiro; NF = nota fiscal emitida">
           <ListaProcessos
             itens={judiciaisRecebidos}
             vazio="Nenhum recebimento confirmado ainda."
             linha={(p) => ({
               texto: identificarProcesso(p),
-              detalhe: `${moedaBRL(valorHonorarioJudicial(p))} · ${dataCurta(p.honorarios_recebidos_em!)}`,
+              detalhe: `${moedaBRL(valorHonorarioJudicial(p))} · ${dataCurta(p.honorarios_recebidos_em!)} · ${
+                p.nota_fiscal_emitida === "sim" ? `NF nº ${p.nota_fiscal_numero}` : "sem NF"
+              }`,
             })}
           />
         </DashboardCard>
@@ -244,12 +261,16 @@ export default async function FinanceiroPage() {
         <DashboardCard titulo="Honorários Judiciais" subtitulo="Distribuição por situação financeira">
           <RankedBarList itens={porSituacaoFinanceiraJudicial} />
         </DashboardCard>
+
+        <DashboardCard titulo="Saídas" subtitulo="Despesas do negócio — repasses, operacional, impostos/taxas etc.">
+          <DespesasPanel despesas={despesas} categoriasSugestoes={categoriasDespesasSugestoes} />
+        </DashboardCard>
       </div>
 
       <div className="rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 px-5 py-4 text-sm text-nevoa-500 dark:text-nevoa-400">
-        <strong className="text-nevoa-700 dark:text-nevoa-300">Ainda não incluído:</strong> Repasse/Especialistas (não
-        existe hoje nenhum dado de repasse a terceiros no sistema) e Relatórios (formato ainda não definido). Ambos
-        ficam pra uma próxima rodada.
+        <strong className="text-nevoa-700 dark:text-nevoa-300">Ainda não incluído:</strong> Relatórios (formato ainda
+        não definido). Repasse a especialistas já entra em Saídas (categoria própria); se ela quiser amarrar uma
+        despesa a um processo específico, precisa de um campo novo — hoje é um ledger geral do negócio.
       </div>
     </main>
   );
