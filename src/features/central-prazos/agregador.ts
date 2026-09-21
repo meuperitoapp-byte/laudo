@@ -18,6 +18,9 @@
  * só boleto/transferência, só enquanto não "Pago"). Reunião de Estratégia
  * pericial (23/09/2026) plugou a 11ª fonte — primeiro tipo de "Reunião" a
  * alimentar a Agenda (ver rotulos.ts, GRUPO_AGENDA_POR_CATEGORIA).
+ * Documentos faltantes da Análise de Viabilidade (fatia 2, 21/09/2026)
+ * plugou a 12ª fonte — lê `caso_documentos_faltantes` direto, nunca
+ * escreve em `central_tarefas` (que é só cadastro manual dela).
  */
 
 import type { createClient } from "@/lib/supabase/server";
@@ -51,6 +54,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     { data: docsDb },
     { data: processosComLaudoDb },
     { data: tarefasDb },
+    { data: documentosFaltantesDb },
   ] = await Promise.all([
     // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
     // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
@@ -89,6 +93,14 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       .from("central_tarefas")
       .select("id, processo_id, tipo, titulo, descricao, data, hora, status, nivel_urgencia_manual")
       .is("concluida_em", null),
+    // Fonte 12 — documentos faltantes da Análise de Viabilidade, ainda não
+    // resolvidos. Lê `caso_documentos_faltantes` DIRETO (nunca insere em
+    // central_tarefas, que é só pra cadastro manual dela — mesmo princípio
+    // já usado pelas fontes 1-8).
+    supabase
+      .from("caso_documentos_faltantes")
+      .select("id, processo_id, documento_necessario, quem_provavelmente_possui, responsavel, prazo")
+      .is("resolvido_em", null),
   ]);
   const processos = processosDb ?? [];
   const processoPorId = new Map(processos.map((p) => [p.id, p]));
@@ -411,6 +423,30 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
         href: `/processos/${p.id}`,
       });
     }
+  }
+
+  // ---- 12. Documentos faltantes da Análise de Viabilidade ----
+  // Só vira pendência acionável com responsável + prazo (mesmo critério que
+  // o resto do sistema usa pra "isso é uma tarefa real, não só um registro
+  // aberto") — sem os dois, o item fica só na tela da Viabilidade, não
+  // aparece aqui. Título diz o QUE falta e DE QUEM, nunca um genérico
+  // "documento pendente" (pedido do Jeferson, 21/09/2026).
+  for (const d of documentosFaltantesDb ?? []) {
+    const processo = processoPorId.get(d.processo_id);
+    if (!processo) continue; // processo não ativo — fora da Central
+    if (!d.responsavel || !d.prazo) continue;
+    itens.push({
+      id: `viabilidade_documento_faltante-${d.id}`,
+      categoria: "viabilidade_documento_faltante",
+      titulo: `Documento faltante: ${d.documento_necessario}${d.quem_provavelmente_possui ? ` — ${d.quem_provavelmente_possui}` : ""} — ${identificarProcesso(processo)}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.viabilidade_documento_faltante,
+      nivel: nivelPorPrazo(d.prazo, hoje),
+      prazo: d.prazo,
+      dataContexto: null,
+      ordenacao: d.prazo,
+      href: `/processos/${processo.id}/viabilidade`,
+    });
   }
 
   return ordenarPainel(itens);

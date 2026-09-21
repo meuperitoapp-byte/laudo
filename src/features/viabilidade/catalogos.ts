@@ -1,4 +1,9 @@
-import type { ViabilidadeStatus } from "@/types/enums";
+import type {
+  ViabilidadeStatus,
+  ViabilidadeSuficienciaDocumental,
+  ViabilidadeRelevanciaDocumento,
+  ViabilidadeImpactoDocumentoFaltante,
+} from "@/types/enums";
 
 /**
  * Posição do cliente no potencial litígio — catálogo editável (semente da
@@ -74,3 +79,27 @@ export const FINALIDADE_OPCOES: { valor: string; rotulo: string }[] = [
   { valor: "defesa_pre_processual", rotulo: "Defesa pré-processual" },
   { valor: "outro", rotulo: "Outro" },
 ];
+
+/** Suficiência documental (§8) — rótulos de exibição. */
+export const SUFICIENCIA_DOCUMENTAL_ROTULOS: Record<ViabilidadeSuficienciaDocumental, string> = {
+  sim: "Sim",
+  parcialmente: "Parcialmente",
+  nao: "Não",
+};
+
+/** Relevância de um documento avaliado (§7) — rótulos de exibição. */
+export const RELEVANCIA_DOCUMENTO_ROTULOS: Record<ViabilidadeRelevanciaDocumento, string> = {
+  determinante: "Determinante",
+  alta: "Alta",
+  media: "Média",
+  baixa: "Baixa",
+  sem_relevancia: "Sem relevância para esta questão",
+};
+
+/** Impacto da ausência de um documento faltante (§9) — rótulos de exibição. */
+export const IMPACTO_DOCUMENTO_FALTANTE_ROTULOS: Record<ViabilidadeImpactoDocumentoFaltante, string> = {
+  impede_conclusao: "Impede conclusão",
+  limita_conclusao: "Limita conclusão",
+  importante: "Importante",
+  complementar: "Complementar",
+};

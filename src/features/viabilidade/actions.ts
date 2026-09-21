@@ -7,8 +7,10 @@ import type {
   AnalisesViabilidadeUpdate,
   CasoQuestoesTecnicasInsert,
   CasoQuestoesTecnicasUpdate,
+  CasoDocumentosFaltantesInsert,
+  CasoDocumentosFaltantesUpdate,
 } from "@/types/database";
-import type { ViabilidadeStatus } from "@/types/enums";
+import type { ViabilidadeStatus, ViabilidadeSuficienciaDocumental, ViabilidadeRelevanciaDocumento } from "@/types/enums";
 import { VIABILIDADE_STATUS_ORDENADOS } from "./catalogos";
 
 type ActionResult = { error: string } | { success: true };
@@ -169,5 +171,161 @@ export async function excluirQuestaoTecnica(id: string, processoId: string): Pro
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/**
+ * Suficiência documental (§8) — é o gatilho: Parcialmente/Não sinalizam
+ * que o bloco de Documentos faltantes é esperado, mas o bloco continua
+ * visível e utilizável mesmo com Sim (decisão do Jeferson, 21/09/2026:
+ * pode ter caso com acervo suficiente e ainda assim valer pedir um
+ * documento complementar — nunca esconder o bloco, só não obrigar).
+ */
+export async function salvarSuficienciaDocumental(formData: FormData): Promise<ActionResult> {
+  const analiseId = textoOuNull(formData.get("analise_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
+
+  const suficiencia = (formData.get("suficiencia_documental") as ViabilidadeSuficienciaDocumental | "") || null;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("analises_viabilidade")
+    .update({ suficiencia_documental: suficiencia })
+    .eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/**
+ * Acervo documental (§7) — avaliação de UM documento já existente em
+ * `documentos` NESTA análise (utilizado?/relevância/observação técnica).
+ * Sem UNIQUE constraint em (processo_id, documento_id) no banco — resolve
+ * por select-then-branch (mesmo padrão de garantirAnaliseViabilidade), em
+ * vez de upsert, que exigiria um índice único que a migration não criou.
+ */
+export async function avaliarDocumento(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const documentoId = textoOuNull(formData.get("documento_id"));
+  if (!processoId || !documentoId) return { error: "Documento inválido — recarregue a página e tente de novo." };
+
+  const utilizado = formData.get("utilizado") === "on";
+  const relevancia = (formData.get("relevancia") as ViabilidadeRelevanciaDocumento | "") || null;
+  const observacaoTecnica = textoOuNull(formData.get("observacao_tecnica"));
+
+  const supabase = await createClient();
+  const { data: existente, error: erroSelect } = await supabase
+    .from("caso_documentos_avaliados")
+    .select("id")
+    .eq("processo_id", processoId)
+    .eq("documento_id", documentoId)
+    .maybeSingle();
+  if (erroSelect) return { error: erroSelect.message };
+
+  if (existente) {
+    const { error } = await supabase
+      .from("caso_documentos_avaliados")
+      .update({ utilizado, relevancia, observacao_tecnica: observacaoTecnica, atualizado_por_modulo: "viabilidade" })
+      .eq("id", existente.id);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabase
+      .from("caso_documentos_avaliados")
+      .insert({ processo_id: processoId, documento_id: documentoId, utilizado, relevancia, observacao_tecnica: observacaoTecnica });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Documentos faltantes (§9) — CRUD independente, ligado a processo_id. Sempre visível (ver nota acima). */
+export async function criarDocumentoFaltante(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const documentoNecessario = textoOuNull(formData.get("documento_necessario"));
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+  if (!documentoNecessario) return { error: "Descreva o documento necessário." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const insert: CasoDocumentosFaltantesInsert = {
+    processo_id: processoId,
+    documento_necessario: documentoNecessario,
+    justificativa_tecnica: textoOuNull(formData.get("justificativa_tecnica")),
+    quem_provavelmente_possui: textoOuNull(formData.get("quem_provavelmente_possui")),
+    prioridade: textoOuNull(formData.get("prioridade")),
+    impacto: (formData.get("impacto") as CasoDocumentosFaltantesInsert["impacto"]) || null,
+    responsavel: textoOuNull(formData.get("responsavel")),
+    prazo: textoOuNull(formData.get("prazo")),
+    status: textoOuNull(formData.get("status")),
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_documentos_faltantes").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
+export async function atualizarDocumentoFaltante(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const documentoNecessario = textoOuNull(formData.get("documento_necessario"));
+  if (!id || !processoId) return { error: "Documento faltante inválido — recarregue a página e tente de novo." };
+  if (!documentoNecessario) return { error: "Descreva o documento necessário." };
+
+  const supabase = await createClient();
+  const update: CasoDocumentosFaltantesUpdate = {
+    documento_necessario: documentoNecessario,
+    justificativa_tecnica: textoOuNull(formData.get("justificativa_tecnica")),
+    quem_provavelmente_possui: textoOuNull(formData.get("quem_provavelmente_possui")),
+    prioridade: textoOuNull(formData.get("prioridade")),
+    impacto: (formData.get("impacto") as CasoDocumentosFaltantesUpdate["impacto"]) || null,
+    responsavel: textoOuNull(formData.get("responsavel")),
+    prazo: textoOuNull(formData.get("prazo")),
+    status: textoOuNull(formData.get("status")),
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_documentos_faltantes").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
+/** Marca como resolvido — some da Central de Prazos (fonte lê `resolvido_em is null`), fica no histórico do caso. */
+export async function resolverDocumentoFaltante(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("caso_documentos_faltantes")
+    .update({ resolvido_em: new Date().toISOString(), atualizado_por_modulo: "viabilidade" })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
+export async function excluirDocumentoFaltante(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_documentos_faltantes").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
   return { success: true };
 }

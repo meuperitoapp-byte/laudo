@@ -519,6 +519,9 @@ export type ViabilidadeTipoProva =
   | 'informacao_complementar'
   | 'outro'
 
+/** analises_viabilidade.limitacoes_impacto — §10 (migration 20260927120000, gap encontrado na fatia 2). */
+export type ViabilidadeImpactoLimitacao = 'nenhum_relevante' | 'parcial' | 'importante' | 'impede_conclusao'
+
 /** caso_literatura_utilizada.tipo — §27. */
 export type ViabilidadeTipoLiteratura =
   | 'guideline'

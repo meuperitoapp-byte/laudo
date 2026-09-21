@@ -57,6 +57,7 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   honorarios_marco_judicial: "Confirmar se o marco combinado foi cumprido.",
   honorarios_atraso_at: "Cobrar o pagamento pendente.",
   reuniao_estrategia_pericial: "Preparar e realizar a reunião com o advogado.",
+  viabilidade_documento_faltante: "Cobrar o documento com quem provavelmente possui.",
 };
 
 /**
@@ -89,4 +90,5 @@ export const GRUPO_AGENDA_POR_CATEGORIA: Record<ItemPainel["categoria"], GrupoAg
   documentos_pendentes: "prazos",
   honorarios_marco_judicial: "prazos",
   honorarios_atraso_at: "prazos",
+  viabilidade_documento_faltante: "prazos",
 };

@@ -84,6 +84,7 @@ import type {
   ViabilidadeImpactoFragilidade,
   ViabilidadeTipoProva,
   ViabilidadeTipoLiteratura,
+  ViabilidadeImpactoLimitacao,
   NivelUrgencia,
 } from './enums'
 import type {
@@ -1143,6 +1144,10 @@ export type AnalisesViabilidadeRow = {
   narrativa_fonte_informacao: string | null
   objeto_analise: string | null
   suficiencia_documental: ViabilidadeSuficienciaDocumental | null
+  /** §10 (migration 20260927120000). Vocabulário fechado, mas guardado como jsonb string[] — mesmo padrão de `finalidade`. */
+  limitacoes_documentais: string[] | null
+  limitacoes_impacto: ViabilidadeImpactoLimitacao | null
+  limitacoes_justificativa: string | null
   oportunidade_diagnostica: ViabilidadeOportunidadeDiagnostica | null
   oportunidade_momento: string | null
   oportunidade_sinais: string | null
@@ -1209,6 +1214,9 @@ export type AnalisesViabilidadeInsert = ComDefaults<
   | 'narrativa_fonte_informacao'
   | 'objeto_analise'
   | 'suficiencia_documental'
+  | 'limitacoes_documentais'
+  | 'limitacoes_impacto'
+  | 'limitacoes_justificativa'
   | 'oportunidade_diagnostica'
   | 'oportunidade_momento'
   | 'oportunidade_sinais'
