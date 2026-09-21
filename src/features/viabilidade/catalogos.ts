@@ -20,6 +20,8 @@ import type {
   ViabilidadeImpactoFragilidade,
   ViabilidadeTipoProva,
   ViabilidadeRiscoGrau,
+  ViabilidadeNecessidadeEspecialista,
+  ViabilidadeTipoLiteratura,
 } from "@/types/enums";
 
 /**
@@ -286,4 +288,25 @@ export const RISCO_GRAU_ROTULOS: Record<ViabilidadeRiscoGrau, string> = {
   moderado: "Moderado",
   alto: "Alto",
   muito_alto: "Muito alto",
+};
+
+/** Necessidade de especialista (§26) — gatilho no hub. */
+export const NECESSIDADE_ESPECIALISTA_ROTULOS: Record<ViabilidadeNecessidadeEspecialista, string> = {
+  nao: "Não",
+  recomendavel: "Recomendável",
+  necessario: "Necessário",
+};
+
+/** Tipo de literatura/referência citada (§27) — rótulos de exibição. */
+export const TIPO_LITERATURA_ROTULOS: Record<ViabilidadeTipoLiteratura, string> = {
+  guideline: "Guideline",
+  consenso: "Consenso",
+  artigo: "Artigo",
+  protocolo: "Protocolo",
+  resolucao: "Resolução",
+  diretriz: "Diretriz",
+  livro: "Livro",
+  legislacao: "Legislação",
+  norma: "Norma",
+  outro: "Outro",
 };

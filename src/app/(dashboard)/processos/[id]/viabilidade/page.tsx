@@ -21,6 +21,10 @@ import { PontosFavoraveisPanel } from "@/features/viabilidade/pontos-favoraveis-
 import { FragilidadesPanel } from "@/features/viabilidade/fragilidades-panel";
 import { OportunidadesProbatoriasPanel } from "@/features/viabilidade/oportunidades-probatorias-panel";
 import { RiscoPericialPanel } from "@/features/viabilidade/risco-pericial-panel";
+import { TeseAdversaPanel } from "@/features/viabilidade/tese-adversa-panel";
+import { RaciocinioPericialPanel } from "@/features/viabilidade/raciocinio-pericial-panel";
+import { NecessidadeEspecialistaPanel } from "@/features/viabilidade/necessidade-especialista-panel";
+import { LiteraturaPanel } from "@/features/viabilidade/literatura-panel";
 import { ESPECIALIDADE_SEED, MATERIA_SEED } from "@/features/viabilidade/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
@@ -30,11 +34,14 @@ import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-con
  * status), 1 (finalidade + narrativas + objeto + questões técnicas), 2
  * (acervo documental + suficiência + documentos faltantes + limitações
  * documentais, §7-10), 3 (linha do tempo médico-pericial + fatos
- * comprovados + pontos técnicos/controvérsias, §11-13) e 4 (condutas
+ * comprovados + pontos técnicos/controvérsias, §11-13), 4 (condutas
  * analisadas + oportunidade diagnóstica/terapêutica + nexo causal + dano +
- * incapacidade + causas alternativas, §14-19). Spec completa de 45 seções
- * em memória do projeto (analise-viabilidade-spec). As fatias 5-9
- * seguintes chegam em commits futuros, contra o schema já aplicado.
+ * incapacidade + causas alternativas, §14-19), 5 (pontos favoráveis +
+ * fragilidades + oportunidades probatórias + risco pericial, §20-23) e 6
+ * (tese adversa + raciocínio pericial + necessidade de especialista +
+ * literatura, §24-27). Spec completa de 45 seções em memória do projeto
+ * (analise-viabilidade-spec). As fatias 7-9 seguintes chegam em commits
+ * futuros, contra o schema já aplicado.
  *
  * Nexo/Dano/Incapacidade são 1:1 por processo — garantidos (select-ou-
  * cria) igual à análise, cada um com seu próprio bloco condicional na UI
@@ -128,6 +135,9 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     { data: pontosFavoraveisDb, error: erroPontosFavoraveis },
     { data: fragilidadesDb, error: erroFragilidades },
     { data: oportunidadesProbatoriasDb, error: erroOportunidadesProbatorias },
+    { data: teseAdversaDb, error: erroTeseAdversa },
+    { data: necessidadeEspecialistaDb, error: erroNecessidadeEspecialista },
+    { data: literaturaDb, error: erroLiteratura },
   ] = await Promise.all([
     supabase.from("documentos").select("*").eq("processo_id", id).order("ordem", { ascending: true }),
     supabase.from("caso_documentos_avaliados").select("*").eq("processo_id", id),
@@ -140,6 +150,9 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     supabase.from("caso_pontos_favoraveis").select("*").eq("processo_id", id),
     supabase.from("caso_fragilidades").select("*").eq("processo_id", id),
     supabase.from("caso_oportunidades_probatorias").select("*").eq("processo_id", id),
+    supabase.from("caso_tese_adversa").select("*").eq("processo_id", id),
+    supabase.from("caso_necessidade_especialista").select("*").eq("processo_id", id),
+    supabase.from("caso_literatura_utilizada").select("*").eq("processo_id", id),
   ]);
   if (erroDocumentos) console.error("Viabilidade: falha ao buscar documentos:", erroDocumentos.message);
   if (erroAvaliacoes) console.error("Viabilidade: falha ao buscar avaliações de documentos:", erroAvaliacoes.message);
@@ -153,6 +166,10 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
   if (erroFragilidades) console.error("Viabilidade: falha ao buscar fragilidades:", erroFragilidades.message);
   if (erroOportunidadesProbatorias)
     console.error("Viabilidade: falha ao buscar oportunidades probatórias:", erroOportunidadesProbatorias.message);
+  if (erroTeseAdversa) console.error("Viabilidade: falha ao buscar tese adversa:", erroTeseAdversa.message);
+  if (erroNecessidadeEspecialista)
+    console.error("Viabilidade: falha ao buscar necessidade de especialista:", erroNecessidadeEspecialista.message);
+  if (erroLiteratura) console.error("Viabilidade: falha ao buscar literatura:", erroLiteratura.message);
 
   const nomeCaso = processo.periciando_nome || processo.parte_autora || "Processo sem identificação";
 
@@ -224,10 +241,17 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
 
       <RiscoPericialPanel analise={analise} />
 
+      <TeseAdversaPanel processoId={id} itens={teseAdversaDb ?? []} documentos={documentosDb ?? []} />
+
+      <RaciocinioPericialPanel analise={analise} />
+
+      <NecessidadeEspecialistaPanel analise={analise} itens={necessidadeEspecialistaDb ?? []} questoes={questoesDb ?? []} />
+
+      <LiteraturaPanel processoId={id} itens={literaturaDb ?? []} documentos={documentosDb ?? []} />
+
       <div className="rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 px-5 py-4 text-sm text-nevoa-500 dark:text-nevoa-400">
-        Próximas seções (tese adversa, raciocínio pericial, necessidade de especialista, literatura, matriz,
-        conclusão, recomendação, PDF etc.) chegam nas próximas fatias — o resto do schema já está pronto, sem
-        migration nova.
+        Próximas seções (matriz final, conclusão, recomendação, próxima ação, PDF etc.) chegam nas próximas fatias —
+        o resto do schema já está pronto, sem migration nova.
       </div>
     </main>
   );

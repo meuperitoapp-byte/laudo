@@ -31,6 +31,12 @@ import type {
   CasoFragilidadesUpdate,
   CasoOportunidadesProbatoriasInsert,
   CasoOportunidadesProbatoriasUpdate,
+  CasoTeseAdversaInsert,
+  CasoTeseAdversaUpdate,
+  CasoLiteraturaUtilizadaInsert,
+  CasoLiteraturaUtilizadaUpdate,
+  CasoNecessidadeEspecialistaInsert,
+  CasoNecessidadeEspecialistaUpdate,
 } from "@/types/database";
 import type {
   ViabilidadeStatus,
@@ -53,6 +59,8 @@ import type {
   ViabilidadeImpactoFragilidade,
   ViabilidadeTipoProva,
   ViabilidadeRiscoGrau,
+  ViabilidadeNecessidadeEspecialista,
+  ViabilidadeTipoLiteratura,
 } from "@/types/enums";
 import { VIABILIDADE_STATUS_ORDENADOS } from "./catalogos";
 
@@ -1200,6 +1208,242 @@ export async function salvarRiscoPericial(formData: FormData): Promise<ActionRes
   };
 
   const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Possível tese adversa (§24) — CRUD repetível, INTEIRAMENTE INTERNA (a função geradora do PDF, fatia 8, nunca aceita esta tabela como entrada). */
+export async function criarTeseAdversa(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const argumentoPrevisivel = textoOuNull(formData.get("argumento_previsivel"));
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+  if (!argumentoPrevisivel) return { error: "Descreva o argumento previsível." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const insert: CasoTeseAdversaInsert = {
+    processo_id: processoId,
+    argumento_previsivel: argumentoPrevisivel,
+    fundamento_possivel: textoOuNull(formData.get("fundamento_possivel")),
+    documento_id: textoOuNull(formData.get("documento_id")),
+    resposta_tecnica_possivel: textoOuNull(formData.get("resposta_tecnica_possivel")),
+    prova_necessaria: textoOuNull(formData.get("prova_necessaria")),
+    forca_estimada: textoOuNull(formData.get("forca_estimada")),
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_tese_adversa").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function atualizarTeseAdversa(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const argumentoPrevisivel = textoOuNull(formData.get("argumento_previsivel"));
+  if (!id || !processoId) return { error: "Tese adversa inválida — recarregue a página e tente de novo." };
+  if (!argumentoPrevisivel) return { error: "Descreva o argumento previsível." };
+
+  const supabase = await createClient();
+  const update: CasoTeseAdversaUpdate = {
+    argumento_previsivel: argumentoPrevisivel,
+    fundamento_possivel: textoOuNull(formData.get("fundamento_possivel")),
+    documento_id: textoOuNull(formData.get("documento_id")),
+    resposta_tecnica_possivel: textoOuNull(formData.get("resposta_tecnica_possivel")),
+    prova_necessaria: textoOuNull(formData.get("prova_necessaria")),
+    forca_estimada: textoOuNull(formData.get("forca_estimada")),
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_tese_adversa").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function excluirTeseAdversa(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_tese_adversa").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Provável raciocínio pericial (§25) — hub, INTERNO. Nunca aparece no PDF externo (salvo reformulado/validado — fatia 8 decide). */
+export async function salvarRaciocinioPericial(formData: FormData): Promise<ActionResult> {
+  const analiseId = textoOuNull(formData.get("analise_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const update: AnalisesViabilidadeUpdate = {
+    raciocinio_pericial_interno: textoOuNull(formData.get("raciocinio_pericial_interno")),
+  };
+
+  const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Necessidade de especialista (§26) — gatilho no hub; o detalhe (repetível) só existe quando "Recomendável"/"Necessário". */
+export async function salvarNecessidadeEspecialista(formData: FormData): Promise<ActionResult> {
+  const analiseId = textoOuNull(formData.get("analise_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const update: AnalisesViabilidadeUpdate = {
+    necessidade_especialista: (formData.get("necessidade_especialista") as ViabilidadeNecessidadeEspecialista | "") || null,
+  };
+
+  const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Detalhe repetível de necessidade de especialista (§26) — CRUD. Sem ação "resolver" ainda: tabela não tem `resolvido_em` (gap registrado na memória, migration pendente de aplicação). */
+export async function criarNecessidadeEspecialista(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const insert: CasoNecessidadeEspecialistaInsert = {
+    processo_id: processoId,
+    nome_especialista: textoOuNull(formData.get("nome_especialista")),
+    especialidade: textoOuNull(formData.get("especialidade")),
+    finalidade: textoOuNull(formData.get("finalidade")),
+    questao_tecnica_id: textoOuNull(formData.get("questao_tecnica_id")),
+    prioridade: textoOuNull(formData.get("prioridade")),
+    prazo: textoOuNull(formData.get("prazo")),
+    status: textoOuNull(formData.get("status")),
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_necessidade_especialista").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function atualizarNecessidadeEspecialista(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!id || !processoId) return { error: "Registro inválido — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const update: CasoNecessidadeEspecialistaUpdate = {
+    nome_especialista: textoOuNull(formData.get("nome_especialista")),
+    especialidade: textoOuNull(formData.get("especialidade")),
+    finalidade: textoOuNull(formData.get("finalidade")),
+    questao_tecnica_id: textoOuNull(formData.get("questao_tecnica_id")),
+    prioridade: textoOuNull(formData.get("prioridade")),
+    prazo: textoOuNull(formData.get("prazo")),
+    status: textoOuNull(formData.get("status")),
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_necessidade_especialista").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function excluirNecessidadeEspecialista(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_necessidade_especialista").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Literatura e referências (§27) — CRUD repetível, opcionalmente ligado a um item já catalogado na Biblioteca Pericial. */
+export async function criarLiteraturaUtilizada(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const titulo = textoOuNull(formData.get("titulo"));
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+  if (!titulo) return { error: "Informe o título." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const anoTexto = textoOuNull(formData.get("ano"));
+  const insert: CasoLiteraturaUtilizadaInsert = {
+    processo_id: processoId,
+    titulo,
+    biblioteca_pericial_id: textoOuNull(formData.get("biblioteca_pericial_id")),
+    autor_entidade: textoOuNull(formData.get("autor_entidade")),
+    tipo: (formData.get("tipo") as ViabilidadeTipoLiteratura | "") || null,
+    ano: anoTexto ? Number(anoTexto) : null,
+    identificador_link: textoOuNull(formData.get("identificador_link")),
+    tema: textoOuNull(formData.get("tema")),
+    conceito_relevante: textoOuNull(formData.get("conceito_relevante")),
+    ponto_analise_utilizado: textoOuNull(formData.get("ponto_analise_utilizado")),
+    arquivo_documento_id: textoOuNull(formData.get("arquivo_documento_id")),
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_literatura_utilizada").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function atualizarLiteraturaUtilizada(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const titulo = textoOuNull(formData.get("titulo"));
+  if (!id || !processoId) return { error: "Literatura inválida — recarregue a página e tente de novo." };
+  if (!titulo) return { error: "Informe o título." };
+
+  const supabase = await createClient();
+  const anoTexto = textoOuNull(formData.get("ano"));
+  const update: CasoLiteraturaUtilizadaUpdate = {
+    titulo,
+    biblioteca_pericial_id: textoOuNull(formData.get("biblioteca_pericial_id")),
+    autor_entidade: textoOuNull(formData.get("autor_entidade")),
+    tipo: (formData.get("tipo") as ViabilidadeTipoLiteratura | "") || null,
+    ano: anoTexto ? Number(anoTexto) : null,
+    identificador_link: textoOuNull(formData.get("identificador_link")),
+    tema: textoOuNull(formData.get("tema")),
+    conceito_relevante: textoOuNull(formData.get("conceito_relevante")),
+    ponto_analise_utilizado: textoOuNull(formData.get("ponto_analise_utilizado")),
+    arquivo_documento_id: textoOuNull(formData.get("arquivo_documento_id")),
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_literatura_utilizada").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function excluirLiteraturaUtilizada(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_literatura_utilizada").delete().eq("id", id);
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/viabilidade`);
