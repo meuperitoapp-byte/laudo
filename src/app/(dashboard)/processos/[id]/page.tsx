@@ -110,6 +110,7 @@ export default async function ProcessoDetalhePage({
   // — só aparecem quando a etapa correspondente foi contratada.
   const temEstrategiaPericial = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("estrategia_pericial") ?? false);
   const temAnaliseContestacao = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("analise_contestacao") ?? false);
+  const temAnaliseViabilidade = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("analise_viabilidade") ?? false);
 
   // As 5 consultas abaixo só dependem do `id` do processo (já em mãos) ou de
   // flags já calculadas acima — nenhuma depende do RESULTADO de outra, então
@@ -365,6 +366,21 @@ export default async function ProcessoDetalhePage({
         emitida={processo.nota_fiscal_emitida}
         numero={processo.nota_fiscal_numero}
       />
+
+      {temAnaliseViabilidade && (
+        <Link
+          href={`/processos/${processo.id}/viabilidade`}
+          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
+        >
+          <div>
+            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">
+              Análise de Viabilidade Técnico-Pericial
+            </h3>
+            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Abrir a janela estruturada da análise</p>
+          </div>
+          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
+        </Link>
+      )}
 
       {temEstrategiaPericial && (
         <ReuniaoEstrategiaPericialPanel

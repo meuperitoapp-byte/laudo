@@ -58,6 +58,32 @@ import type {
   AgendamentoDepositoPrevioExigido,
   LiberacaoForma,
   TipoCentralTarefa,
+  ModuloOrigemCaso,
+  ViabilidadeStatus,
+  ViabilidadeSuficienciaDocumental,
+  ViabilidadeOportunidadeDiagnostica,
+  ViabilidadeHouveAtraso,
+  ViabilidadeGrauSeguranca,
+  ViabilidadeRiscoGrau,
+  ViabilidadeNecessidadeEspecialista,
+  ViabilidadeConclusao,
+  ViabilidadePosEntregaReuniao,
+  ViabilidadeSatisfacao,
+  ViabilidadeRelevanciaDocumento,
+  ViabilidadeImpactoDocumentoFaltante,
+  ViabilidadeCategoriaLinhaTempo,
+  ViabilidadeClassificacaoFato,
+  ViabilidadeAvaliacaoConduta,
+  ViabilidadeConclusaoNexo,
+  ViabilidadeDanoExiste,
+  ViabilidadeDanoTemporarioPermanente,
+  ViabilidadeParcialTotal,
+  ViabilidadeIncapacidadeTemporariaPermanente,
+  ViabilidadePlausibilidade,
+  ViabilidadeForcaProbatoria,
+  ViabilidadeImpactoFragilidade,
+  ViabilidadeTipoProva,
+  ViabilidadeTipoLiteratura,
   NivelUrgencia,
 } from './enums'
 import type {
@@ -378,6 +404,8 @@ export type DocumentosRow = {
   enviado_por: string | null
   /** Só Assistência Técnica: código de EtapaContratada ao qual este documento pertence (migration 20260922120000). Independente de `categoria`. */
   etapa_at: string | null
+  /** Vínculo opcional com caso_necessidade_especialista (migration 20260926120000) — mesmo padrão de etapa_at, reaproveita o pipeline de Documentos existente. */
+  necessidade_especialista_id: string | null
   created_at: string
   updated_at: string
 }
@@ -396,6 +424,7 @@ export type DocumentosInsert = ComDefaults<
   | 'paginas'
   | 'enviado_por'
   | 'etapa_at'
+  | 'necessidade_especialista_id'
   | 'created_at'
   | 'updated_at'
 >
@@ -1093,6 +1122,573 @@ export type CentralTarefasInsert = ComDefaults<
 export type CentralTarefasUpdate = Partial<CentralTarefasRow>
 
 // ============================================================================
+// Janela de Análise de Viabilidade Técnico-Pericial
+// (migration 20260926120000_analise_viabilidade_schema.sql)
+// ============================================================================
+
+export type AnalisesViabilidadeRow = {
+  id: string
+  processo_id: string
+  status: ViabilidadeStatus
+  posicao_cliente_litigio: string | null
+  especialidade: string | null
+  materia: string[] | null
+  tags_tecnicas: string[] | null
+  prazo_contratual_entrega: string | null
+  finalidade: string[]
+  pergunta_central_advogado: string | null
+  narrativa_advogado: string | null
+  narrativa_cliente: string | null
+  tese_inicial_apresentada: string | null
+  narrativa_fonte_informacao: string | null
+  objeto_analise: string | null
+  suficiencia_documental: ViabilidadeSuficienciaDocumental | null
+  oportunidade_diagnostica: ViabilidadeOportunidadeDiagnostica | null
+  oportunidade_momento: string | null
+  oportunidade_sinais: string | null
+  oportunidade_exames: string | null
+  oportunidade_conduta_possivel: string | null
+  oportunidade_conduta_realizada: string | null
+  oportunidade_houve_atraso: ViabilidadeHouveAtraso | null
+  oportunidade_duracao_estimada: string | null
+  oportunidade_repercussao: string | null
+  oportunidade_evidencias: string | null
+  oportunidade_grau_seguranca: ViabilidadeGrauSeguranca | null
+  /** INTERNO — nunca aparece no PDF (garantido pela assinatura da função geradora, não por esta anotação). */
+  risco_principal_tecnico: string | null
+  risco_fato_desfavoravel: string | null
+  risco_documento_prejudicial: string | null
+  risco_pergunta_dificil: string | null
+  risco_grau: ViabilidadeRiscoGrau | null
+  risco_fundamentacao: string | null
+  /** INTERNO — nunca aparece no PDF. Ver comentário da coluna na migration. */
+  raciocinio_pericial_interno: string | null
+  necessidade_especialista: ViabilidadeNecessidadeEspecialista | null
+  matriz_suporte_documental: string | null
+  matriz_sustentacao_conduta: string | null
+  matriz_nexo: string | null
+  matriz_dano: string | null
+  matriz_fragilidades: string | null
+  matriz_provas_faltantes: string | null
+  matriz_risco_pericial: string | null
+  matriz_sustentacao_global: string | null
+  conclusao: ViabilidadeConclusao | null
+  conclusao_fundamentacao: string | null
+  conclusao_elementos_favoraveis: string | null
+  conclusao_fragilidades: string | null
+  conclusao_condicionantes: string | null
+  recomendacao: string | null
+  recomendacao_justificativa: string | null
+  proxima_acao: string | null
+  proxima_acao_responsavel: string | null
+  proxima_acao_prazo: string | null
+  proxima_acao_prioridade: string | null
+  pos_entrega_reuniao: ViabilidadePosEntregaReuniao | null
+  pos_entrega_retorno_d7_em: string | null
+  pos_entrega_satisfacao: ViabilidadeSatisfacao | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type AnalisesViabilidadeInsert = ComDefaults<
+  AnalisesViabilidadeRow,
+  | 'id'
+  | 'status'
+  | 'posicao_cliente_litigio'
+  | 'especialidade'
+  | 'materia'
+  | 'tags_tecnicas'
+  | 'prazo_contratual_entrega'
+  | 'finalidade'
+  | 'pergunta_central_advogado'
+  | 'narrativa_advogado'
+  | 'narrativa_cliente'
+  | 'tese_inicial_apresentada'
+  | 'narrativa_fonte_informacao'
+  | 'objeto_analise'
+  | 'suficiencia_documental'
+  | 'oportunidade_diagnostica'
+  | 'oportunidade_momento'
+  | 'oportunidade_sinais'
+  | 'oportunidade_exames'
+  | 'oportunidade_conduta_possivel'
+  | 'oportunidade_conduta_realizada'
+  | 'oportunidade_houve_atraso'
+  | 'oportunidade_duracao_estimada'
+  | 'oportunidade_repercussao'
+  | 'oportunidade_evidencias'
+  | 'oportunidade_grau_seguranca'
+  | 'risco_principal_tecnico'
+  | 'risco_fato_desfavoravel'
+  | 'risco_documento_prejudicial'
+  | 'risco_pergunta_dificil'
+  | 'risco_grau'
+  | 'risco_fundamentacao'
+  | 'raciocinio_pericial_interno'
+  | 'necessidade_especialista'
+  | 'matriz_suporte_documental'
+  | 'matriz_sustentacao_conduta'
+  | 'matriz_nexo'
+  | 'matriz_dano'
+  | 'matriz_fragilidades'
+  | 'matriz_provas_faltantes'
+  | 'matriz_risco_pericial'
+  | 'matriz_sustentacao_global'
+  | 'conclusao'
+  | 'conclusao_fundamentacao'
+  | 'conclusao_elementos_favoraveis'
+  | 'conclusao_fragilidades'
+  | 'conclusao_condicionantes'
+  | 'recomendacao'
+  | 'recomendacao_justificativa'
+  | 'proxima_acao'
+  | 'proxima_acao_responsavel'
+  | 'proxima_acao_prazo'
+  | 'proxima_acao_prioridade'
+  | 'pos_entrega_reuniao'
+  | 'pos_entrega_retorno_d7_em'
+  | 'pos_entrega_satisfacao'
+  | 'origem_modulo'
+  | 'atualizado_por_modulo'
+  | 'criado_por'
+  | 'created_at'
+  | 'updated_at'
+>
+export type AnalisesViabilidadeUpdate = Partial<AnalisesViabilidadeRow>
+
+export type CasoQuestoesTecnicasRow = {
+  id: string
+  processo_id: string
+  numero: number | null
+  questao: string
+  tema: string | null
+  status: string | null
+  resposta_preliminar: string | null
+  fonte: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoQuestoesTecnicasInsert = ComDefaults<
+  CasoQuestoesTecnicasRow,
+  | 'id' | 'numero' | 'tema' | 'status' | 'resposta_preliminar' | 'fonte'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoQuestoesTecnicasUpdate = Partial<CasoQuestoesTecnicasRow>
+
+export type CasoDocumentosAvaliadosRow = {
+  id: string
+  processo_id: string
+  documento_id: string
+  utilizado: boolean
+  relevancia: ViabilidadeRelevanciaDocumento | null
+  observacao_tecnica: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoDocumentosAvaliadosInsert = ComDefaults<
+  CasoDocumentosAvaliadosRow,
+  | 'id' | 'utilizado' | 'relevancia' | 'observacao_tecnica'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoDocumentosAvaliadosUpdate = Partial<CasoDocumentosAvaliadosRow>
+
+export type CasoDocumentosFaltantesRow = {
+  id: string
+  processo_id: string
+  documento_necessario: string
+  justificativa_tecnica: string | null
+  quem_provavelmente_possui: string | null
+  prioridade: string | null
+  impacto: ViabilidadeImpactoDocumentoFaltante | null
+  responsavel: string | null
+  prazo: string | null
+  status: string | null
+  visivel_meu_perito: boolean
+  resolvido_em: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoDocumentosFaltantesInsert = ComDefaults<
+  CasoDocumentosFaltantesRow,
+  | 'id' | 'justificativa_tecnica' | 'quem_provavelmente_possui' | 'prioridade' | 'impacto'
+  | 'responsavel' | 'prazo' | 'status' | 'visivel_meu_perito' | 'resolvido_em'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoDocumentosFaltantesUpdate = Partial<CasoDocumentosFaltantesRow>
+
+export type CasoLinhaTempoMedicaRow = {
+  id: string
+  processo_id: string
+  data: string
+  hora: string | null
+  evento: string
+  categoria: ViabilidadeCategoriaLinhaTempo | null
+  documento_id: string | null
+  pagina_ref: string | null
+  relevancia: string | null
+  observacao_tecnica: string | null
+  marco_critico: boolean
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoLinhaTempoMedicaInsert = ComDefaults<
+  CasoLinhaTempoMedicaRow,
+  | 'id' | 'hora' | 'categoria' | 'documento_id' | 'pagina_ref' | 'relevancia' | 'observacao_tecnica' | 'marco_critico'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoLinhaTempoMedicaUpdate = Partial<CasoLinhaTempoMedicaRow>
+
+export type CasoFatosComprovadosRow = {
+  id: string
+  processo_id: string
+  fato: string
+  data: string | null
+  documento_id: string | null
+  pagina_ref: string | null
+  relevancia: string | null
+  questao_tecnica_id: string | null
+  classificacao: ViabilidadeClassificacaoFato
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoFatosComprovadosInsert = ComDefaults<
+  CasoFatosComprovadosRow,
+  | 'id' | 'data' | 'documento_id' | 'pagina_ref' | 'relevancia' | 'questao_tecnica_id'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoFatosComprovadosUpdate = Partial<CasoFatosComprovadosRow>
+
+export type CasoPontosTecnicosRow = {
+  id: string
+  processo_id: string
+  ponto_tecnico: string
+  narrativa_apresentada: string | null
+  evidencia_documental: string | null
+  possivel_controversia: string | null
+  avaliacao_tecnica: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoPontosTecnicosInsert = ComDefaults<
+  CasoPontosTecnicosRow,
+  | 'id' | 'narrativa_apresentada' | 'evidencia_documental' | 'possivel_controversia' | 'avaliacao_tecnica'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoPontosTecnicosUpdate = Partial<CasoPontosTecnicosRow>
+
+export type CasoCondutasAnalisadasRow = {
+  id: string
+  processo_id: string
+  profissional_instituicao: string
+  papel: string | null
+  periodo_inicio: string | null
+  periodo_fim: string | null
+  conduta_questionada: string | null
+  conduta_documentada: string | null
+  conduta_esperada: string | null
+  fonte: string | null
+  literatura_norma: string | null
+  avaliacao: ViabilidadeAvaliacaoConduta | null
+  repercussao: string | null
+  seguranca: ViabilidadeGrauSeguranca | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoCondutasAnalisadasInsert = ComDefaults<
+  CasoCondutasAnalisadasRow,
+  | 'id' | 'papel' | 'periodo_inicio' | 'periodo_fim' | 'conduta_questionada' | 'conduta_documentada'
+  | 'conduta_esperada' | 'fonte' | 'literatura_norma' | 'avaliacao' | 'repercussao' | 'seguranca'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoCondutasAnalisadasUpdate = Partial<CasoCondutasAnalisadasRow>
+
+/** 1:1 por processo — ver nota de versionamento futuro na migration. */
+export type CasoNexoCausalRow = {
+  id: string
+  processo_id: string
+  aplicavel: boolean
+  conduta_evento: string | null
+  dano: string | null
+  temporalidade: string | null
+  topografia: string | null
+  plausibilidade_biologica: string | null
+  compatibilidade_fisiopatologica: string | null
+  preexistencias: string | null
+  concausas: string | null
+  causas_alternativas_texto: string | null
+  intercorrencias_independentes: string | null
+  evidencias_favoraveis: string | null
+  evidencias_contrarias: string | null
+  fundamentacao: string | null
+  conclusao: ViabilidadeConclusaoNexo | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoNexoCausalInsert = ComDefaults<
+  CasoNexoCausalRow,
+  | 'id' | 'aplicavel' | 'conduta_evento' | 'dano' | 'temporalidade' | 'topografia' | 'plausibilidade_biologica'
+  | 'compatibilidade_fisiopatologica' | 'preexistencias' | 'concausas' | 'causas_alternativas_texto'
+  | 'intercorrencias_independentes' | 'evidencias_favoraveis' | 'evidencias_contrarias' | 'fundamentacao' | 'conclusao'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoNexoCausalUpdate = Partial<CasoNexoCausalRow>
+
+/** 1:1 por processo — ver nota de versionamento futuro na migration. */
+export type CasoDanoRow = {
+  id: string
+  processo_id: string
+  existe: ViabilidadeDanoExiste | null
+  natureza: string | null
+  data_inicio: string | null
+  situacao_atual: string | null
+  temporario_permanente: ViabilidadeDanoTemporarioPermanente | null
+  reversibilidade: string | null
+  repercussao_funcional: string | null
+  tratamentos: string | null
+  necessidade_terceiros: string | null
+  prognostico: string | null
+  documentacao: string | null
+  /** SEMPRE separado de `existe` (§17: "separar sempre existência do dano de atribuição causal"). */
+  atribuicao_causal: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoDanoInsert = ComDefaults<
+  CasoDanoRow,
+  | 'id' | 'existe' | 'natureza' | 'data_inicio' | 'situacao_atual' | 'temporario_permanente' | 'reversibilidade'
+  | 'repercussao_funcional' | 'tratamentos' | 'necessidade_terceiros' | 'prognostico' | 'documentacao' | 'atribuicao_causal'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoDanoUpdate = Partial<CasoDanoRow>
+
+/** 1:1 por processo — ver nota de versionamento futuro na migration. */
+export type CasoIncapacidadeRow = {
+  id: string
+  processo_id: string
+  pertinente: boolean
+  profissao: string | null
+  atividade_habitual: string | null
+  exigencias_funcionais: string | null
+  limitacoes: string | null
+  incapacidade_atual: string | null
+  parcial_total: ViabilidadeParcialTotal | null
+  temporaria_permanente: ViabilidadeIncapacidadeTemporariaPermanente | null
+  reabilitacao: string | null
+  data_provavel_inicio: string | null
+  prognostico: string | null
+  necessidade_avaliacao_complementar: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoIncapacidadeInsert = ComDefaults<
+  CasoIncapacidadeRow,
+  | 'id' | 'pertinente' | 'profissao' | 'atividade_habitual' | 'exigencias_funcionais' | 'limitacoes'
+  | 'incapacidade_atual' | 'parcial_total' | 'temporaria_permanente' | 'reabilitacao' | 'data_provavel_inicio'
+  | 'prognostico' | 'necessidade_avaliacao_complementar'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoIncapacidadeUpdate = Partial<CasoIncapacidadeRow>
+
+export type CasoCausasAlternativasRow = {
+  id: string
+  processo_id: string
+  hipotese: string
+  elementos_favoraveis: string | null
+  elementos_contrarios: string | null
+  documento_id: string | null
+  plausibilidade: ViabilidadePlausibilidade | null
+  impacto_sobre_tese: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoCausasAlternativasInsert = ComDefaults<
+  CasoCausasAlternativasRow,
+  | 'id' | 'elementos_favoraveis' | 'elementos_contrarios' | 'documento_id' | 'plausibilidade' | 'impacto_sobre_tese'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoCausasAlternativasUpdate = Partial<CasoCausasAlternativasRow>
+
+export type CasoPontosFavoraveisRow = {
+  id: string
+  processo_id: string
+  descricao: string
+  documento_id: string | null
+  questao_tecnica_id: string | null
+  importancia: string | null
+  forca_probatoria: ViabilidadeForcaProbatoria | null
+  observacao: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoPontosFavoraveisInsert = ComDefaults<
+  CasoPontosFavoraveisRow,
+  | 'id' | 'documento_id' | 'questao_tecnica_id' | 'importancia' | 'forca_probatoria' | 'observacao'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoPontosFavoraveisUpdate = Partial<CasoPontosFavoraveisRow>
+
+export type CasoFragilidadesRow = {
+  id: string
+  processo_id: string
+  descricao: string
+  motivo: string | null
+  evidencia: string | null
+  impacto: ViabilidadeImpactoFragilidade | null
+  possibilidade_mitigacao: string | null
+  prova_necessaria: string | null
+  responsavel: string | null
+  prazo: string | null
+  oportunidade_probatoria_id: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoFragilidadesInsert = ComDefaults<
+  CasoFragilidadesRow,
+  | 'id' | 'motivo' | 'evidencia' | 'impacto' | 'possibilidade_mitigacao' | 'prova_necessaria' | 'responsavel' | 'prazo'
+  | 'oportunidade_probatoria_id'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoFragilidadesUpdate = Partial<CasoFragilidadesRow>
+
+export type CasoOportunidadesProbatoriasRow = {
+  id: string
+  processo_id: string
+  providencia: string
+  tipo_prova: ViabilidadeTipoProva | null
+  objetivo: string | null
+  responsavel: string | null
+  prazo: string | null
+  prioridade: string | null
+  status: string | null
+  resolvido_em: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoOportunidadesProbatoriasInsert = ComDefaults<
+  CasoOportunidadesProbatoriasRow,
+  | 'id' | 'tipo_prova' | 'objetivo' | 'responsavel' | 'prazo' | 'prioridade' | 'status' | 'resolvido_em'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoOportunidadesProbatoriasUpdate = Partial<CasoOportunidadesProbatoriasRow>
+
+/** INTEIRAMENTE interna — nunca aparece no PDF externo (ver comentário da tabela na migration). */
+export type CasoTeseAdversaRow = {
+  id: string
+  processo_id: string
+  argumento_previsivel: string
+  fundamento_possivel: string | null
+  documento_id: string | null
+  resposta_tecnica_possivel: string | null
+  prova_necessaria: string | null
+  forca_estimada: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoTeseAdversaInsert = ComDefaults<
+  CasoTeseAdversaRow,
+  | 'id' | 'fundamento_possivel' | 'documento_id' | 'resposta_tecnica_possivel' | 'prova_necessaria' | 'forca_estimada'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoTeseAdversaUpdate = Partial<CasoTeseAdversaRow>
+
+export type CasoLiteraturaUtilizadaRow = {
+  id: string
+  processo_id: string
+  biblioteca_pericial_id: string | null
+  titulo: string
+  autor_entidade: string | null
+  tipo: ViabilidadeTipoLiteratura | null
+  ano: number | null
+  identificador_link: string | null
+  tema: string | null
+  conceito_relevante: string | null
+  ponto_analise_utilizado: string | null
+  arquivo_documento_id: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoLiteraturaUtilizadaInsert = ComDefaults<
+  CasoLiteraturaUtilizadaRow,
+  | 'id' | 'biblioteca_pericial_id' | 'autor_entidade' | 'tipo' | 'ano' | 'identificador_link' | 'tema'
+  | 'conceito_relevante' | 'ponto_analise_utilizado' | 'arquivo_documento_id'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoLiteraturaUtilizadaUpdate = Partial<CasoLiteraturaUtilizadaRow>
+
+export type CasoNecessidadeEspecialistaRow = {
+  id: string
+  processo_id: string
+  nome_especialista: string | null
+  especialidade: string | null
+  finalidade: string | null
+  questao_tecnica_id: string | null
+  prioridade: string | null
+  prazo: string | null
+  status: string | null
+  origem_modulo: ModuloOrigemCaso
+  atualizado_por_modulo: ModuloOrigemCaso
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+export type CasoNecessidadeEspecialistaInsert = ComDefaults<
+  CasoNecessidadeEspecialistaRow,
+  | 'id' | 'nome_especialista' | 'especialidade' | 'finalidade' | 'questao_tecnica_id' | 'prioridade' | 'prazo' | 'status'
+  | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type CasoNecessidadeEspecialistaUpdate = Partial<CasoNecessidadeEspecialistaRow>
+
+// ============================================================================
 // Database — shape esperado por createClient<Database>()
 // ============================================================================
 export interface Database {
@@ -1246,6 +1842,114 @@ export interface Database {
         Row: CentralTarefasRow
         Insert: CentralTarefasInsert
         Update: CentralTarefasUpdate
+        Relationships: []
+      }
+      analises_viabilidade: {
+        Row: AnalisesViabilidadeRow
+        Insert: AnalisesViabilidadeInsert
+        Update: AnalisesViabilidadeUpdate
+        Relationships: []
+      }
+      caso_questoes_tecnicas: {
+        Row: CasoQuestoesTecnicasRow
+        Insert: CasoQuestoesTecnicasInsert
+        Update: CasoQuestoesTecnicasUpdate
+        Relationships: []
+      }
+      caso_documentos_avaliados: {
+        Row: CasoDocumentosAvaliadosRow
+        Insert: CasoDocumentosAvaliadosInsert
+        Update: CasoDocumentosAvaliadosUpdate
+        Relationships: []
+      }
+      caso_documentos_faltantes: {
+        Row: CasoDocumentosFaltantesRow
+        Insert: CasoDocumentosFaltantesInsert
+        Update: CasoDocumentosFaltantesUpdate
+        Relationships: []
+      }
+      caso_linha_tempo_medica: {
+        Row: CasoLinhaTempoMedicaRow
+        Insert: CasoLinhaTempoMedicaInsert
+        Update: CasoLinhaTempoMedicaUpdate
+        Relationships: []
+      }
+      caso_fatos_comprovados: {
+        Row: CasoFatosComprovadosRow
+        Insert: CasoFatosComprovadosInsert
+        Update: CasoFatosComprovadosUpdate
+        Relationships: []
+      }
+      caso_pontos_tecnicos: {
+        Row: CasoPontosTecnicosRow
+        Insert: CasoPontosTecnicosInsert
+        Update: CasoPontosTecnicosUpdate
+        Relationships: []
+      }
+      caso_condutas_analisadas: {
+        Row: CasoCondutasAnalisadasRow
+        Insert: CasoCondutasAnalisadasInsert
+        Update: CasoCondutasAnalisadasUpdate
+        Relationships: []
+      }
+      caso_nexo_causal: {
+        Row: CasoNexoCausalRow
+        Insert: CasoNexoCausalInsert
+        Update: CasoNexoCausalUpdate
+        Relationships: []
+      }
+      caso_dano: {
+        Row: CasoDanoRow
+        Insert: CasoDanoInsert
+        Update: CasoDanoUpdate
+        Relationships: []
+      }
+      caso_incapacidade: {
+        Row: CasoIncapacidadeRow
+        Insert: CasoIncapacidadeInsert
+        Update: CasoIncapacidadeUpdate
+        Relationships: []
+      }
+      caso_causas_alternativas: {
+        Row: CasoCausasAlternativasRow
+        Insert: CasoCausasAlternativasInsert
+        Update: CasoCausasAlternativasUpdate
+        Relationships: []
+      }
+      caso_pontos_favoraveis: {
+        Row: CasoPontosFavoraveisRow
+        Insert: CasoPontosFavoraveisInsert
+        Update: CasoPontosFavoraveisUpdate
+        Relationships: []
+      }
+      caso_fragilidades: {
+        Row: CasoFragilidadesRow
+        Insert: CasoFragilidadesInsert
+        Update: CasoFragilidadesUpdate
+        Relationships: []
+      }
+      caso_oportunidades_probatorias: {
+        Row: CasoOportunidadesProbatoriasRow
+        Insert: CasoOportunidadesProbatoriasInsert
+        Update: CasoOportunidadesProbatoriasUpdate
+        Relationships: []
+      }
+      caso_tese_adversa: {
+        Row: CasoTeseAdversaRow
+        Insert: CasoTeseAdversaInsert
+        Update: CasoTeseAdversaUpdate
+        Relationships: []
+      }
+      caso_literatura_utilizada: {
+        Row: CasoLiteraturaUtilizadaRow
+        Insert: CasoLiteraturaUtilizadaInsert
+        Update: CasoLiteraturaUtilizadaUpdate
+        Relationships: []
+      }
+      caso_necessidade_especialista: {
+        Row: CasoNecessidadeEspecialistaRow
+        Insert: CasoNecessidadeEspecialistaInsert
+        Update: CasoNecessidadeEspecialistaUpdate
         Relationships: []
       }
     }

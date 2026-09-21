@@ -385,3 +385,149 @@ export type TipoCentralTarefa = 'tarefa' | 'evento'
  * `central-prazos/tipos.ts` reexporta este mesmo tipo, não duplica.
  */
 export type NivelUrgencia = 'critica' | 'urgente' | 'alta' | 'atencao' | 'programada' | 'sem_prazo'
+
+// ----------------------------------------------------------------------------
+// Janela de Análise de Viabilidade Técnico-Pericial
+// (migration 20260926120000_analise_viabilidade_schema.sql — spec completa
+// de 45 seções em memória do projeto, analise-viabilidade-spec)
+// ----------------------------------------------------------------------------
+
+/** analises_viabilidade.origem_modulo / atualizado_por_modulo — proveniência da linha. Só 'viabilidade' existe hoje; ganha valor novo quando Estratégia Pericial for construída (ver nota de versionamento na migration). */
+export type ModuloOrigemCaso = 'viabilidade'
+
+/** analises_viabilidade.status — pipeline §3 do spec. */
+export type ViabilidadeStatus =
+  | 'nao_iniciada'
+  | 'em_triagem_documental'
+  | 'aguardando_documentos'
+  | 'em_analise_tecnica'
+  | 'aguardando_especialista'
+  | 'em_conclusao'
+  | 'em_revisao'
+  | 'concluida'
+
+/** analises_viabilidade.suficiencia_documental — §8. */
+export type ViabilidadeSuficienciaDocumental = 'sim' | 'parcialmente' | 'nao'
+
+/** analises_viabilidade.oportunidade_diagnostica — §15. */
+export type ViabilidadeOportunidadeDiagnostica = 'sim' | 'nao' | 'indeterminado' | 'nao_aplicavel'
+
+/** analises_viabilidade.oportunidade_houve_atraso — §15. */
+export type ViabilidadeHouveAtraso = 'sim' | 'nao'
+
+/** Grau de segurança — §15 (oportunidade_grau_seguranca) e §14 (caso_condutas_analisadas.seguranca), mesmo vocabulário. */
+export type ViabilidadeGrauSeguranca = 'alto' | 'moderado' | 'baixo'
+
+/** analises_viabilidade.risco_grau — §23, INTERNO (nunca no PDF). */
+export type ViabilidadeRiscoGrau = 'baixo' | 'moderado' | 'alto' | 'muito_alto'
+
+/** analises_viabilidade.necessidade_especialista — §26. */
+export type ViabilidadeNecessidadeEspecialista = 'nao' | 'recomendavel' | 'necessario'
+
+/** analises_viabilidade.conclusao — §29, classificação final obrigatória. */
+export type ViabilidadeConclusao =
+  | 'viavel'
+  | 'viavel_com_ressalvas'
+  | 'viabilidade_condicionada'
+  | 'inconclusiva'
+  | 'nao_viavel'
+
+/** analises_viabilidade.pos_entrega_reuniao — §39. */
+export type ViabilidadePosEntregaReuniao = 'sim' | 'nao' | 'agendar'
+
+/** analises_viabilidade.pos_entrega_satisfacao — §39. */
+export type ViabilidadeSatisfacao = 'muito_satisfeito' | 'satisfeito' | 'neutro' | 'insatisfeito' | 'muito_insatisfeito'
+
+/** caso_documentos_avaliados.relevancia — §7. */
+export type ViabilidadeRelevanciaDocumento = 'determinante' | 'alta' | 'media' | 'baixa' | 'sem_relevancia'
+
+/** caso_documentos_faltantes.impacto — §9. */
+export type ViabilidadeImpactoDocumentoFaltante = 'impede_conclusao' | 'limita_conclusao' | 'importante' | 'complementar'
+
+/** caso_linha_tempo_medica.categoria — §11. */
+export type ViabilidadeCategoriaLinhaTempo =
+  | 'sintoma'
+  | 'atendimento'
+  | 'consulta'
+  | 'diagnostico'
+  | 'exame'
+  | 'prescricao'
+  | 'procedimento'
+  | 'cirurgia'
+  | 'intercorrencia'
+  | 'piora'
+  | 'oportunidade_diagnostica'
+  | 'oportunidade_terapeutica'
+  | 'alta'
+  | 'incapacidade'
+  | 'dano'
+  | 'obito'
+  | 'outro'
+
+/** caso_fatos_comprovados.classificacao — §12. */
+export type ViabilidadeClassificacaoFato = 'comprovado' | 'parcialmente_comprovado' | 'controvertido'
+
+/** caso_condutas_analisadas.avaliacao — §14. */
+export type ViabilidadeAvaliacaoConduta =
+  | 'adequada'
+  | 'possivelmente_adequada'
+  | 'indeterminada'
+  | 'possivelmente_inadequada'
+  | 'inadequada'
+
+/** caso_nexo_causal.conclusao — §16. NUNCA calculado automaticamente, sempre escolha manual dela. */
+export type ViabilidadeConclusaoNexo =
+  | 'fortemente_sustentado'
+  | 'sustentado'
+  | 'possivel'
+  | 'indeterminado'
+  | 'pouco_sustentado'
+  | 'nao_sustentado'
+
+/** caso_dano.existe — §17. */
+export type ViabilidadeDanoExiste = 'sim' | 'nao' | 'indeterminado'
+
+/** caso_dano.temporario_permanente — §17. */
+export type ViabilidadeDanoTemporarioPermanente = 'temporario' | 'permanente'
+
+/** caso_incapacidade.parcial_total — §18. */
+export type ViabilidadeParcialTotal = 'parcial' | 'total'
+
+/** caso_incapacidade.temporaria_permanente — §18 (concordância de gênero com "incapacidade", diferente de caso_dano.temporario_permanente). */
+export type ViabilidadeIncapacidadeTemporariaPermanente = 'temporaria' | 'permanente'
+
+/** caso_causas_alternativas.plausibilidade — §19. */
+export type ViabilidadePlausibilidade = 'alta' | 'moderada' | 'baixa' | 'improvavel'
+
+/** caso_pontos_favoraveis.forca_probatoria — §20. */
+export type ViabilidadeForcaProbatoria = 'muito_forte' | 'forte' | 'moderada' | 'fraca'
+
+/** caso_fragilidades.impacto — §21. */
+export type ViabilidadeImpactoFragilidade = 'critico' | 'alto' | 'moderado' | 'baixo'
+
+/** caso_oportunidades_probatorias.tipo_prova — §22. */
+export type ViabilidadeTipoProva =
+  | 'documento'
+  | 'prontuario'
+  | 'exame'
+  | 'relatorio_medico'
+  | 'especialista'
+  | 'futura_pericia'
+  | 'quesito'
+  | 'diligencia'
+  | 'literatura'
+  | 'informacao_complementar'
+  | 'outro'
+
+/** caso_literatura_utilizada.tipo — §27. */
+export type ViabilidadeTipoLiteratura =
+  | 'guideline'
+  | 'consenso'
+  | 'artigo'
+  | 'protocolo'
+  | 'resolucao'
+  | 'diretriz'
+  | 'livro'
+  | 'legislacao'
+  | 'norma'
+  | 'outro'
