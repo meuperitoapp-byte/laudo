@@ -32,8 +32,12 @@ const dataCurta = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { d
  *
  * `honorarios_recebidos_em` é o oposto: NUNCA gravado sozinho — só ela sabe
  * quando o dinheiro efetivamente cai, não existe evento no sistema que prove
- * isso. Enquanto estiver em branco com a liberação já solicitada, a Central
- * de Prazos mostra a pendência "sem prazo" correspondente.
+ * isso. Bloco de confirmação SEMPRE visível, independente de ter protocolado
+ * o Pedido de Liberação (corrigido em 21/09/2026 — ela relatou não achar
+ * onde marcar "recebido" num processo sem liberação solicitada; o campo
+ * ficava escondido até esse passo, sem necessidade real). Enquanto estiver
+ * em branco com a liberação já solicitada, a Central de Prazos mostra a
+ * pendência "sem prazo" correspondente.
  */
 export function LiberacaoPanel({
   processo,
@@ -168,43 +172,42 @@ export function LiberacaoPanel({
         {mensagem && <Toast tipo={mensagem.tipo} texto={mensagem.texto} onClose={() => setMensagem(null)} />}
       </div>
 
-      {processo.liberacao_solicitada_em && (
-        <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-4">
-          <div>
-            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">
-              Confirmação de recebimento
-            </h3>
-            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
-              Preencha quando o dinheiro efetivamente entrar na conta — o sistema não tem como saber sozinho.
-              Enquanto ficar em branco, a Central de Prazos mantém isso como pendência (depósito judicial costuma
-              demorar).
-            </p>
-          </div>
-          <div>
-            <label htmlFor="honorarios_recebidos_em" className={labelClass}>
-              Data do recebimento
-            </label>
-            <input
-              id="honorarios_recebidos_em"
-              type="date"
-              value={fr.data}
-              onChange={(e) => setFr({ data: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-          <Botao
-            onClick={() => salvarRecebimento()}
-            disabled={!recebimentoDirty && !salvandoRecebimento}
-            carregando={salvandoRecebimento}
-            textoCarregando="Salvando…"
-          >
-            {recebimentoDirty ? "Salvar" : "Salvo"}
-          </Botao>
-          {mensagemRecebimento && (
-            <Toast tipo={mensagemRecebimento.tipo} texto={mensagemRecebimento.texto} onClose={() => setMensagemRecebimento(null)} />
-          )}
+      <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-4">
+        <div>
+          <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">
+            Confirmação de recebimento
+          </h3>
+          <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+            Preencha quando o dinheiro efetivamente entrar na conta — o sistema não tem como saber sozinho. Não
+            depende de ter protocolado o Pedido de Liberação abaixo: se você já recebeu, pode marcar aqui direto.
+            Enquanto ficar em branco (e a liberação já tiver sido solicitada), a Central de Prazos mantém isso como
+            pendência (depósito judicial costuma demorar).
+          </p>
         </div>
-      )}
+        <div>
+          <label htmlFor="honorarios_recebidos_em" className={labelClass}>
+            Data do recebimento
+          </label>
+          <input
+            id="honorarios_recebidos_em"
+            type="date"
+            value={fr.data}
+            onChange={(e) => setFr({ data: e.target.value })}
+            className={inputClass}
+          />
+        </div>
+        <Botao
+          onClick={() => salvarRecebimento()}
+          disabled={!recebimentoDirty && !salvandoRecebimento}
+          carregando={salvandoRecebimento}
+          textoCarregando="Salvando…"
+        >
+          {recebimentoDirty ? "Salvar" : "Salvo"}
+        </Botao>
+        {mensagemRecebimento && (
+          <Toast tipo={mensagemRecebimento.tipo} texto={mensagemRecebimento.texto} onClose={() => setMensagemRecebimento(null)} />
+        )}
+      </div>
 
       <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5">
         <GerarDocumentoPanel
