@@ -6,6 +6,16 @@ import type {
   ViabilidadeImpactoLimitacao,
   ViabilidadeCategoriaLinhaTempo,
   ViabilidadeClassificacaoFato,
+  ViabilidadeAvaliacaoConduta,
+  ViabilidadeGrauSeguranca,
+  ViabilidadeOportunidadeDiagnostica,
+  ViabilidadeHouveAtraso,
+  ViabilidadeConclusaoNexo,
+  ViabilidadeDanoExiste,
+  ViabilidadeDanoTemporarioPermanente,
+  ViabilidadeParcialTotal,
+  ViabilidadeIncapacidadeTemporariaPermanente,
+  ViabilidadePlausibilidade,
 } from "@/types/enums";
 
 /**
@@ -160,4 +170,77 @@ export const CLASSIFICACAO_FATO_ROTULOS: Record<ViabilidadeClassificacaoFato, st
   comprovado: "Comprovado",
   parcialmente_comprovado: "Parcialmente comprovado",
   controvertido: "Controvertido",
+};
+
+/** Avaliação de uma conduta analisada (§14) — rótulos de exibição. */
+export const AVALIACAO_CONDUTA_ROTULOS: Record<ViabilidadeAvaliacaoConduta, string> = {
+  adequada: "Adequada",
+  possivelmente_adequada: "Possivelmente adequada",
+  indeterminada: "Indeterminada",
+  possivelmente_inadequada: "Possivelmente inadequada",
+  inadequada: "Inadequada",
+};
+
+/** Grau de segurança — §14 (conduta) e §15 (oportunidade diagnóstica), mesmo vocabulário. */
+export const GRAU_SEGURANCA_ROTULOS: Record<ViabilidadeGrauSeguranca, string> = {
+  alto: "Alto",
+  moderado: "Moderado",
+  baixo: "Baixo",
+};
+
+/** Houve oportunidade diagnóstica/terapêutica relevante? (§15) — rótulos de exibição. */
+export const OPORTUNIDADE_DIAGNOSTICA_ROTULOS: Record<ViabilidadeOportunidadeDiagnostica, string> = {
+  sim: "Sim",
+  nao: "Não",
+  indeterminado: "Indeterminado",
+  nao_aplicavel: "Não aplicável",
+};
+
+/** Houve atraso na oportunidade diagnóstica/terapêutica? (§15) — rótulos de exibição. */
+export const HOUVE_ATRASO_ROTULOS: Record<ViabilidadeHouveAtraso, string> = {
+  sim: "Sim",
+  nao: "Não",
+};
+
+/** Conclusão do nexo causal (§16) — NUNCA calculada automaticamente, sempre escolha manual. Rótulos de exibição. */
+export const CONCLUSAO_NEXO_ROTULOS: Record<ViabilidadeConclusaoNexo, string> = {
+  fortemente_sustentado: "Fortemente sustentado",
+  sustentado: "Sustentado",
+  possivel: "Possível",
+  indeterminado: "Indeterminado",
+  pouco_sustentado: "Pouco sustentado",
+  nao_sustentado: "Não sustentado",
+};
+
+/** Existe dano documentado? (§17) — rótulos de exibição. */
+export const DANO_EXISTE_ROTULOS: Record<ViabilidadeDanoExiste, string> = {
+  sim: "Sim",
+  nao: "Não",
+  indeterminado: "Indeterminado",
+};
+
+/** Dano temporário ou permanente (§17) — rótulos de exibição. */
+export const DANO_TEMPORARIO_PERMANENTE_ROTULOS: Record<ViabilidadeDanoTemporarioPermanente, string> = {
+  temporario: "Temporário",
+  permanente: "Permanente",
+};
+
+/** Incapacidade parcial ou total (§18) — rótulos de exibição. */
+export const PARCIAL_TOTAL_ROTULOS: Record<ViabilidadeParcialTotal, string> = {
+  parcial: "Parcial",
+  total: "Total",
+};
+
+/** Incapacidade temporária ou permanente (§18) — rótulos de exibição (concordância de gênero, distinto de DANO_TEMPORARIO_PERMANENTE_ROTULOS). */
+export const INCAPACIDADE_TEMPORARIA_PERMANENTE_ROTULOS: Record<ViabilidadeIncapacidadeTemporariaPermanente, string> = {
+  temporaria: "Temporária",
+  permanente: "Permanente",
+};
+
+/** Plausibilidade de uma causa alternativa (§19) — rótulos de exibição. */
+export const PLAUSIBILIDADE_ROTULOS: Record<ViabilidadePlausibilidade, string> = {
+  alta: "Alta",
+  moderada: "Moderada",
+  baixa: "Baixa",
+  improvavel: "Improvável",
 };

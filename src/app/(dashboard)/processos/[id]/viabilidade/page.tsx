@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { garantirAnaliseViabilidade } from "@/features/viabilidade/actions";
+import { garantirAnaliseViabilidade, garantirNexoCausal, garantirDano, garantirIncapacidade } from "@/features/viabilidade/actions";
 import { CabecalhoViabilidadePanel } from "@/features/viabilidade/cabecalho-panel";
 import { FinalidadeNarrativasPanel } from "@/features/viabilidade/finalidade-narrativas-panel";
 import { QuestoesTecnicasPanel } from "@/features/viabilidade/questoes-tecnicas-panel";
@@ -11,6 +11,12 @@ import { LimitacoesDocumentaisPanel } from "@/features/viabilidade/limitacoes-do
 import { LinhaTempoPanel } from "@/features/viabilidade/linha-tempo-panel";
 import { FatosComprovadosPanel } from "@/features/viabilidade/fatos-comprovados-panel";
 import { PontosTecnicosPanel } from "@/features/viabilidade/pontos-tecnicos-panel";
+import { CondutasAnalisadasPanel } from "@/features/viabilidade/condutas-analisadas-panel";
+import { OportunidadeDiagnosticaPanel } from "@/features/viabilidade/oportunidade-diagnostica-panel";
+import { NexoCausalPanel } from "@/features/viabilidade/nexo-causal-panel";
+import { DanoPanel } from "@/features/viabilidade/dano-panel";
+import { IncapacidadePanel } from "@/features/viabilidade/incapacidade-panel";
+import { CausasAlternativasPanel } from "@/features/viabilidade/causas-alternativas-panel";
 import { ESPECIALIDADE_SEED, MATERIA_SEED } from "@/features/viabilidade/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
@@ -19,10 +25,16 @@ import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-con
  * Janela de Análise de Viabilidade Técnico-Pericial — fatias 0 (cabeçalho +
  * status), 1 (finalidade + narrativas + objeto + questões técnicas), 2
  * (acervo documental + suficiência + documentos faltantes + limitações
- * documentais, §7-10) e 3 (linha do tempo médico-pericial + fatos
- * comprovados + pontos técnicos/controvérsias, §11-13). Spec completa de
- * 45 seções em memória do projeto (analise-viabilidade-spec). As fatias
- * 4-9 seguintes chegam em commits futuros, contra o schema já aplicado.
+ * documentais, §7-10), 3 (linha do tempo médico-pericial + fatos
+ * comprovados + pontos técnicos/controvérsias, §11-13) e 4 (condutas
+ * analisadas + oportunidade diagnóstica/terapêutica + nexo causal + dano +
+ * incapacidade + causas alternativas, §14-19). Spec completa de 45 seções
+ * em memória do projeto (analise-viabilidade-spec). As fatias 5-9
+ * seguintes chegam em commits futuros, contra o schema já aplicado.
+ *
+ * Nexo/Dano/Incapacidade são 1:1 por processo — garantidos (select-ou-
+ * cria) igual à análise, cada um com seu próprio bloco condicional na UI
+ * (aplicável/existe/pertinente) — nunca calculam/presumem nada sozinhos.
  *
  * Só existe pra processos de Assistência Técnica com a etapa
  * "análise de viabilidade" contratada — mesmo padrão de gate já usado por
@@ -64,11 +76,19 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     );
   }
 
-  const analiseResultado = await garantirAnaliseViabilidade(id);
+  const [analiseResultado, nexoResultado, danoResultado, incapacidadeResultado] = await Promise.all([
+    garantirAnaliseViabilidade(id),
+    garantirNexoCausal(id),
+    garantirDano(id),
+    garantirIncapacidade(id),
+  ]);
   if ("error" in analiseResultado) {
     console.error("Viabilidade: falha ao garantir análise:", analiseResultado.error);
     return <ErroConsultaPagina titulo="Não foi possível abrir esta análise" />;
   }
+  if ("error" in nexoResultado) console.error("Viabilidade: falha ao garantir nexo causal:", nexoResultado.error);
+  if ("error" in danoResultado) console.error("Viabilidade: falha ao garantir dano:", danoResultado.error);
+  if ("error" in incapacidadeResultado) console.error("Viabilidade: falha ao garantir incapacidade:", incapacidadeResultado.error);
   const analise = analiseResultado.data;
 
   const { data: outrasAnalises, error: erroOutras } = await supabase
@@ -99,6 +119,8 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     { data: linhaTempoDb, error: erroLinhaTempo },
     { data: fatosDb, error: erroFatos },
     { data: pontosTecnicosDb, error: erroPontosTecnicos },
+    { data: condutasDb, error: erroCondutas },
+    { data: causasAlternativasDb, error: erroCausasAlternativas },
   ] = await Promise.all([
     supabase.from("documentos").select("*").eq("processo_id", id).order("ordem", { ascending: true }),
     supabase.from("caso_documentos_avaliados").select("*").eq("processo_id", id),
@@ -106,6 +128,8 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     supabase.from("caso_linha_tempo_medica").select("*").eq("processo_id", id),
     supabase.from("caso_fatos_comprovados").select("*").eq("processo_id", id),
     supabase.from("caso_pontos_tecnicos").select("*").eq("processo_id", id),
+    supabase.from("caso_condutas_analisadas").select("*").eq("processo_id", id),
+    supabase.from("caso_causas_alternativas").select("*").eq("processo_id", id),
   ]);
   if (erroDocumentos) console.error("Viabilidade: falha ao buscar documentos:", erroDocumentos.message);
   if (erroAvaliacoes) console.error("Viabilidade: falha ao buscar avaliações de documentos:", erroAvaliacoes.message);
@@ -113,6 +137,8 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
   if (erroLinhaTempo) console.error("Viabilidade: falha ao buscar linha do tempo:", erroLinhaTempo.message);
   if (erroFatos) console.error("Viabilidade: falha ao buscar fatos comprovados:", erroFatos.message);
   if (erroPontosTecnicos) console.error("Viabilidade: falha ao buscar pontos técnicos:", erroPontosTecnicos.message);
+  if (erroCondutas) console.error("Viabilidade: falha ao buscar condutas analisadas:", erroCondutas.message);
+  if (erroCausasAlternativas) console.error("Viabilidade: falha ao buscar causas alternativas:", erroCausasAlternativas.message);
 
   const nomeCaso = processo.periciando_nome || processo.parte_autora || "Processo sem identificação";
 
@@ -159,9 +185,22 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
 
       <PontosTecnicosPanel processoId={id} itens={pontosTecnicosDb ?? []} />
 
+      <CondutasAnalisadasPanel processoId={id} itens={condutasDb ?? []} />
+
+      <OportunidadeDiagnosticaPanel analise={analise} />
+
+      {"data" in nexoResultado && <NexoCausalPanel nexo={nexoResultado.data} processoId={id} />}
+
+      {"data" in danoResultado && <DanoPanel dano={danoResultado.data} processoId={id} />}
+
+      {"data" in incapacidadeResultado && <IncapacidadePanel incapacidade={incapacidadeResultado.data} processoId={id} />}
+
+      <CausasAlternativasPanel processoId={id} itens={causasAlternativasDb ?? []} documentos={documentosDb ?? []} />
+
       <div className="rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 px-5 py-4 text-sm text-nevoa-500 dark:text-nevoa-400">
-        Próximas seções (condutas, oportunidade diagnóstica, nexo, dano, incapacidade, causas alternativas,
-        conclusão, PDF etc.) chegam nas próximas fatias — o resto do schema já está pronto, sem migration nova.
+        Próximas seções (pontos favoráveis, fragilidades, oportunidades probatórias, risco pericial, tese adversa,
+        literatura, matriz, conclusão, recomendação, PDF etc.) chegam nas próximas fatias — o resto do schema já
+        está pronto, sem migration nova.
       </div>
     </main>
   );

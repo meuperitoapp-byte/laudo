@@ -15,6 +15,16 @@ import type {
   CasoFatosComprovadosUpdate,
   CasoPontosTecnicosInsert,
   CasoPontosTecnicosUpdate,
+  CasoCondutasAnalisadasInsert,
+  CasoCondutasAnalisadasUpdate,
+  CasoNexoCausalRow,
+  CasoNexoCausalUpdate,
+  CasoDanoRow,
+  CasoDanoUpdate,
+  CasoIncapacidadeRow,
+  CasoIncapacidadeUpdate,
+  CasoCausasAlternativasInsert,
+  CasoCausasAlternativasUpdate,
 } from "@/types/database";
 import type {
   ViabilidadeStatus,
@@ -23,6 +33,16 @@ import type {
   ViabilidadeImpactoLimitacao,
   ViabilidadeCategoriaLinhaTempo,
   ViabilidadeClassificacaoFato,
+  ViabilidadeAvaliacaoConduta,
+  ViabilidadeGrauSeguranca,
+  ViabilidadeOportunidadeDiagnostica,
+  ViabilidadeHouveAtraso,
+  ViabilidadeConclusaoNexo,
+  ViabilidadeDanoExiste,
+  ViabilidadeDanoTemporarioPermanente,
+  ViabilidadeParcialTotal,
+  ViabilidadeIncapacidadeTemporariaPermanente,
+  ViabilidadePlausibilidade,
 } from "@/types/enums";
 import { VIABILIDADE_STATUS_ORDENADOS } from "./catalogos";
 
@@ -593,6 +613,336 @@ export async function atualizarPontoTecnico(formData: FormData): Promise<ActionR
 export async function excluirPontoTecnico(id: string, processoId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.from("caso_pontos_tecnicos").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Condutas analisadas (§14) — CRUD, uma linha por profissional/instituição avaliado (nunca uma avaliação genérica só). */
+export async function criarCondutaAnalisada(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const profissionalInstituicao = textoOuNull(formData.get("profissional_instituicao"));
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+  if (!profissionalInstituicao) return { error: "Informe o profissional/instituição." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const insert: CasoCondutasAnalisadasInsert = {
+    processo_id: processoId,
+    profissional_instituicao: profissionalInstituicao,
+    papel: textoOuNull(formData.get("papel")),
+    periodo_inicio: textoOuNull(formData.get("periodo_inicio")),
+    periodo_fim: textoOuNull(formData.get("periodo_fim")),
+    conduta_questionada: textoOuNull(formData.get("conduta_questionada")),
+    conduta_documentada: textoOuNull(formData.get("conduta_documentada")),
+    conduta_esperada: textoOuNull(formData.get("conduta_esperada")),
+    fonte: textoOuNull(formData.get("fonte")),
+    literatura_norma: textoOuNull(formData.get("literatura_norma")),
+    avaliacao: (formData.get("avaliacao") as ViabilidadeAvaliacaoConduta | "") || null,
+    repercussao: textoOuNull(formData.get("repercussao")),
+    seguranca: (formData.get("seguranca") as ViabilidadeGrauSeguranca | "") || null,
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_condutas_analisadas").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function atualizarCondutaAnalisada(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const profissionalInstituicao = textoOuNull(formData.get("profissional_instituicao"));
+  if (!id || !processoId) return { error: "Conduta inválida — recarregue a página e tente de novo." };
+  if (!profissionalInstituicao) return { error: "Informe o profissional/instituição." };
+
+  const supabase = await createClient();
+  const update: CasoCondutasAnalisadasUpdate = {
+    profissional_instituicao: profissionalInstituicao,
+    papel: textoOuNull(formData.get("papel")),
+    periodo_inicio: textoOuNull(formData.get("periodo_inicio")),
+    periodo_fim: textoOuNull(formData.get("periodo_fim")),
+    conduta_questionada: textoOuNull(formData.get("conduta_questionada")),
+    conduta_documentada: textoOuNull(formData.get("conduta_documentada")),
+    conduta_esperada: textoOuNull(formData.get("conduta_esperada")),
+    fonte: textoOuNull(formData.get("fonte")),
+    literatura_norma: textoOuNull(formData.get("literatura_norma")),
+    avaliacao: (formData.get("avaliacao") as ViabilidadeAvaliacaoConduta | "") || null,
+    repercussao: textoOuNull(formData.get("repercussao")),
+    seguranca: (formData.get("seguranca") as ViabilidadeGrauSeguranca | "") || null,
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_condutas_analisadas").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function excluirCondutaAnalisada(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_condutas_analisadas").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Oportunidade diagnóstica/terapêutica (§15) — hub, bloco condicional (só relevante quando oportunidade_diagnostica='sim'). */
+export async function salvarOportunidadeDiagnostica(formData: FormData): Promise<ActionResult> {
+  const analiseId = textoOuNull(formData.get("analise_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const update: AnalisesViabilidadeUpdate = {
+    oportunidade_diagnostica: (formData.get("oportunidade_diagnostica") as ViabilidadeOportunidadeDiagnostica | "") || null,
+    oportunidade_momento: textoOuNull(formData.get("oportunidade_momento")),
+    oportunidade_sinais: textoOuNull(formData.get("oportunidade_sinais")),
+    oportunidade_exames: textoOuNull(formData.get("oportunidade_exames")),
+    oportunidade_conduta_possivel: textoOuNull(formData.get("oportunidade_conduta_possivel")),
+    oportunidade_conduta_realizada: textoOuNull(formData.get("oportunidade_conduta_realizada")),
+    oportunidade_houve_atraso: (formData.get("oportunidade_houve_atraso") as ViabilidadeHouveAtraso | "") || null,
+    oportunidade_duracao_estimada: textoOuNull(formData.get("oportunidade_duracao_estimada")),
+    oportunidade_repercussao: textoOuNull(formData.get("oportunidade_repercussao")),
+    oportunidade_evidencias: textoOuNull(formData.get("oportunidade_evidencias")),
+    oportunidade_grau_seguranca: (formData.get("oportunidade_grau_seguranca") as ViabilidadeGrauSeguranca | "") || null,
+  };
+
+  const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/**
+ * Nexo causal (§16) — 1:1 por processo, bloco condicional ("o caso exige
+ * análise de nexo?"). `garantirNexoCausal` cria a linha (aplicavel=false)
+ * na primeira visita, mesmo padrão de `garantirAnaliseViabilidade`.
+ */
+export async function garantirNexoCausal(processoId: string): Promise<{ error: string } | { data: CasoNexoCausalRow }> {
+  const supabase = await createClient();
+
+  const { data: existente, error: erroSelect } = await supabase
+    .from("caso_nexo_causal")
+    .select("*")
+    .eq("processo_id", processoId)
+    .maybeSingle();
+  if (erroSelect) return { error: erroSelect.message };
+  if (existente) return { data: existente };
+
+  const { data: criado, error: erroInsert } = await supabase
+    .from("caso_nexo_causal")
+    .insert({ processo_id: processoId })
+    .select("*")
+    .single();
+  if (erroInsert) return { error: erroInsert.message };
+
+  return { data: criado };
+}
+
+/** Conclusão do nexo (§16) NUNCA é calculada automaticamente — sempre escolha manual dela, só grava o que veio do formulário. */
+export async function salvarNexoCausal(formData: FormData): Promise<ActionResult> {
+  const nexoId = textoOuNull(formData.get("nexo_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!nexoId || !processoId) return { error: "Registro de nexo inválido — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const update: CasoNexoCausalUpdate = {
+    aplicavel: formData.get("aplicavel") === "on",
+    conduta_evento: textoOuNull(formData.get("conduta_evento")),
+    dano: textoOuNull(formData.get("dano")),
+    temporalidade: textoOuNull(formData.get("temporalidade")),
+    topografia: textoOuNull(formData.get("topografia")),
+    plausibilidade_biologica: textoOuNull(formData.get("plausibilidade_biologica")),
+    compatibilidade_fisiopatologica: textoOuNull(formData.get("compatibilidade_fisiopatologica")),
+    preexistencias: textoOuNull(formData.get("preexistencias")),
+    concausas: textoOuNull(formData.get("concausas")),
+    causas_alternativas_texto: textoOuNull(formData.get("causas_alternativas_texto")),
+    intercorrencias_independentes: textoOuNull(formData.get("intercorrencias_independentes")),
+    evidencias_favoraveis: textoOuNull(formData.get("evidencias_favoraveis")),
+    evidencias_contrarias: textoOuNull(formData.get("evidencias_contrarias")),
+    fundamentacao: textoOuNull(formData.get("fundamentacao")),
+    conclusao: (formData.get("conclusao") as ViabilidadeConclusaoNexo | "") || null,
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_nexo_causal").update(update).eq("id", nexoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Dano (§17) — 1:1 por processo. Mesmo padrão garantir/salvar de caso_nexo_causal. */
+export async function garantirDano(processoId: string): Promise<{ error: string } | { data: CasoDanoRow }> {
+  const supabase = await createClient();
+
+  const { data: existente, error: erroSelect } = await supabase
+    .from("caso_dano")
+    .select("*")
+    .eq("processo_id", processoId)
+    .maybeSingle();
+  if (erroSelect) return { error: erroSelect.message };
+  if (existente) return { data: existente };
+
+  const { data: criado, error: erroInsert } = await supabase
+    .from("caso_dano")
+    .insert({ processo_id: processoId })
+    .select("*")
+    .single();
+  if (erroInsert) return { error: erroInsert.message };
+
+  return { data: criado };
+}
+
+/** §17: sempre separa existência do dano (`existe`) de atribuição causal — nunca um campo só misturando os dois. */
+export async function salvarDano(formData: FormData): Promise<ActionResult> {
+  const danoId = textoOuNull(formData.get("dano_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!danoId || !processoId) return { error: "Registro de dano inválido — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const update: CasoDanoUpdate = {
+    existe: (formData.get("existe") as ViabilidadeDanoExiste | "") || null,
+    natureza: textoOuNull(formData.get("natureza")),
+    data_inicio: textoOuNull(formData.get("data_inicio")),
+    situacao_atual: textoOuNull(formData.get("situacao_atual")),
+    temporario_permanente: (formData.get("temporario_permanente") as ViabilidadeDanoTemporarioPermanente | "") || null,
+    reversibilidade: textoOuNull(formData.get("reversibilidade")),
+    repercussao_funcional: textoOuNull(formData.get("repercussao_funcional")),
+    tratamentos: textoOuNull(formData.get("tratamentos")),
+    necessidade_terceiros: textoOuNull(formData.get("necessidade_terceiros")),
+    prognostico: textoOuNull(formData.get("prognostico")),
+    documentacao: textoOuNull(formData.get("documentacao")),
+    atribuicao_causal: textoOuNull(formData.get("atribuicao_causal")),
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_dano").update(update).eq("id", danoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Incapacidade (§18) — 1:1 por processo, exibida só quando pertinente. Mesmo padrão garantir/salvar. */
+export async function garantirIncapacidade(processoId: string): Promise<{ error: string } | { data: CasoIncapacidadeRow }> {
+  const supabase = await createClient();
+
+  const { data: existente, error: erroSelect } = await supabase
+    .from("caso_incapacidade")
+    .select("*")
+    .eq("processo_id", processoId)
+    .maybeSingle();
+  if (erroSelect) return { error: erroSelect.message };
+  if (existente) return { data: existente };
+
+  const { data: criado, error: erroInsert } = await supabase
+    .from("caso_incapacidade")
+    .insert({ processo_id: processoId })
+    .select("*")
+    .single();
+  if (erroInsert) return { error: erroInsert.message };
+
+  return { data: criado };
+}
+
+export async function salvarIncapacidade(formData: FormData): Promise<ActionResult> {
+  const incapacidadeId = textoOuNull(formData.get("incapacidade_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!incapacidadeId || !processoId) return { error: "Registro de incapacidade inválido — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const update: CasoIncapacidadeUpdate = {
+    pertinente: formData.get("pertinente") === "on",
+    profissao: textoOuNull(formData.get("profissao")),
+    atividade_habitual: textoOuNull(formData.get("atividade_habitual")),
+    exigencias_funcionais: textoOuNull(formData.get("exigencias_funcionais")),
+    limitacoes: textoOuNull(formData.get("limitacoes")),
+    incapacidade_atual: textoOuNull(formData.get("incapacidade_atual")),
+    parcial_total: (formData.get("parcial_total") as ViabilidadeParcialTotal | "") || null,
+    temporaria_permanente: (formData.get("temporaria_permanente") as ViabilidadeIncapacidadeTemporariaPermanente | "") || null,
+    reabilitacao: textoOuNull(formData.get("reabilitacao")),
+    data_provavel_inicio: textoOuNull(formData.get("data_provavel_inicio")),
+    prognostico: textoOuNull(formData.get("prognostico")),
+    necessidade_avaliacao_complementar: textoOuNull(formData.get("necessidade_avaliacao_complementar")),
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_incapacidade").update(update).eq("id", incapacidadeId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Causas alternativas (§19) — CRUD repetível. */
+export async function criarCausaAlternativa(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const hipotese = textoOuNull(formData.get("hipotese"));
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+  if (!hipotese) return { error: "Descreva a hipótese alternativa." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const insert: CasoCausasAlternativasInsert = {
+    processo_id: processoId,
+    hipotese,
+    elementos_favoraveis: textoOuNull(formData.get("elementos_favoraveis")),
+    elementos_contrarios: textoOuNull(formData.get("elementos_contrarios")),
+    documento_id: textoOuNull(formData.get("documento_id")),
+    plausibilidade: (formData.get("plausibilidade") as ViabilidadePlausibilidade | "") || null,
+    impacto_sobre_tese: textoOuNull(formData.get("impacto_sobre_tese")),
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_causas_alternativas").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function atualizarCausaAlternativa(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const hipotese = textoOuNull(formData.get("hipotese"));
+  if (!id || !processoId) return { error: "Causa alternativa inválida — recarregue a página e tente de novo." };
+  if (!hipotese) return { error: "Descreva a hipótese alternativa." };
+
+  const supabase = await createClient();
+  const update: CasoCausasAlternativasUpdate = {
+    hipotese,
+    elementos_favoraveis: textoOuNull(formData.get("elementos_favoraveis")),
+    elementos_contrarios: textoOuNull(formData.get("elementos_contrarios")),
+    documento_id: textoOuNull(formData.get("documento_id")),
+    plausibilidade: (formData.get("plausibilidade") as ViabilidadePlausibilidade | "") || null,
+    impacto_sobre_tese: textoOuNull(formData.get("impacto_sobre_tese")),
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_causas_alternativas").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function excluirCausaAlternativa(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_causas_alternativas").delete().eq("id", id);
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/viabilidade`);
