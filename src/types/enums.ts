@@ -454,6 +454,7 @@ export type ViabilidadeCategoriaLinhaTempo =
   | 'prescricao'
   | 'procedimento'
   | 'cirurgia'
+  | 'internacao'
   | 'intercorrencia'
   | 'piora'
   | 'oportunidade_diagnostica'

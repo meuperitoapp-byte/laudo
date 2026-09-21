@@ -160,6 +160,7 @@ export const CATEGORIA_LINHA_TEMPO_ROTULOS: Record<ViabilidadeCategoriaLinhaTemp
   prescricao: "Prescrição",
   procedimento: "Procedimento",
   cirurgia: "Cirurgia",
+  internacao: "Internação",
   intercorrencia: "Intercorrência",
   piora: "Piora",
   oportunidade_diagnostica: "Oportunidade diagnóstica",
