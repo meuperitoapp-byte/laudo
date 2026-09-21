@@ -52,3 +52,25 @@ export const VIABILIDADE_STATUS_ORDENADOS: ViabilidadeStatus[] = [
   "em_revisao",
   "concluida",
 ];
+
+/**
+ * Finalidade da análise (§4) — multisseleção de vocabulário FECHADO
+ * (checkbox, não catálogo editável — é a lista literal do spec).
+ * `valor` é o que grava em `analises_viabilidade.finalidade` (jsonb).
+ */
+export const FINALIDADE_OPCOES: { valor: string; rotulo: string }[] = [
+  { valor: "avaliar_possibilidade_ajuizamento", rotulo: "Avaliar possibilidade de ajuizamento" },
+  { valor: "elementos_tecnicos_favoraveis", rotulo: "Existência de elementos técnicos favoráveis" },
+  { valor: "responsabilidade_medico_hospitalar", rotulo: "Responsabilidade médico-hospitalar" },
+  { valor: "nexo_causal", rotulo: "Nexo causal" },
+  { valor: "dano", rotulo: "Dano" },
+  { valor: "incapacidade", rotulo: "Incapacidade" },
+  { valor: "doenca_ocupacional", rotulo: "Doença ocupacional" },
+  { valor: "questao_securitaria", rotulo: "Questão securitária" },
+  { valor: "conduta_profissional", rotulo: "Conduta profissional" },
+  { valor: "necessidade_prova_pericial", rotulo: "Necessidade de prova pericial" },
+  { valor: "viabilidade_de_tese", rotulo: "Viabilidade de tese" },
+  { valor: "subsidiar_estrategia_juridica", rotulo: "Subsidiar estratégia jurídica para eventual ajuizamento" },
+  { valor: "defesa_pre_processual", rotulo: "Defesa pré-processual" },
+  { valor: "outro", rotulo: "Outro" },
+];

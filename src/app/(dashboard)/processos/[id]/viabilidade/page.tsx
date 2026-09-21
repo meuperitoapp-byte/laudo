@@ -3,16 +3,19 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { garantirAnaliseViabilidade } from "@/features/viabilidade/actions";
 import { CabecalhoViabilidadePanel } from "@/features/viabilidade/cabecalho-panel";
+import { FinalidadeNarrativasPanel } from "@/features/viabilidade/finalidade-narrativas-panel";
+import { QuestoesTecnicasPanel } from "@/features/viabilidade/questoes-tecnicas-panel";
 import { ESPECIALIDADE_SEED, MATERIA_SEED } from "@/features/viabilidade/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 /**
- * Janela de Análise de Viabilidade Técnico-Pericial — fatia 0 (cabeçalho +
- * status). Spec completa de 45 seções em memória do projeto (analise-
- * viabilidade-spec) — as fatias 1-9 (narrativas, acervo, linha do tempo,
- * nexo/dano, conclusão, PDF etc.) chegam em commits seguintes, todas contra
- * o schema já aplicado (migration 20260926120000).
+ * Janela de Análise de Viabilidade Técnico-Pericial — fatias 0 (cabeçalho +
+ * status) e 1 (finalidade + narrativas + objeto + questões técnicas). Spec
+ * completa de 45 seções em memória do projeto (analise-viabilidade-spec) —
+ * as fatias 2-9 (acervo documental, linha do tempo, fatos comprovados,
+ * condutas, nexo/dano, conclusão, PDF etc.) chegam em commits seguintes,
+ * todas contra o schema já aplicado (migration 20260926120000).
  *
  * Só existe pra processos de Assistência Técnica com a etapa
  * "análise de viabilidade" contratada — mesmo padrão de gate já usado por
@@ -76,6 +79,12 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     (outrasAnalises ?? []).flatMap((a) => a.materia ?? []),
   );
 
+  const { data: questoesDb, error: erroQuestoes } = await supabase
+    .from("caso_questoes_tecnicas")
+    .select("*")
+    .eq("processo_id", id);
+  if (erroQuestoes) console.error("Viabilidade: falha ao buscar questões técnicas:", erroQuestoes.message);
+
   const nomeCaso = processo.periciando_nome || processo.parte_autora || "Processo sem identificação";
 
   return (
@@ -105,9 +114,13 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
         materiaSugestoes={materiaSugestoes}
       />
 
+      <FinalidadeNarrativasPanel analise={analise} />
+
+      <QuestoesTecnicasPanel processoId={id} questoes={questoesDb ?? []} />
+
       <div className="rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 px-5 py-4 text-sm text-nevoa-500 dark:text-nevoa-400">
-        Próximas seções (finalidade, narrativas, acervo documental, linha do tempo, nexo, conclusão etc.) chegam nas
-        próximas fatias — o schema completo já está pronto pra receber tudo, sem migration nova.
+        Próximas seções (acervo documental, linha do tempo, fatos comprovados, condutas, nexo, dano, conclusão, PDF
+        etc.) chegam nas próximas fatias — o schema completo já está pronto pra receber tudo, sem migration nova.
       </div>
     </main>
   );
