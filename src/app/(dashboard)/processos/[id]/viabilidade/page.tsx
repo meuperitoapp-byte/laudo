@@ -17,6 +17,10 @@ import { NexoCausalPanel } from "@/features/viabilidade/nexo-causal-panel";
 import { DanoPanel } from "@/features/viabilidade/dano-panel";
 import { IncapacidadePanel } from "@/features/viabilidade/incapacidade-panel";
 import { CausasAlternativasPanel } from "@/features/viabilidade/causas-alternativas-panel";
+import { PontosFavoraveisPanel } from "@/features/viabilidade/pontos-favoraveis-panel";
+import { FragilidadesPanel } from "@/features/viabilidade/fragilidades-panel";
+import { OportunidadesProbatoriasPanel } from "@/features/viabilidade/oportunidades-probatorias-panel";
+import { RiscoPericialPanel } from "@/features/viabilidade/risco-pericial-panel";
 import { ESPECIALIDADE_SEED, MATERIA_SEED } from "@/features/viabilidade/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
@@ -121,6 +125,9 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     { data: pontosTecnicosDb, error: erroPontosTecnicos },
     { data: condutasDb, error: erroCondutas },
     { data: causasAlternativasDb, error: erroCausasAlternativas },
+    { data: pontosFavoraveisDb, error: erroPontosFavoraveis },
+    { data: fragilidadesDb, error: erroFragilidades },
+    { data: oportunidadesProbatoriasDb, error: erroOportunidadesProbatorias },
   ] = await Promise.all([
     supabase.from("documentos").select("*").eq("processo_id", id).order("ordem", { ascending: true }),
     supabase.from("caso_documentos_avaliados").select("*").eq("processo_id", id),
@@ -130,6 +137,9 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     supabase.from("caso_pontos_tecnicos").select("*").eq("processo_id", id),
     supabase.from("caso_condutas_analisadas").select("*").eq("processo_id", id),
     supabase.from("caso_causas_alternativas").select("*").eq("processo_id", id),
+    supabase.from("caso_pontos_favoraveis").select("*").eq("processo_id", id),
+    supabase.from("caso_fragilidades").select("*").eq("processo_id", id),
+    supabase.from("caso_oportunidades_probatorias").select("*").eq("processo_id", id),
   ]);
   if (erroDocumentos) console.error("Viabilidade: falha ao buscar documentos:", erroDocumentos.message);
   if (erroAvaliacoes) console.error("Viabilidade: falha ao buscar avaliações de documentos:", erroAvaliacoes.message);
@@ -139,6 +149,10 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
   if (erroPontosTecnicos) console.error("Viabilidade: falha ao buscar pontos técnicos:", erroPontosTecnicos.message);
   if (erroCondutas) console.error("Viabilidade: falha ao buscar condutas analisadas:", erroCondutas.message);
   if (erroCausasAlternativas) console.error("Viabilidade: falha ao buscar causas alternativas:", erroCausasAlternativas.message);
+  if (erroPontosFavoraveis) console.error("Viabilidade: falha ao buscar pontos favoráveis:", erroPontosFavoraveis.message);
+  if (erroFragilidades) console.error("Viabilidade: falha ao buscar fragilidades:", erroFragilidades.message);
+  if (erroOportunidadesProbatorias)
+    console.error("Viabilidade: falha ao buscar oportunidades probatórias:", erroOportunidadesProbatorias.message);
 
   const nomeCaso = processo.periciando_nome || processo.parte_autora || "Processo sem identificação";
 
@@ -197,10 +211,23 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
 
       <CausasAlternativasPanel processoId={id} itens={causasAlternativasDb ?? []} documentos={documentosDb ?? []} />
 
+      <PontosFavoraveisPanel
+        processoId={id}
+        itens={pontosFavoraveisDb ?? []}
+        documentos={documentosDb ?? []}
+        questoes={questoesDb ?? []}
+      />
+
+      <FragilidadesPanel processoId={id} itens={fragilidadesDb ?? []} />
+
+      <OportunidadesProbatoriasPanel processoId={id} itens={oportunidadesProbatoriasDb ?? []} />
+
+      <RiscoPericialPanel analise={analise} />
+
       <div className="rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 px-5 py-4 text-sm text-nevoa-500 dark:text-nevoa-400">
-        Próximas seções (pontos favoráveis, fragilidades, oportunidades probatórias, risco pericial, tese adversa,
-        literatura, matriz, conclusão, recomendação, PDF etc.) chegam nas próximas fatias — o resto do schema já
-        está pronto, sem migration nova.
+        Próximas seções (tese adversa, raciocínio pericial, necessidade de especialista, literatura, matriz,
+        conclusão, recomendação, PDF etc.) chegam nas próximas fatias — o resto do schema já está pronto, sem
+        migration nova.
       </div>
     </main>
   );

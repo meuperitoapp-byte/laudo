@@ -25,6 +25,12 @@ import type {
   CasoIncapacidadeUpdate,
   CasoCausasAlternativasInsert,
   CasoCausasAlternativasUpdate,
+  CasoPontosFavoraveisInsert,
+  CasoPontosFavoraveisUpdate,
+  CasoFragilidadesInsert,
+  CasoFragilidadesUpdate,
+  CasoOportunidadesProbatoriasInsert,
+  CasoOportunidadesProbatoriasUpdate,
 } from "@/types/database";
 import type {
   ViabilidadeStatus,
@@ -43,6 +49,10 @@ import type {
   ViabilidadeParcialTotal,
   ViabilidadeIncapacidadeTemporariaPermanente,
   ViabilidadePlausibilidade,
+  ViabilidadeForcaProbatoria,
+  ViabilidadeImpactoFragilidade,
+  ViabilidadeTipoProva,
+  ViabilidadeRiscoGrau,
 } from "@/types/enums";
 import { VIABILIDADE_STATUS_ORDENADOS } from "./catalogos";
 
@@ -943,6 +953,253 @@ export async function atualizarCausaAlternativa(formData: FormData): Promise<Act
 export async function excluirCausaAlternativa(id: string, processoId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.from("caso_causas_alternativas").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Pontos favoráveis (§20) — CRUD repetível. */
+export async function criarPontoFavoravel(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const descricao = textoOuNull(formData.get("descricao"));
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+  if (!descricao) return { error: "Descreva o ponto favorável." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const insert: CasoPontosFavoraveisInsert = {
+    processo_id: processoId,
+    descricao,
+    documento_id: textoOuNull(formData.get("documento_id")),
+    questao_tecnica_id: textoOuNull(formData.get("questao_tecnica_id")),
+    importancia: textoOuNull(formData.get("importancia")),
+    forca_probatoria: (formData.get("forca_probatoria") as ViabilidadeForcaProbatoria | "") || null,
+    observacao: textoOuNull(formData.get("observacao")),
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_pontos_favoraveis").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function atualizarPontoFavoravel(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const descricao = textoOuNull(formData.get("descricao"));
+  if (!id || !processoId) return { error: "Ponto favorável inválido — recarregue a página e tente de novo." };
+  if (!descricao) return { error: "Descreva o ponto favorável." };
+
+  const supabase = await createClient();
+  const update: CasoPontosFavoraveisUpdate = {
+    descricao,
+    documento_id: textoOuNull(formData.get("documento_id")),
+    questao_tecnica_id: textoOuNull(formData.get("questao_tecnica_id")),
+    importancia: textoOuNull(formData.get("importancia")),
+    forca_probatoria: (formData.get("forca_probatoria") as ViabilidadeForcaProbatoria | "") || null,
+    observacao: textoOuNull(formData.get("observacao")),
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_pontos_favoraveis").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function excluirPontoFavoravel(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_pontos_favoraveis").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Fragilidades (§21) — CRUD repetível. Vínculo opcional com oportunidade probatória gerada a partir dela fica só de leitura aqui (criado pela própria ação de "gerar oportunidade" da fatia — ainda não construída como automação de 1 clique, ela cadastra a oportunidade à parte por enquanto). */
+export async function criarFragilidade(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const descricao = textoOuNull(formData.get("descricao"));
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+  if (!descricao) return { error: "Descreva a fragilidade." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const insert: CasoFragilidadesInsert = {
+    processo_id: processoId,
+    descricao,
+    motivo: textoOuNull(formData.get("motivo")),
+    evidencia: textoOuNull(formData.get("evidencia")),
+    impacto: (formData.get("impacto") as ViabilidadeImpactoFragilidade | "") || null,
+    possibilidade_mitigacao: textoOuNull(formData.get("possibilidade_mitigacao")),
+    prova_necessaria: textoOuNull(formData.get("prova_necessaria")),
+    responsavel: textoOuNull(formData.get("responsavel")),
+    prazo: textoOuNull(formData.get("prazo")),
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_fragilidades").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function atualizarFragilidade(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const descricao = textoOuNull(formData.get("descricao"));
+  if (!id || !processoId) return { error: "Fragilidade inválida — recarregue a página e tente de novo." };
+  if (!descricao) return { error: "Descreva a fragilidade." };
+
+  const supabase = await createClient();
+  const update: CasoFragilidadesUpdate = {
+    descricao,
+    motivo: textoOuNull(formData.get("motivo")),
+    evidencia: textoOuNull(formData.get("evidencia")),
+    impacto: (formData.get("impacto") as ViabilidadeImpactoFragilidade | "") || null,
+    possibilidade_mitigacao: textoOuNull(formData.get("possibilidade_mitigacao")),
+    prova_necessaria: textoOuNull(formData.get("prova_necessaria")),
+    responsavel: textoOuNull(formData.get("responsavel")),
+    prazo: textoOuNull(formData.get("prazo")),
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_fragilidades").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function excluirFragilidade(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_fragilidades").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/**
+ * Oportunidades probatórias (§22) — CRUD, ligado a processo_id. Vira fonte
+ * nova do agregador da Central de Prazos (mesmo princípio de Documentos
+ * faltantes, fatia 2): SEMPRE aparece enquanto não resolvida, nunca
+ * gatilhada por responsável+prazo preenchidos.
+ */
+export async function criarOportunidadeProbatoria(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const providencia = textoOuNull(formData.get("providencia"));
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+  if (!providencia) return { error: "Descreva a providência." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const insert: CasoOportunidadesProbatoriasInsert = {
+    processo_id: processoId,
+    providencia,
+    tipo_prova: (formData.get("tipo_prova") as ViabilidadeTipoProva | "") || null,
+    objetivo: textoOuNull(formData.get("objetivo")),
+    responsavel: textoOuNull(formData.get("responsavel")),
+    prazo: textoOuNull(formData.get("prazo")),
+    prioridade: textoOuNull(formData.get("prioridade")),
+    status: textoOuNull(formData.get("status")),
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_oportunidades_probatorias").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
+export async function atualizarOportunidadeProbatoria(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const providencia = textoOuNull(formData.get("providencia"));
+  if (!id || !processoId) return { error: "Oportunidade probatória inválida — recarregue a página e tente de novo." };
+  if (!providencia) return { error: "Descreva a providência." };
+
+  const supabase = await createClient();
+  const update: CasoOportunidadesProbatoriasUpdate = {
+    providencia,
+    tipo_prova: (formData.get("tipo_prova") as ViabilidadeTipoProva | "") || null,
+    objetivo: textoOuNull(formData.get("objetivo")),
+    responsavel: textoOuNull(formData.get("responsavel")),
+    prazo: textoOuNull(formData.get("prazo")),
+    prioridade: textoOuNull(formData.get("prioridade")),
+    status: textoOuNull(formData.get("status")),
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_oportunidades_probatorias").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
+/** Marca como resolvida — some da Central de Prazos (fonte lê `resolvido_em is null`), fica no histórico do caso. */
+export async function resolverOportunidadeProbatoria(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("caso_oportunidades_probatorias")
+    .update({ resolvido_em: new Date().toISOString(), atualizado_por_modulo: "viabilidade" })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
+export async function excluirOportunidadeProbatoria(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_oportunidades_probatorias").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
+/** Risco pericial (§23) — hub, INTERNO. Nunca aparece no PDF (garantido pela assinatura da função geradora, fatia 8 — não por esta ação). */
+export async function salvarRiscoPericial(formData: FormData): Promise<ActionResult> {
+  const analiseId = textoOuNull(formData.get("analise_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const update: AnalisesViabilidadeUpdate = {
+    risco_principal_tecnico: textoOuNull(formData.get("risco_principal_tecnico")),
+    risco_fato_desfavoravel: textoOuNull(formData.get("risco_fato_desfavoravel")),
+    risco_documento_prejudicial: textoOuNull(formData.get("risco_documento_prejudicial")),
+    risco_pergunta_dificil: textoOuNull(formData.get("risco_pergunta_dificil")),
+    risco_grau: (formData.get("risco_grau") as ViabilidadeRiscoGrau | "") || null,
+    risco_fundamentacao: textoOuNull(formData.get("risco_fundamentacao")),
+  };
+
+  const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/viabilidade`);

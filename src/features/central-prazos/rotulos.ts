@@ -58,6 +58,7 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   honorarios_atraso_at: "Cobrar o pagamento pendente.",
   reuniao_estrategia_pericial: "Preparar e realizar a reunião com o advogado.",
   viabilidade_documento_faltante: "Cobrar o documento com quem provavelmente possui.",
+  viabilidade_oportunidade_probatoria: "Executar a providência probatória registrada.",
 };
 
 /**
@@ -91,4 +92,5 @@ export const GRUPO_AGENDA_POR_CATEGORIA: Record<ItemPainel["categoria"], GrupoAg
   honorarios_marco_judicial: "prazos",
   honorarios_atraso_at: "prazos",
   viabilidade_documento_faltante: "prazos",
+  viabilidade_oportunidade_probatoria: "prazos",
 };

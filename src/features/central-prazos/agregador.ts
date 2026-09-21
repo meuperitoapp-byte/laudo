@@ -21,6 +21,9 @@
  * Documentos faltantes da Análise de Viabilidade (fatia 2, 21/09/2026)
  * plugou a 12ª fonte — lê `caso_documentos_faltantes` direto, nunca
  * escreve em `central_tarefas` (que é só cadastro manual dela).
+ * Oportunidades probatórias da Análise de Viabilidade (fatia 5, 21/09/2026)
+ * plugou a 13ª fonte — mesmo princípio, lê `caso_oportunidades_probatorias`
+ * direto.
  */
 
 import type { createClient } from "@/lib/supabase/server";
@@ -55,6 +58,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     { data: processosComLaudoDb },
     { data: tarefasDb },
     { data: documentosFaltantesDb },
+    { data: oportunidadesProbatoriasDb },
   ] = await Promise.all([
     // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
     // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
@@ -100,6 +104,13 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     supabase
       .from("caso_documentos_faltantes")
       .select("id, processo_id, documento_necessario, quem_provavelmente_possui, responsavel, prazo, created_at")
+      .is("resolvido_em", null),
+    // Fonte 13 — oportunidades probatórias da Análise de Viabilidade, ainda
+    // não resolvidas. Mesmo princípio da fonte 12: lê `caso_oportunidades_probatorias`
+    // DIRETO, nunca insere em central_tarefas.
+    supabase
+      .from("caso_oportunidades_probatorias")
+      .select("id, processo_id, providencia, responsavel, prazo, created_at")
       .is("resolvido_em", null),
   ]);
   const processos = processosDb ?? [];
@@ -447,6 +458,28 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: d.prazo,
       dataContexto: d.prazo ? null : { rotulo: "Cadastrado em", valor: d.created_at },
       ordenacao: d.prazo ?? d.created_at,
+      href: `/processos/${processo.id}/viabilidade`,
+    });
+  }
+
+  // ---- 13. Oportunidades probatórias da Análise de Viabilidade ----
+  // Mesmo princípio da fonte 12: SEMPRE aparece enquanto não resolvida,
+  // nunca gatilhada por responsável/prazo preenchidos. Sem prazo real, cai
+  // em "sem_prazo", com `created_at` pro desempate e "Cadastrada em" como
+  // contexto.
+  for (const o of oportunidadesProbatoriasDb ?? []) {
+    const processo = processoPorId.get(o.processo_id);
+    if (!processo) continue; // processo não ativo — fora da Central
+    itens.push({
+      id: `viabilidade_oportunidade_probatoria-${o.id}`,
+      categoria: "viabilidade_oportunidade_probatoria",
+      titulo: `Oportunidade probatória: ${o.providencia} — ${identificarProcesso(processo)}`,
+      subtitulo: `Responsável: ${o.responsavel || "sem responsável definido"}`,
+      providencia: PROVIDENCIA_POR_CATEGORIA.viabilidade_oportunidade_probatoria,
+      nivel: nivelPorPrazo(o.prazo, hoje),
+      prazo: o.prazo,
+      dataContexto: o.prazo ? null : { rotulo: "Cadastrada em", valor: o.created_at },
+      ordenacao: o.prazo ?? o.created_at,
       href: `/processos/${processo.id}/viabilidade`,
     });
   }

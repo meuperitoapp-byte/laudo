@@ -16,6 +16,10 @@ import type {
   ViabilidadeParcialTotal,
   ViabilidadeIncapacidadeTemporariaPermanente,
   ViabilidadePlausibilidade,
+  ViabilidadeForcaProbatoria,
+  ViabilidadeImpactoFragilidade,
+  ViabilidadeTipoProva,
+  ViabilidadeRiscoGrau,
 } from "@/types/enums";
 
 /**
@@ -243,4 +247,43 @@ export const PLAUSIBILIDADE_ROTULOS: Record<ViabilidadePlausibilidade, string> =
   moderada: "Moderada",
   baixa: "Baixa",
   improvavel: "Improvável",
+};
+
+/** Força probatória de um ponto favorável (§20) — rótulos de exibição. */
+export const FORCA_PROBATORIA_ROTULOS: Record<ViabilidadeForcaProbatoria, string> = {
+  muito_forte: "Muito forte",
+  forte: "Forte",
+  moderada: "Moderada",
+  fraca: "Fraca",
+};
+
+/** Impacto de uma fragilidade (§21) — rótulos de exibição. */
+export const IMPACTO_FRAGILIDADE_ROTULOS: Record<ViabilidadeImpactoFragilidade, string> = {
+  critico: "Crítico",
+  alto: "Alto",
+  moderado: "Moderado",
+  baixo: "Baixo",
+};
+
+/** Tipo de prova de uma oportunidade probatória (§22) — rótulos de exibição. */
+export const TIPO_PROVA_ROTULOS: Record<ViabilidadeTipoProva, string> = {
+  documento: "Documento",
+  prontuario: "Prontuário",
+  exame: "Exame",
+  relatorio_medico: "Relatório médico",
+  especialista: "Especialista",
+  futura_pericia: "Futura perícia",
+  quesito: "Quesito",
+  diligencia: "Diligência",
+  literatura: "Literatura",
+  informacao_complementar: "Informação complementar",
+  outro: "Outro",
+};
+
+/** Grau de risco pericial (§23, INTERNO — nunca aparece no PDF) — rótulos de exibição. */
+export const RISCO_GRAU_ROTULOS: Record<ViabilidadeRiscoGrau, string> = {
+  baixo: "Baixo",
+  moderado: "Moderado",
+  alto: "Alto",
+  muito_alto: "Muito alto",
 };
