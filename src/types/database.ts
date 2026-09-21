@@ -1370,6 +1370,8 @@ export type CasoFatosComprovadosRow = {
   relevancia: string | null
   questao_tecnica_id: string | null
   classificacao: ViabilidadeClassificacaoFato
+  /** §12 (migration 20260928120000). Só fatos com isto preenchido migram pro PDF sem exigir nova revisão na fatia 8. */
+  validado_em: string | null
   origem_modulo: ModuloOrigemCaso
   atualizado_por_modulo: ModuloOrigemCaso
   criado_por: string | null
@@ -1378,7 +1380,7 @@ export type CasoFatosComprovadosRow = {
 }
 export type CasoFatosComprovadosInsert = ComDefaults<
   CasoFatosComprovadosRow,
-  | 'id' | 'data' | 'documento_id' | 'pagina_ref' | 'relevancia' | 'questao_tecnica_id'
+  | 'id' | 'data' | 'documento_id' | 'pagina_ref' | 'relevancia' | 'questao_tecnica_id' | 'validado_em'
   | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
 >
 export type CasoFatosComprovadosUpdate = Partial<CasoFatosComprovadosRow>

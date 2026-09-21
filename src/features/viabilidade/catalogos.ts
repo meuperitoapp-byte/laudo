@@ -4,6 +4,8 @@ import type {
   ViabilidadeRelevanciaDocumento,
   ViabilidadeImpactoDocumentoFaltante,
   ViabilidadeImpactoLimitacao,
+  ViabilidadeCategoriaLinhaTempo,
+  ViabilidadeClassificacaoFato,
 } from "@/types/enums";
 
 /**
@@ -130,4 +132,32 @@ export const IMPACTO_LIMITACAO_ROTULOS: Record<ViabilidadeImpactoLimitacao, stri
   parcial: "Parcial",
   importante: "Importante",
   impede_conclusao: "Impede conclusão",
+};
+
+/** Categoria de evento da linha do tempo médico-pericial (§11) — rótulos de exibição. */
+export const CATEGORIA_LINHA_TEMPO_ROTULOS: Record<ViabilidadeCategoriaLinhaTempo, string> = {
+  sintoma: "Sintoma",
+  atendimento: "Atendimento",
+  consulta: "Consulta",
+  diagnostico: "Diagnóstico",
+  exame: "Exame",
+  prescricao: "Prescrição",
+  procedimento: "Procedimento",
+  cirurgia: "Cirurgia",
+  intercorrencia: "Intercorrência",
+  piora: "Piora",
+  oportunidade_diagnostica: "Oportunidade diagnóstica",
+  oportunidade_terapeutica: "Oportunidade terapêutica",
+  alta: "Alta",
+  incapacidade: "Incapacidade",
+  dano: "Dano",
+  obito: "Óbito",
+  outro: "Outro",
+};
+
+/** Classificação de um fato comprovado (§12) — rótulos de exibição. */
+export const CLASSIFICACAO_FATO_ROTULOS: Record<ViabilidadeClassificacaoFato, string> = {
+  comprovado: "Comprovado",
+  parcialmente_comprovado: "Parcialmente comprovado",
+  controvertido: "Controvertido",
 };

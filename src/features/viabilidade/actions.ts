@@ -9,12 +9,20 @@ import type {
   CasoQuestoesTecnicasUpdate,
   CasoDocumentosFaltantesInsert,
   CasoDocumentosFaltantesUpdate,
+  CasoLinhaTempoMedicaInsert,
+  CasoLinhaTempoMedicaUpdate,
+  CasoFatosComprovadosInsert,
+  CasoFatosComprovadosUpdate,
+  CasoPontosTecnicosInsert,
+  CasoPontosTecnicosUpdate,
 } from "@/types/database";
 import type {
   ViabilidadeStatus,
   ViabilidadeSuficienciaDocumental,
   ViabilidadeRelevanciaDocumento,
   ViabilidadeImpactoLimitacao,
+  ViabilidadeCategoriaLinhaTempo,
+  ViabilidadeClassificacaoFato,
 } from "@/types/enums";
 import { VIABILIDADE_STATUS_ORDENADOS } from "./catalogos";
 
@@ -361,6 +369,230 @@ export async function salvarLimitacoesDocumentais(formData: FormData): Promise<A
       limitacoes_justificativa: textoOuNull(formData.get("limitacoes_justificativa")),
     })
     .eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Linha do tempo médico-pericial (§11) — CRUD, ligado a processo_id. */
+export async function criarEventoLinhaTempo(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const data = textoOuNull(formData.get("data"));
+  const evento = textoOuNull(formData.get("evento"));
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+  if (!data) return { error: "Informe a data do evento." };
+  if (!evento) return { error: "Descreva o evento." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const insert: CasoLinhaTempoMedicaInsert = {
+    processo_id: processoId,
+    data,
+    hora: textoOuNull(formData.get("hora")),
+    evento,
+    categoria: (formData.get("categoria") as ViabilidadeCategoriaLinhaTempo | "") || null,
+    documento_id: textoOuNull(formData.get("documento_id")),
+    pagina_ref: textoOuNull(formData.get("pagina_ref")),
+    relevancia: textoOuNull(formData.get("relevancia")),
+    observacao_tecnica: textoOuNull(formData.get("observacao_tecnica")),
+    marco_critico: formData.get("marco_critico") === "on",
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_linha_tempo_medica").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function atualizarEventoLinhaTempo(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const data = textoOuNull(formData.get("data"));
+  const evento = textoOuNull(formData.get("evento"));
+  if (!id || !processoId) return { error: "Evento inválido — recarregue a página e tente de novo." };
+  if (!data) return { error: "Informe a data do evento." };
+  if (!evento) return { error: "Descreva o evento." };
+
+  const supabase = await createClient();
+  const update: CasoLinhaTempoMedicaUpdate = {
+    data,
+    hora: textoOuNull(formData.get("hora")),
+    evento,
+    categoria: (formData.get("categoria") as ViabilidadeCategoriaLinhaTempo | "") || null,
+    documento_id: textoOuNull(formData.get("documento_id")),
+    pagina_ref: textoOuNull(formData.get("pagina_ref")),
+    relevancia: textoOuNull(formData.get("relevancia")),
+    observacao_tecnica: textoOuNull(formData.get("observacao_tecnica")),
+    marco_critico: formData.get("marco_critico") === "on",
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_linha_tempo_medica").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function excluirEventoLinhaTempo(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_linha_tempo_medica").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/**
+ * Fatos comprovados (§12) — CRUD, ligado a processo_id. NUNCA populado a
+ * partir das narrativas (fatia 1) — é essa separação de tabelas, sem
+ * pipeline de código entre elas, que garante "narrativa nunca vira fato
+ * automaticamente".
+ */
+export async function criarFatoComprovado(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const fato = textoOuNull(formData.get("fato"));
+  const classificacao = formData.get("classificacao") as ViabilidadeClassificacaoFato | null;
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+  if (!fato) return { error: "Descreva o fato." };
+  if (!classificacao) return { error: "Escolha uma classificação." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const insert: CasoFatosComprovadosInsert = {
+    processo_id: processoId,
+    fato,
+    data: textoOuNull(formData.get("data")),
+    documento_id: textoOuNull(formData.get("documento_id")),
+    pagina_ref: textoOuNull(formData.get("pagina_ref")),
+    relevancia: textoOuNull(formData.get("relevancia")),
+    questao_tecnica_id: textoOuNull(formData.get("questao_tecnica_id")),
+    classificacao,
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_fatos_comprovados").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function atualizarFatoComprovado(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const fato = textoOuNull(formData.get("fato"));
+  const classificacao = formData.get("classificacao") as ViabilidadeClassificacaoFato | null;
+  if (!id || !processoId) return { error: "Fato inválido — recarregue a página e tente de novo." };
+  if (!fato) return { error: "Descreva o fato." };
+  if (!classificacao) return { error: "Escolha uma classificação." };
+
+  const supabase = await createClient();
+  const update: CasoFatosComprovadosUpdate = {
+    fato,
+    data: textoOuNull(formData.get("data")),
+    documento_id: textoOuNull(formData.get("documento_id")),
+    pagina_ref: textoOuNull(formData.get("pagina_ref")),
+    relevancia: textoOuNull(formData.get("relevancia")),
+    questao_tecnica_id: textoOuNull(formData.get("questao_tecnica_id")),
+    classificacao,
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_fatos_comprovados").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Alterna validado_em (§12) — nunca inferido da classificação, só preenchido quando ela confirma explicitamente. */
+export async function alternarValidacaoFato(id: string, processoId: string, validar: boolean): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("caso_fatos_comprovados")
+    .update({ validado_em: validar ? new Date().toISOString() : null, atualizado_por_modulo: "viabilidade" })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function excluirFatoComprovado(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_fatos_comprovados").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Pontos técnicos relevantes / possíveis controvérsias (§13) — CRUD. "Possível controvérsia", nunca "versão da parte contrária" (ainda não há processo). */
+export async function criarPontoTecnico(formData: FormData): Promise<ActionResult> {
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const pontoTecnico = textoOuNull(formData.get("ponto_tecnico"));
+  if (!processoId) return { error: "Processo inválido — recarregue a página e tente de novo." };
+  if (!pontoTecnico) return { error: "Descreva o ponto técnico." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const insert: CasoPontosTecnicosInsert = {
+    processo_id: processoId,
+    ponto_tecnico: pontoTecnico,
+    narrativa_apresentada: textoOuNull(formData.get("narrativa_apresentada")),
+    evidencia_documental: textoOuNull(formData.get("evidencia_documental")),
+    possivel_controversia: textoOuNull(formData.get("possivel_controversia")),
+    avaliacao_tecnica: textoOuNull(formData.get("avaliacao_tecnica")),
+    criado_por: user?.id ?? null,
+  };
+
+  const { error } = await supabase.from("caso_pontos_tecnicos").insert(insert);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function atualizarPontoTecnico(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const pontoTecnico = textoOuNull(formData.get("ponto_tecnico"));
+  if (!id || !processoId) return { error: "Ponto técnico inválido — recarregue a página e tente de novo." };
+  if (!pontoTecnico) return { error: "Descreva o ponto técnico." };
+
+  const supabase = await createClient();
+  const update: CasoPontosTecnicosUpdate = {
+    ponto_tecnico: pontoTecnico,
+    narrativa_apresentada: textoOuNull(formData.get("narrativa_apresentada")),
+    evidencia_documental: textoOuNull(formData.get("evidencia_documental")),
+    possivel_controversia: textoOuNull(formData.get("possivel_controversia")),
+    avaliacao_tecnica: textoOuNull(formData.get("avaliacao_tecnica")),
+    atualizado_por_modulo: "viabilidade",
+  };
+
+  const { error } = await supabase.from("caso_pontos_tecnicos").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+export async function excluirPontoTecnico(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("caso_pontos_tecnicos").delete().eq("id", id);
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/viabilidade`);

@@ -8,17 +8,21 @@ import { QuestoesTecnicasPanel } from "@/features/viabilidade/questoes-tecnicas-
 import { AcervoDocumentalPanel } from "@/features/viabilidade/acervo-documental-panel";
 import { DocumentosFaltantesPanel } from "@/features/viabilidade/documentos-faltantes-panel";
 import { LimitacoesDocumentaisPanel } from "@/features/viabilidade/limitacoes-documentais-panel";
+import { LinhaTempoPanel } from "@/features/viabilidade/linha-tempo-panel";
+import { FatosComprovadosPanel } from "@/features/viabilidade/fatos-comprovados-panel";
+import { PontosTecnicosPanel } from "@/features/viabilidade/pontos-tecnicos-panel";
 import { ESPECIALIDADE_SEED, MATERIA_SEED } from "@/features/viabilidade/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 /**
  * Janela de Análise de Viabilidade Técnico-Pericial — fatias 0 (cabeçalho +
- * status), 1 (finalidade + narrativas + objeto + questões técnicas) e 2
- * (acervo documental + suficiência documental + documentos faltantes +
- * limitações documentais, §7-10 completo). Spec completa de 45 seções em
- * memória do projeto (analise-viabilidade-spec). As fatias 3-9 seguintes
- * chegam em commits futuros, contra o schema já aplicado.
+ * status), 1 (finalidade + narrativas + objeto + questões técnicas), 2
+ * (acervo documental + suficiência + documentos faltantes + limitações
+ * documentais, §7-10) e 3 (linha do tempo médico-pericial + fatos
+ * comprovados + pontos técnicos/controvérsias, §11-13). Spec completa de
+ * 45 seções em memória do projeto (analise-viabilidade-spec). As fatias
+ * 4-9 seguintes chegam em commits futuros, contra o schema já aplicado.
  *
  * Só existe pra processos de Assistência Técnica com a etapa
  * "análise de viabilidade" contratada — mesmo padrão de gate já usado por
@@ -92,14 +96,23 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     { data: documentosDb, error: erroDocumentos },
     { data: avaliacoesDb, error: erroAvaliacoes },
     { data: faltantesDb, error: erroFaltantes },
+    { data: linhaTempoDb, error: erroLinhaTempo },
+    { data: fatosDb, error: erroFatos },
+    { data: pontosTecnicosDb, error: erroPontosTecnicos },
   ] = await Promise.all([
     supabase.from("documentos").select("*").eq("processo_id", id).order("ordem", { ascending: true }),
     supabase.from("caso_documentos_avaliados").select("*").eq("processo_id", id),
     supabase.from("caso_documentos_faltantes").select("*").eq("processo_id", id),
+    supabase.from("caso_linha_tempo_medica").select("*").eq("processo_id", id),
+    supabase.from("caso_fatos_comprovados").select("*").eq("processo_id", id),
+    supabase.from("caso_pontos_tecnicos").select("*").eq("processo_id", id),
   ]);
   if (erroDocumentos) console.error("Viabilidade: falha ao buscar documentos:", erroDocumentos.message);
   if (erroAvaliacoes) console.error("Viabilidade: falha ao buscar avaliações de documentos:", erroAvaliacoes.message);
   if (erroFaltantes) console.error("Viabilidade: falha ao buscar documentos faltantes:", erroFaltantes.message);
+  if (erroLinhaTempo) console.error("Viabilidade: falha ao buscar linha do tempo:", erroLinhaTempo.message);
+  if (erroFatos) console.error("Viabilidade: falha ao buscar fatos comprovados:", erroFatos.message);
+  if (erroPontosTecnicos) console.error("Viabilidade: falha ao buscar pontos técnicos:", erroPontosTecnicos.message);
 
   const nomeCaso = processo.periciando_nome || processo.parte_autora || "Processo sem identificação";
 
@@ -140,9 +153,15 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
 
       <LimitacoesDocumentaisPanel analise={analise} />
 
+      <LinhaTempoPanel processoId={id} itens={linhaTempoDb ?? []} documentos={documentosDb ?? []} />
+
+      <FatosComprovadosPanel processoId={id} itens={fatosDb ?? []} documentos={documentosDb ?? []} questoes={questoesDb ?? []} />
+
+      <PontosTecnicosPanel processoId={id} itens={pontosTecnicosDb ?? []} />
+
       <div className="rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 px-5 py-4 text-sm text-nevoa-500 dark:text-nevoa-400">
-        Próximas seções (linha do tempo, fatos comprovados, condutas, nexo, dano, conclusão, PDF etc.) chegam nas
-        próximas fatias — o resto do schema já está pronto, sem migration nova.
+        Próximas seções (condutas, oportunidade diagnóstica, nexo, dano, incapacidade, causas alternativas,
+        conclusão, PDF etc.) chegam nas próximas fatias — o resto do schema já está pronto, sem migration nova.
       </div>
     </main>
   );
