@@ -8,12 +8,15 @@ export const TAMANHO_MAXIMO_BYTES = 26214400;
 
 /**
  * Sugestões de categoria pra Matriz de Documentos Analisados (Seção VI de
- * Curatela/Previdenciário/Trabalhista). `documentos.categoria` é texto livre
- * no banco (ver comentário da coluna, migration 20260821130000) — este é só
- * um datalist de apoio, cobrindo os 3 tipos de laudo já mapeados; a perita
- * pode digitar qualquer outra coisa.
+ * Curatela/Previdenciário/Trabalhista), mais "Orçamento"/"Contrato" (pedido
+ * dela, 21/09/2026 — comuns em Assistência Técnica). `documentos.categoria`
+ * é texto livre no banco (ver comentário da coluna, migration
+ * 20260821130000) — este é só um datalist de apoio; a perita pode digitar
+ * qualquer outra coisa.
  */
 export const CATEGORIAS_SUGERIDAS = [
+  "Orçamento",
+  "Contrato",
   "Petição inicial",
   "Contestação",
   "Despacho/decisão judicial",
