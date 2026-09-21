@@ -122,19 +122,6 @@ export function CabecalhoViabilidadePanel({
         />
       </div>
 
-      <div className="max-w-xs">
-        <label htmlFor="prazo_contratual_entrega" className={labelClass}>
-          Prazo contratual de entrega
-        </label>
-        <input
-          id="prazo_contratual_entrega"
-          type="date"
-          name="prazo_contratual_entrega"
-          defaultValue={analise.prazo_contratual_entrega ?? ""}
-          className={inputClass}
-        />
-      </div>
-
       <div className="flex items-center gap-3 pt-2">
         <Botao type="submit" carregando={isPending} textoCarregando="Salvando…">
           Salvar cabeçalho

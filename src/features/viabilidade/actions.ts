@@ -123,7 +123,6 @@ export async function salvarCabecalhoViabilidade(formData: FormData): Promise<Ac
     especialidade: textoOuNull(formData.get("especialidade")),
     materia: materia.length > 0 ? materia : null,
     tags_tecnicas: tagsTecnicas.length > 0 ? tagsTecnicas : null,
-    prazo_contratual_entrega: textoOuNull(formData.get("prazo_contratual_entrega")),
   };
 
   const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);

@@ -486,6 +486,32 @@ export function ProcessoForm({
               placeholder="Ex.: CRM, CRO, CRP..."
             />
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="data_contratacao" className={labelClass}>
+                Data da contratação
+              </label>
+              <input
+                id="data_contratacao"
+                name="data_contratacao"
+                type="date"
+                className={inputClass}
+                defaultValue={processo?.data_contratacao ?? ""}
+              />
+            </div>
+            <div>
+              <label htmlFor="prazo_contratual_entrega" className={labelClass}>
+                Prazo contratual de entrega
+              </label>
+              <input
+                id="prazo_contratual_entrega"
+                name="prazo_contratual_entrega"
+                type="date"
+                className={inputClass}
+                defaultValue={processo?.prazo_contratual_entrega ?? ""}
+              />
+            </div>
+          </div>
           <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
             Contratante e advogado vão no cabeçalho do Parecer Técnico gerado.
           </p>

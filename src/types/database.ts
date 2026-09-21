@@ -211,6 +211,10 @@ export type ProcessosRow = {
   cliente_parte_assistida: string | null
   /** Só assistencia_tecnica: advogado(a) / escritório da parte assistida. */
   advogado_escritorio: string | null
+  /** Só assistencia_tecnica: quando o serviço foi contratado. Ver migration 20260930120000. */
+  data_contratacao: string | null
+  /** Só assistencia_tecnica: prazo contratual de entrega combinado. Migrou de analises_viabilidade (migration 20260930120000). */
+  prazo_contratual_entrega: string | null
   /** Ponto do fluxo (texto livre + catálogo). Ver migration 20260829120000. */
   situacao_processo: string | null
   /** Situação financeira (texto livre + catálogo). */
@@ -305,6 +309,8 @@ export type ProcessosInsert = ComDefaults<
   | 'etapas_contratadas'
   | 'cliente_parte_assistida'
   | 'advogado_escritorio'
+  | 'data_contratacao'
+  | 'prazo_contratual_entrega'
   | 'situacao_processo'
   | 'situacao_financeira'
   | 'valor_processo'
@@ -1135,7 +1141,6 @@ export type AnalisesViabilidadeRow = {
   especialidade: string | null
   materia: string[] | null
   tags_tecnicas: string[] | null
-  prazo_contratual_entrega: string | null
   finalidade: string[]
   pergunta_central_advogado: string | null
   narrativa_advogado: string | null
@@ -1205,7 +1210,6 @@ export type AnalisesViabilidadeInsert = ComDefaults<
   | 'especialidade'
   | 'materia'
   | 'tags_tecnicas'
-  | 'prazo_contratual_entrega'
   | 'finalidade'
   | 'pergunta_central_advogado'
   | 'narrativa_advogado'

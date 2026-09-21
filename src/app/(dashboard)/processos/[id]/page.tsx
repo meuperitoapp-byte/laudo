@@ -21,6 +21,11 @@ const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
   assistencia_tecnica: "Assistência Técnica",
 };
 
+function dataCurta(iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+
 /** Etapas contratadas da Assistência Técnica — rótulo e sigla (a sigla prefixa o título do processo de AT). */
 const ETAPA_CONTRATADA_ROTULOS: Record<string, string> = {
   analise_viabilidade: "Análise de viabilidade",
@@ -289,6 +294,12 @@ export default async function ProcessoDetalhePage({
               <Campo rotulo="Contratante">{processo.cliente_parte_assistida ?? "—"}</Campo>
               <Campo rotulo="Advogado">{processo.advogado_escritorio ?? "—"}</Campo>
               <Campo rotulo="Periciado(a)">{processo.periciando_nome ?? "—"}</Campo>
+              <Campo rotulo="Data da contratação">
+                {processo.data_contratacao ? dataCurta(processo.data_contratacao) : "—"}
+              </Campo>
+              <Campo rotulo="Prazo contratual de entrega">
+                {processo.prazo_contratual_entrega ? dataCurta(processo.prazo_contratual_entrega) : "—"}
+              </Campo>
               <Campo rotulo="Etapas contratadas" colSpan>
                 {processo.etapas_contratadas && processo.etapas_contratadas.length > 0
                   ? processo.etapas_contratadas

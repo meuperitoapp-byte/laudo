@@ -107,6 +107,8 @@ export async function createProcesso(formData: FormData): Promise<ActionResult> 
     insert.advogado_escritorio = optionalText(formData, "advogado_escritorio");
     insert.periciando_nome = optionalText(formData, "periciando_nome");
     insert.orgao_classe = optionalText(formData, "orgao_classe");
+    insert.data_contratacao = optionalText(formData, "data_contratacao");
+    insert.prazo_contratual_entrega = optionalText(formData, "prazo_contratual_entrega");
     insert.honorarios_forma_pagamento = optionalText(formData, "honorarios_forma_pagamento");
     insert.honorarios_vencimento = optionalText(formData, "honorarios_vencimento");
   }
@@ -164,6 +166,8 @@ export async function updateProcesso(
     update.advogado_escritorio = optionalText(formData, "advogado_escritorio");
     update.periciando_nome = optionalText(formData, "periciando_nome");
     update.orgao_classe = optionalText(formData, "orgao_classe");
+    update.data_contratacao = optionalText(formData, "data_contratacao");
+    update.prazo_contratual_entrega = optionalText(formData, "prazo_contratual_entrega");
     update.honorarios_forma_pagamento = optionalText(formData, "honorarios_forma_pagamento");
     update.honorarios_vencimento = optionalText(formData, "honorarios_vencimento");
   }
