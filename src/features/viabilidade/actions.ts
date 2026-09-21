@@ -10,7 +10,12 @@ import type {
   CasoDocumentosFaltantesInsert,
   CasoDocumentosFaltantesUpdate,
 } from "@/types/database";
-import type { ViabilidadeStatus, ViabilidadeSuficienciaDocumental, ViabilidadeRelevanciaDocumento } from "@/types/enums";
+import type {
+  ViabilidadeStatus,
+  ViabilidadeSuficienciaDocumental,
+  ViabilidadeRelevanciaDocumento,
+  ViabilidadeImpactoLimitacao,
+} from "@/types/enums";
 import { VIABILIDADE_STATUS_ORDENADOS } from "./catalogos";
 
 type ActionResult = { error: string } | { success: true };
@@ -327,5 +332,37 @@ export async function excluirDocumentoFaltante(id: string, processoId: string): 
   revalidatePath(`/processos/${processoId}/viabilidade`);
   revalidatePath("/hoje");
   revalidatePath("/agenda");
+  return { success: true };
+}
+
+/**
+ * Limitações documentais (§10) — hub, não repetível. NOTA (registrada a
+ * pedido do Jeferson, 21/09/2026): `limitacoes_justificativa` deveria ser
+ * exigida quando impacto='impede_conclusao' E a conclusão escolhida
+ * (analises_viabilidade.conclusao) for definitiva — mas essa trava NÃO
+ * TEM COMO DISPARAR ainda, porque `conclusao` só existe a partir da fatia
+ * 7. Fica sem validação de obrigatoriedade aqui de propósito; a fatia 7
+ * (bloqueios de finalização, §42) é quem liga essa checagem.
+ */
+export async function salvarLimitacoesDocumentais(formData: FormData): Promise<ActionResult> {
+  const analiseId = textoOuNull(formData.get("analise_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
+
+  const limitacoes = formData.getAll("limitacoes_documentais").map((v) => String(v)).filter(Boolean);
+  const impacto = (formData.get("limitacoes_impacto") as ViabilidadeImpactoLimitacao | "") || null;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("analises_viabilidade")
+    .update({
+      limitacoes_documentais: limitacoes.length > 0 ? limitacoes : null,
+      limitacoes_impacto: impacto,
+      limitacoes_justificativa: textoOuNull(formData.get("limitacoes_justificativa")),
+    })
+    .eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
   return { success: true };
 }

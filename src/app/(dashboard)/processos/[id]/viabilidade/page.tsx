@@ -7,6 +7,7 @@ import { FinalidadeNarrativasPanel } from "@/features/viabilidade/finalidade-nar
 import { QuestoesTecnicasPanel } from "@/features/viabilidade/questoes-tecnicas-panel";
 import { AcervoDocumentalPanel } from "@/features/viabilidade/acervo-documental-panel";
 import { DocumentosFaltantesPanel } from "@/features/viabilidade/documentos-faltantes-panel";
+import { LimitacoesDocumentaisPanel } from "@/features/viabilidade/limitacoes-documentais-panel";
 import { ESPECIALIDADE_SEED, MATERIA_SEED } from "@/features/viabilidade/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
@@ -14,12 +15,10 @@ import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-con
 /**
  * Janela de Análise de Viabilidade Técnico-Pericial — fatias 0 (cabeçalho +
  * status), 1 (finalidade + narrativas + objeto + questões técnicas) e 2
- * (acervo documental + suficiência documental + documentos faltantes, §7-9).
- * Spec completa de 45 seções em memória do projeto (analise-viabilidade-
- * spec). Limitações documentais (§10) ficou de fora — gap encontrado ao
- * construir esta fatia, migration própria (20260927120000) ainda não
- * aplicada. As fatias 3-9 seguintes chegam em commits futuros, contra o
- * schema já aplicado (migration 20260926120000).
+ * (acervo documental + suficiência documental + documentos faltantes +
+ * limitações documentais, §7-10 completo). Spec completa de 45 seções em
+ * memória do projeto (analise-viabilidade-spec). As fatias 3-9 seguintes
+ * chegam em commits futuros, contra o schema já aplicado.
  *
  * Só existe pra processos de Assistência Técnica com a etapa
  * "análise de viabilidade" contratada — mesmo padrão de gate já usado por
@@ -139,10 +138,11 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
 
       <DocumentosFaltantesPanel processoId={id} itens={faltantesDb ?? []} />
 
+      <LimitacoesDocumentaisPanel analise={analise} />
+
       <div className="rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 px-5 py-4 text-sm text-nevoa-500 dark:text-nevoa-400">
-        Próximas seções (limitações documentais — aguardando você aplicar a migration pequena — linha do tempo,
-        fatos comprovados, condutas, nexo, dano, conclusão, PDF etc.) chegam nas próximas fatias — o resto do
-        schema já está pronto, sem migration nova.
+        Próximas seções (linha do tempo, fatos comprovados, condutas, nexo, dano, conclusão, PDF etc.) chegam nas
+        próximas fatias — o resto do schema já está pronto, sem migration nova.
       </div>
     </main>
   );

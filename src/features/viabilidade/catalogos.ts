@@ -3,6 +3,7 @@ import type {
   ViabilidadeSuficienciaDocumental,
   ViabilidadeRelevanciaDocumento,
   ViabilidadeImpactoDocumentoFaltante,
+  ViabilidadeImpactoLimitacao,
 } from "@/types/enums";
 
 /**
@@ -102,4 +103,31 @@ export const IMPACTO_DOCUMENTO_FALTANTE_ROTULOS: Record<ViabilidadeImpactoDocume
   limita_conclusao: "Limita conclusão",
   importante: "Importante",
   complementar: "Complementar",
+};
+
+/**
+ * Limitações documentais (§10) — multisseleção de vocabulário FECHADO
+ * (checkbox, mesmo espírito de FINALIDADE_OPCOES). `valor` é o que grava
+ * em `analises_viabilidade.limitacoes_documentais` (jsonb).
+ */
+export const LIMITACOES_DOCUMENTAIS_OPCOES: { valor: string; rotulo: string }[] = [
+  { valor: "prontuario_incompleto", rotulo: "Prontuário incompleto" },
+  { valor: "documento_ilegivel", rotulo: "Documento ilegível" },
+  { valor: "ausencia_horario", rotulo: "Ausência de horário" },
+  { valor: "ausencia_evolucao", rotulo: "Ausência de evolução" },
+  { valor: "ausencia_identificacao", rotulo: "Ausência de identificação" },
+  { valor: "ausencia_exame", rotulo: "Ausência de exame" },
+  { valor: "registro_insuficiente", rotulo: "Registro insuficiente" },
+  { valor: "documentacao_unilateral", rotulo: "Documentação unilateral" },
+  { valor: "divergencia_documental", rotulo: "Divergência documental" },
+  { valor: "impossibilidade_verificar_fato", rotulo: "Impossibilidade de verificar fato" },
+  { valor: "outro", rotulo: "Outro" },
+];
+
+/** Impacto das limitações documentais (§10) — rótulos de exibição. */
+export const IMPACTO_LIMITACAO_ROTULOS: Record<ViabilidadeImpactoLimitacao, string> = {
+  nenhum_relevante: "Nenhum relevante",
+  parcial: "Parcial",
+  importante: "Importante",
+  impede_conclusao: "Impede conclusão",
 };
