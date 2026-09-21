@@ -99,7 +99,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     // já usado pelas fontes 1-8).
     supabase
       .from("caso_documentos_faltantes")
-      .select("id, processo_id, documento_necessario, quem_provavelmente_possui, responsavel, prazo")
+      .select("id, processo_id, documento_necessario, quem_provavelmente_possui, responsavel, prazo, created_at")
       .is("resolvido_em", null),
   ]);
   const processos = processosDb ?? [];
@@ -426,25 +426,27 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   }
 
   // ---- 12. Documentos faltantes da Análise de Viabilidade ----
-  // Só vira pendência acionável com responsável + prazo (mesmo critério que
-  // o resto do sistema usa pra "isso é uma tarefa real, não só um registro
-  // aberto") — sem os dois, o item fica só na tela da Viabilidade, não
-  // aparece aqui. Título diz o QUE falta e DE QUEM, nunca um genérico
-  // "documento pendente" (pedido do Jeferson, 21/09/2026).
+  // SEMPRE aparece enquanto não resolvido — nunca gatilhado por responsável/
+  // prazo estarem preenchidos (corrigido em 21/09/2026: um item sem prazo
+  // ficava invisível fora da tela da análise, o que é o oposto do que a
+  // Central de Prazos existe pra fazer). Sem prazo real, cai em "sem_prazo"
+  // como as outras fontes desse tipo (ex.: documentos_pendentes) — usa
+  // `created_at` pro desempate de ordenação e mostra "Cadastrado em" como
+  // contexto. Título diz o QUE falta e DE QUEM provavelmente possui;
+  // subtítulo mostra o responsável, com fallback explícito quando vazio.
   for (const d of documentosFaltantesDb ?? []) {
     const processo = processoPorId.get(d.processo_id);
     if (!processo) continue; // processo não ativo — fora da Central
-    if (!d.responsavel || !d.prazo) continue;
     itens.push({
       id: `viabilidade_documento_faltante-${d.id}`,
       categoria: "viabilidade_documento_faltante",
       titulo: `Documento faltante: ${d.documento_necessario}${d.quem_provavelmente_possui ? ` — ${d.quem_provavelmente_possui}` : ""} — ${identificarProcesso(processo)}`,
-      subtitulo: null,
+      subtitulo: `Responsável: ${d.responsavel || "sem responsável definido"}`,
       providencia: PROVIDENCIA_POR_CATEGORIA.viabilidade_documento_faltante,
       nivel: nivelPorPrazo(d.prazo, hoje),
       prazo: d.prazo,
-      dataContexto: null,
-      ordenacao: d.prazo,
+      dataContexto: d.prazo ? null : { rotulo: "Cadastrado em", valor: d.created_at },
+      ordenacao: d.prazo ?? d.created_at,
       href: `/processos/${processo.id}/viabilidade`,
     });
   }

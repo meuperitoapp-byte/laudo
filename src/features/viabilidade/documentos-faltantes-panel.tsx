@@ -39,7 +39,7 @@ export function DocumentosFaltantesPanel({ processoId, itens }: { processoId: st
       <div>
         <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Documentos faltantes</h2>
         <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">
-          Aparece em Hoje e na Agenda enquanto tiver responsável + prazo e não estiver resolvido.
+          Aparece em Hoje e na Agenda enquanto não estiver resolvido — sem prazo, entra no bloco &ldquo;sem prazo&rdquo;.
         </p>
       </div>
 
