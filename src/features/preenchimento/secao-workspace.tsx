@@ -8,6 +8,7 @@ import { CampoField } from "./campo-field";
 import { salvarSecao, type RespostaCampoInput } from "./actions";
 import { Botao } from "@/components/ui/button";
 import { Toast } from "@/components/ui/toast";
+import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 import {
   gerarNarrativoCampo,
   gerarNarrativoSecao,
@@ -56,6 +57,7 @@ export function SecaoWorkspace({
   achadosDisponiveis,
   documentosDisponiveis,
   evidencias,
+  errosConsulta,
 }: {
   processoId: string;
   tipoLaudoNome: string;
@@ -77,6 +79,8 @@ export function SecaoWorkspace({
   achadosDisponiveis: AchadoParaVinculo[];
   documentosDisponiveis: DocumentoParaVinculo[];
   evidencias: RespostaEvidenciasRow[];
+  /** Consultas secundárias (tipo de laudo, respostas reutilizáveis, documentos/evidências p/ rastreabilidade) que falharam ao buscar — nunca falham em silêncio (ver auditoria de erro de consulta silenciosa). */
+  errosConsulta?: string[];
 }) {
   const router = useRouter();
   const camposDaSecaoPlano = useMemo(() => achatarArvoreCampos(arvoreCampos), [arvoreCampos]);
@@ -279,6 +283,11 @@ export function SecaoWorkspace({
 
       <main className="flex-1 overflow-y-auto p-8 max-w-3xl mx-auto">
         <h1 className="font-title text-xl font-semibold text-nevoa-900 dark:text-nevoa-50 mb-1">{secaoAtualTitulo}</h1>
+        {errosConsulta && errosConsulta.length > 0 && (
+          <BannerErroConsulta
+            mensagem={`Não foi possível carregar ${errosConsulta.join(", ")}. Alguns dados desta tela podem estar incompletos.`}
+          />
+        )}
         {estrutural && (
           <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mb-6">
             Esta seção não tem campos de marcação — o conteúdo dela vem de outra tela do sistema

@@ -18,7 +18,7 @@ import type {
   RespostaPersistida,
 } from "@/features/preenchimento/rastreabilidade-tipos";
 import type { ValorSelecionado } from "@/types/json-fields";
-import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
+import { ErroConsultaPagina } from "@/components/ui/erro-consulta";
 
 export default async function PreenchimentoSecaoPage({
   params,
@@ -80,11 +80,14 @@ export default async function PreenchimentoSecaoPage({
       .select("*")
       .or(`tipo_laudo_id.eq.${processo.tipo_laudo_id},tipo_laudo_id.is.null`),
   ]);
+  const erros: string[] = [];
   if (erroTipoLaudo && erroTipoLaudo.code !== "PGRST116") {
     console.error(`Preenchimento do processo ${processoId}: falha ao buscar tipo de laudo:`, erroTipoLaudo.message);
+    erros.push("o nome do tipo de laudo");
   }
   if (erroReutilizaveis) {
     console.error(`Preenchimento do processo ${processoId}: falha ao buscar respostas reutilizáveis:`, erroReutilizaveis.message);
+    erros.push("as respostas reutilizáveis");
   }
 
   // `secoes` vazia é um estado real (modelo do laudo sem seção nenhuma) — mas
@@ -140,6 +143,7 @@ export default async function PreenchimentoSecaoPage({
     .order("ordem");
   if (erroDocumentos) {
     console.error(`Preenchimento do processo ${processoId}: falha ao buscar documentos p/ rastreabilidade:`, erroDocumentos.message);
+    erros.push("os documentos para vínculo de evidência");
   }
   const { data: evidenciasData, error: erroEvidencias } =
     respostaProcessoIds.length > 0
@@ -147,6 +151,7 @@ export default async function PreenchimentoSecaoPage({
       : { data: [], error: null };
   if (erroEvidencias) {
     console.error(`Preenchimento do processo ${processoId}: falha ao buscar evidências:`, erroEvidencias.message);
+    erros.push("as evidências já vinculadas");
   }
 
   // Visibilidade das seções: avalia secoes.condicao contra as respostas já
@@ -297,6 +302,7 @@ export default async function PreenchimentoSecaoPage({
       respostasPersistidas={respostasPersistidas}
       achadosDisponiveis={achadosDisponiveis}
       documentosDisponiveis={documentosDisponiveis}
+      errosConsulta={erros}
       evidencias={evidenciasData ?? []}
     />
   );
