@@ -6,6 +6,7 @@ import {
   atualizarNecessidadeEspecialista,
   criarNecessidadeEspecialista,
   excluirNecessidadeEspecialista,
+  resolverNecessidadeEspecialista,
   salvarNecessidadeEspecialista,
 } from "./actions";
 import { NECESSIDADE_ESPECIALISTA_ROTULOS } from "./catalogos";
@@ -21,12 +22,18 @@ const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400
 
 type ActionResult = { error: string } | { success: true };
 
+function dataCurta(iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+
 /**
  * Necessidade de especialista (§26) — gatilho no hub (Não/Recomendável/
  * Necessário) + detalhe repetível que só existe quando a resposta não é
  * "Não" (mesmo padrão de esconder da fatia 4: o conteúdo não existe fora
- * da condição). Ainda sem ação "resolver": `caso_necessidade_especialista`
- * não tem `resolvido_em` — migration pendente de aplicação (ver memória).
+ * da condição). Item resolvido some da Central de Prazos (fonte 14 do
+ * agregador) e cai numa lista recolhida — mesmo padrão de Documentos
+ * faltantes/Oportunidades probatórias.
  */
 export function NecessidadeEspecialistaPanel({
   analise,
@@ -56,7 +63,8 @@ export function NecessidadeEspecialistaPanel({
   }
 
   const questaoPorId = new Map(questoes.map((q) => [q.id, q]));
-  const ordenados = [...itens].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const pendentes = [...itens.filter((i) => !i.resolvido_em)].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const resolvidos = [...itens.filter((i) => i.resolvido_em)].sort((a, b) => a.created_at.localeCompare(b.created_at));
   const mostrarDetalhe = necessidade === "recomendavel" || necessidade === "necessario";
 
   return (
@@ -95,11 +103,11 @@ export function NecessidadeEspecialistaPanel({
 
       {mostrarDetalhe && (
         <div className="space-y-3 border-t border-nevoa-200 dark:border-nevoa-800 pt-4">
-          {ordenados.length === 0 ? (
-            <p className="text-sm text-nevoa-500 dark:text-nevoa-400">Nenhum especialista cadastrado ainda.</p>
+          {pendentes.length === 0 ? (
+            <p className="text-sm text-nevoa-500 dark:text-nevoa-400">Nenhum especialista em aberto.</p>
           ) : (
             <ul className="space-y-2">
-              {ordenados.map((item) => (
+              {pendentes.map((item) => (
                 <NecessidadeEspecialistaItem
                   key={item.id}
                   item={item}
@@ -109,6 +117,25 @@ export function NecessidadeEspecialistaPanel({
                 />
               ))}
             </ul>
+          )}
+
+          {resolvidos.length > 0 && (
+            <details className="text-sm">
+              <summary className="cursor-pointer text-nevoa-500 dark:text-nevoa-400">
+                {resolvidos.length} resolvido{resolvidos.length > 1 ? "s" : ""}
+              </summary>
+              <ul className="mt-2 space-y-1.5">
+                {resolvidos.map((item) => (
+                  <li key={item.id} className="flex items-center justify-between gap-3 text-nevoa-500 dark:text-nevoa-400 px-1">
+                    <span className="truncate line-through">
+                      {item.especialidade || "Especialidade não informada"}
+                      {item.nome_especialista ? ` — ${item.nome_especialista}` : ""}
+                    </span>
+                    <span className="text-xs shrink-0">resolvido em {dataCurta(item.resolvido_em!)}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
           )}
 
           <NovaNecessidadeEspecialistaForm processoId={analise.processo_id} questoes={questoes} />
@@ -160,6 +187,18 @@ function NecessidadeEspecialistaItem({
     });
   }
 
+  function resolver() {
+    setErro(null);
+    startTransition(async () => {
+      const resultado = await resolverNecessidadeEspecialista(item.id, processoId);
+      if ("error" in resultado) {
+        setErro(resultado.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   if (!editando) {
     return (
       <li className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-nevoa-25 dark:bg-nevoa-950/40 px-3 py-2.5">
@@ -174,6 +213,14 @@ function NecessidadeEspecialistaItem({
             </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={resolver}
+              disabled={isPending}
+              className="rounded-md border border-musgo-300 dark:border-musgo-800 text-musgo-600 dark:text-musgo-400 hover:bg-musgo-100 dark:hover:bg-musgo-950 px-2 py-1 text-xs disabled:opacity-30"
+            >
+              Marcar resolvido
+            </button>
             <button
               type="button"
               onClick={() => setEditando(true)}

@@ -1339,6 +1339,8 @@ export async function criarNecessidadeEspecialista(formData: FormData): Promise<
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
   return { success: true };
 }
 
@@ -1363,6 +1365,8 @@ export async function atualizarNecessidadeEspecialista(formData: FormData): Prom
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
   return { success: true };
 }
 
@@ -1372,6 +1376,23 @@ export async function excluirNecessidadeEspecialista(id: string, processoId: str
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
+/** Marca como resolvida — some da Central de Prazos (fonte lê `resolvido_em is null`), fica no histórico do caso. */
+export async function resolverNecessidadeEspecialista(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("caso_necessidade_especialista")
+    .update({ resolvido_em: new Date().toISOString(), atualizado_por_modulo: "viabilidade" })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
   return { success: true };
 }
 

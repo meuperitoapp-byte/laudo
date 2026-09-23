@@ -59,6 +59,7 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   reuniao_estrategia_pericial: "Preparar e realizar a reunião com o advogado.",
   viabilidade_documento_faltante: "Cobrar o documento com quem provavelmente possui.",
   viabilidade_oportunidade_probatoria: "Executar a providência probatória registrada.",
+  viabilidade_necessidade_especialista: "Acionar/aguardar o especialista necessário.",
 };
 
 /**
@@ -93,4 +94,5 @@ export const GRUPO_AGENDA_POR_CATEGORIA: Record<ItemPainel["categoria"], GrupoAg
   honorarios_atraso_at: "prazos",
   viabilidade_documento_faltante: "prazos",
   viabilidade_oportunidade_probatoria: "prazos",
+  viabilidade_necessidade_especialista: "prazos",
 };

@@ -23,7 +23,9 @@
  * escreve em `central_tarefas` (que é só cadastro manual dela).
  * Oportunidades probatórias da Análise de Viabilidade (fatia 5, 21/09/2026)
  * plugou a 13ª fonte — mesmo princípio, lê `caso_oportunidades_probatorias`
- * direto.
+ * direto. Necessidade de especialista da Análise de Viabilidade (fatia 6,
+ * 23/09/2026) plugou a 14ª fonte — mesmo princípio, lê
+ * `caso_necessidade_especialista` direto.
  */
 
 import type { createClient } from "@/lib/supabase/server";
@@ -59,6 +61,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     { data: tarefasDb },
     { data: documentosFaltantesDb },
     { data: oportunidadesProbatoriasDb },
+    { data: necessidadeEspecialistaDb },
   ] = await Promise.all([
     // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
     // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
@@ -111,6 +114,14 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     supabase
       .from("caso_oportunidades_probatorias")
       .select("id, processo_id, providencia, responsavel, prazo, created_at")
+      .is("resolvido_em", null),
+    // Fonte 14 — necessidade de especialista da Análise de Viabilidade,
+    // ainda não resolvida. Mesmo princípio das fontes 12/13: lê
+    // `caso_necessidade_especialista` DIRETO, nunca insere em
+    // central_tarefas.
+    supabase
+      .from("caso_necessidade_especialista")
+      .select("id, processo_id, especialidade, nome_especialista, prazo, created_at")
       .is("resolvido_em", null),
   ]);
   const processos = processosDb ?? [];
@@ -480,6 +491,27 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: o.prazo,
       dataContexto: o.prazo ? null : { rotulo: "Cadastrada em", valor: o.created_at },
       ordenacao: o.prazo ?? o.created_at,
+      href: `/processos/${processo.id}/viabilidade`,
+    });
+  }
+
+  // ---- 14. Necessidade de especialista da Análise de Viabilidade ----
+  // Mesmo princípio das fontes 12/13: SEMPRE aparece enquanto não
+  // resolvida. Sem prazo real, cai em "sem_prazo", com `created_at` pro
+  // desempate e "Cadastrado em" como contexto.
+  for (const n of necessidadeEspecialistaDb ?? []) {
+    const processo = processoPorId.get(n.processo_id);
+    if (!processo) continue; // processo não ativo — fora da Central
+    itens.push({
+      id: `viabilidade_necessidade_especialista-${n.id}`,
+      categoria: "viabilidade_necessidade_especialista",
+      titulo: `Especialista necessário: ${n.especialidade || "especialidade não informada"}${n.nome_especialista ? ` — ${n.nome_especialista}` : ""} — ${identificarProcesso(processo)}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.viabilidade_necessidade_especialista,
+      nivel: nivelPorPrazo(n.prazo, hoje),
+      prazo: n.prazo,
+      dataContexto: n.prazo ? null : { rotulo: "Cadastrado em", valor: n.created_at },
+      ordenacao: n.prazo ?? n.created_at,
       href: `/processos/${processo.id}/viabilidade`,
     });
   }

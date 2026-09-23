@@ -86,6 +86,7 @@ import type {
   ViabilidadeTipoLiteratura,
   ViabilidadeImpactoLimitacao,
   NivelUrgencia,
+  TipoMovimentacaoFinanceira,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -598,21 +599,31 @@ export type BibliotecaPericialInsert = ComDefaults<
 export type BibliotecaPericialUpdate = Partial<BibliotecaPericialRow>
 
 // ============================================================================
-// despesas
+// movimentacoes_financeiras (renomeada de `despesas` — migration 20260930140000)
 // ============================================================================
-export type DespesasRow = {
+export type MovimentacoesFinanceirasRow = {
   id: string
   data: string
   categoria: string | null
-  descricao: string
+  /** entrada ou saída — sem default, toda linha nova precisa informar. */
+  tipo: TipoMovimentacaoFinanceira
+  /** Catálogo editável (Asaas, Inter, Banco do Brasil hoje). */
+  conta: string | null
+  /** Obrigatório pra tipo=entrada, opcional pra tipo=saida (checado na aplicação, não no banco). */
+  processo_id: string | null
+  /** Antiga `descricao` — opcional (entrada com processo já se identifica sozinha). */
+  observacoes: string | null
   /** numeric(14,2) do Postgres — chega como number pelo supabase-js. */
   valor: number
   criado_por: string | null
   created_at: string
   updated_at: string
 }
-export type DespesasInsert = ComDefaults<DespesasRow, 'id' | 'categoria' | 'criado_por' | 'created_at' | 'updated_at'>
-export type DespesasUpdate = Partial<DespesasRow>
+export type MovimentacoesFinanceirasInsert = ComDefaults<
+  MovimentacoesFinanceirasRow,
+  'id' | 'categoria' | 'conta' | 'processo_id' | 'observacoes' | 'criado_por' | 'created_at' | 'updated_at'
+>
+export type MovimentacoesFinanceirasUpdate = Partial<MovimentacoesFinanceirasRow>
 
 // ============================================================================
 // quesitos
@@ -1689,6 +1700,7 @@ export type CasoNecessidadeEspecialistaRow = {
   prioridade: string | null
   prazo: string | null
   status: string | null
+  resolvido_em: string | null
   origem_modulo: ModuloOrigemCaso
   atualizado_por_modulo: ModuloOrigemCaso
   criado_por: string | null
@@ -1698,6 +1710,7 @@ export type CasoNecessidadeEspecialistaRow = {
 export type CasoNecessidadeEspecialistaInsert = ComDefaults<
   CasoNecessidadeEspecialistaRow,
   | 'id' | 'nome_especialista' | 'especialidade' | 'finalidade' | 'questao_tecnica_id' | 'prioridade' | 'prazo' | 'status'
+  | 'resolvido_em'
   | 'origem_modulo' | 'atualizado_por_modulo' | 'criado_por' | 'created_at' | 'updated_at'
 >
 export type CasoNecessidadeEspecialistaUpdate = Partial<CasoNecessidadeEspecialistaRow>
@@ -1780,10 +1793,10 @@ export interface Database {
         Update: BibliotecaPericialUpdate
         Relationships: []
       }
-      despesas: {
-        Row: DespesasRow
-        Insert: DespesasInsert
-        Update: DespesasUpdate
+      movimentacoes_financeiras: {
+        Row: MovimentacoesFinanceirasRow
+        Insert: MovimentacoesFinanceirasInsert
+        Update: MovimentacoesFinanceirasUpdate
         Relationships: []
       }
       quesitos: {
