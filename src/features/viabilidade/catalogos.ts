@@ -41,14 +41,71 @@ export const POSICAO_CLIENTE_LITIGIO_SEED = [
 ] as const;
 
 /**
- * Especialidade — catálogo editável, semente ainda pendente (19/09/2026):
- * a Dra. Fernanda pediu "a lista de especialidades do app dos médicos",
- * mas não existe nenhuma lista de especialidades médicas em lugar nenhum
- * do projeto (conferido em seeds, Biblioteca Pericial, tipos_laudo) — o
- * Jeferson vai confirmar com ela de qual app é. Nasce vazio, sem quebrar
- * nada: o campo já funciona como catálogo editável, só falta a semente.
+ * Especialidade — catálogo editável. Semente aplicada em 23/09/2026: as
+ * 55 especialidades médicas reconhecidas pela Resolução CFM nº 2.330/2023
+ * (Jeferson subiu o PDF oficial na pasta "Especialidades medicas/") — não
+ * inclui as 61 "áreas de atuação" da mesma resolução (sub-especializações
+ * mais granulares, ex.: Cardiologia pediátrica, Endoscopia digestiva):
+ * ficariam demais pra uma lista de sugestão rápida, e o campo continua
+ * aceitando qualquer texto livre digitado, então nada fica bloqueado.
  */
-export const ESPECIALIDADE_SEED: readonly string[] = [];
+export const ESPECIALIDADE_SEED: readonly string[] = [
+  "Acupuntura",
+  "Alergia e imunologia",
+  "Anestesiologia",
+  "Angiologia",
+  "Cardiologia",
+  "Cirurgia cardiovascular",
+  "Cirurgia da mão",
+  "Cirurgia de cabeça e pescoço",
+  "Cirurgia do aparelho digestivo",
+  "Cirurgia geral",
+  "Cirurgia oncológica",
+  "Cirurgia pediátrica",
+  "Cirurgia plástica",
+  "Cirurgia torácica",
+  "Cirurgia vascular",
+  "Clínica médica",
+  "Coloproctologia",
+  "Dermatologia",
+  "Endocrinologia e metabologia",
+  "Endoscopia",
+  "Gastroenterologia",
+  "Genética médica",
+  "Geriatria",
+  "Ginecologia e obstetrícia",
+  "Hematologia e hemoterapia",
+  "Homeopatia",
+  "Infectologia",
+  "Mastologia",
+  "Medicina de emergência",
+  "Medicina de família e comunidade",
+  "Medicina do trabalho",
+  "Medicina do tráfego",
+  "Medicina esportiva",
+  "Medicina física e reabilitação",
+  "Medicina intensiva",
+  "Medicina legal e perícia médica",
+  "Medicina nuclear",
+  "Medicina preventiva e social",
+  "Nefrologia",
+  "Neurocirurgia",
+  "Neurologia",
+  "Nutrologia",
+  "Oftalmologia",
+  "Oncologia clínica",
+  "Ortopedia e traumatologia",
+  "Otorrinolaringologia",
+  "Patologia",
+  "Patologia clínica/medicina laboratorial",
+  "Pediatria",
+  "Pneumologia",
+  "Psiquiatria",
+  "Radiologia e diagnóstico por imagem",
+  "Radioterapia",
+  "Reumatologia",
+  "Urologia",
+];
 
 /**
  * Matéria — multisseleção, catálogo editável. Sem resposta dela ainda
