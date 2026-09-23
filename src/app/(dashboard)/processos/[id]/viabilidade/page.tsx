@@ -114,11 +114,16 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
   if ("error" in incapacidadeResultado) console.error("Viabilidade: falha ao garantir incapacidade:", incapacidadeResultado.error);
   const analise = analiseResultado.data;
 
+  const erros: string[] = [];
+
   const { data: outrasAnalises, error: erroOutras } = await supabase
     .from("analises_viabilidade")
     .select("especialidade, materia")
     .neq("id", analise.id);
-  if (erroOutras) console.error("Viabilidade: falha ao buscar sugestões de catálogo:", erroOutras.message);
+  if (erroOutras) {
+    console.error("Viabilidade: falha ao buscar sugestões de catálogo:", erroOutras.message);
+    erros.push("as sugestões de especialidade/matéria");
+  }
 
   const especialidadeSugestoes = mesclarSugestoes(
     ESPECIALIDADE_SEED,
@@ -133,7 +138,10 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     .from("caso_questoes_tecnicas")
     .select("*")
     .eq("processo_id", id);
-  if (erroQuestoes) console.error("Viabilidade: falha ao buscar questões técnicas:", erroQuestoes.message);
+  if (erroQuestoes) {
+    console.error("Viabilidade: falha ao buscar questões técnicas:", erroQuestoes.message);
+    erros.push("as questões técnicas");
+  }
 
   const [
     { data: documentosDb, error: erroDocumentos },
@@ -166,22 +174,62 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     supabase.from("caso_necessidade_especialista").select("*").eq("processo_id", id),
     supabase.from("caso_literatura_utilizada").select("*").eq("processo_id", id),
   ]);
-  if (erroDocumentos) console.error("Viabilidade: falha ao buscar documentos:", erroDocumentos.message);
-  if (erroAvaliacoes) console.error("Viabilidade: falha ao buscar avaliações de documentos:", erroAvaliacoes.message);
-  if (erroFaltantes) console.error("Viabilidade: falha ao buscar documentos faltantes:", erroFaltantes.message);
-  if (erroLinhaTempo) console.error("Viabilidade: falha ao buscar linha do tempo:", erroLinhaTempo.message);
-  if (erroFatos) console.error("Viabilidade: falha ao buscar fatos comprovados:", erroFatos.message);
-  if (erroPontosTecnicos) console.error("Viabilidade: falha ao buscar pontos técnicos:", erroPontosTecnicos.message);
-  if (erroCondutas) console.error("Viabilidade: falha ao buscar condutas analisadas:", erroCondutas.message);
-  if (erroCausasAlternativas) console.error("Viabilidade: falha ao buscar causas alternativas:", erroCausasAlternativas.message);
-  if (erroPontosFavoraveis) console.error("Viabilidade: falha ao buscar pontos favoráveis:", erroPontosFavoraveis.message);
-  if (erroFragilidades) console.error("Viabilidade: falha ao buscar fragilidades:", erroFragilidades.message);
-  if (erroOportunidadesProbatorias)
+  if (erroDocumentos) {
+    console.error("Viabilidade: falha ao buscar documentos:", erroDocumentos.message);
+    erros.push("os documentos");
+  }
+  if (erroAvaliacoes) {
+    console.error("Viabilidade: falha ao buscar avaliações de documentos:", erroAvaliacoes.message);
+    erros.push("as avaliações de documentos");
+  }
+  if (erroFaltantes) {
+    console.error("Viabilidade: falha ao buscar documentos faltantes:", erroFaltantes.message);
+    erros.push("os documentos faltantes");
+  }
+  if (erroLinhaTempo) {
+    console.error("Viabilidade: falha ao buscar linha do tempo:", erroLinhaTempo.message);
+    erros.push("a linha do tempo médico-pericial");
+  }
+  if (erroFatos) {
+    console.error("Viabilidade: falha ao buscar fatos comprovados:", erroFatos.message);
+    erros.push("os fatos comprovados");
+  }
+  if (erroPontosTecnicos) {
+    console.error("Viabilidade: falha ao buscar pontos técnicos:", erroPontosTecnicos.message);
+    erros.push("os pontos técnicos/controvérsias");
+  }
+  if (erroCondutas) {
+    console.error("Viabilidade: falha ao buscar condutas analisadas:", erroCondutas.message);
+    erros.push("as condutas analisadas");
+  }
+  if (erroCausasAlternativas) {
+    console.error("Viabilidade: falha ao buscar causas alternativas:", erroCausasAlternativas.message);
+    erros.push("as causas alternativas");
+  }
+  if (erroPontosFavoraveis) {
+    console.error("Viabilidade: falha ao buscar pontos favoráveis:", erroPontosFavoraveis.message);
+    erros.push("os pontos favoráveis");
+  }
+  if (erroFragilidades) {
+    console.error("Viabilidade: falha ao buscar fragilidades:", erroFragilidades.message);
+    erros.push("as fragilidades");
+  }
+  if (erroOportunidadesProbatorias) {
     console.error("Viabilidade: falha ao buscar oportunidades probatórias:", erroOportunidadesProbatorias.message);
-  if (erroTeseAdversa) console.error("Viabilidade: falha ao buscar tese adversa:", erroTeseAdversa.message);
-  if (erroNecessidadeEspecialista)
+    erros.push("as oportunidades probatórias");
+  }
+  if (erroTeseAdversa) {
+    console.error("Viabilidade: falha ao buscar tese adversa:", erroTeseAdversa.message);
+    erros.push("a tese adversa");
+  }
+  if (erroNecessidadeEspecialista) {
     console.error("Viabilidade: falha ao buscar necessidade de especialista:", erroNecessidadeEspecialista.message);
-  if (erroLiteratura) console.error("Viabilidade: falha ao buscar literatura:", erroLiteratura.message);
+    erros.push("a necessidade de especialista");
+  }
+  if (erroLiteratura) {
+    console.error("Viabilidade: falha ao buscar literatura:", erroLiteratura.message);
+    erros.push("a literatura utilizada");
+  }
 
   const { data: versoesDb, error: erroVersoes } = await supabase
     .from("laudos_gerados")
@@ -189,7 +237,10 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     .eq("processo_id", id)
     .eq("tipo", "analise_viabilidade")
     .order("versao", { ascending: false });
-  if (erroVersoes) console.error("Viabilidade: falha ao buscar versões geradas:", erroVersoes.message);
+  if (erroVersoes) {
+    console.error("Viabilidade: falha ao buscar versões geradas:", erroVersoes.message);
+    erros.push("as versões já geradas");
+  }
 
   const listaVersoes = versoesDb ?? [];
   const caminhosVersoes = listaVersoes.flatMap((v) => [v.storage_path_pdf, v.storage_path_docx].filter((p): p is string => Boolean(p)));
@@ -198,7 +249,10 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     const { data: assinadas, error: erroAssinadas } = await supabase.storage
       .from(BUCKET_LAUDOS_GERADOS)
       .createSignedUrls(caminhosVersoes, 60 * 60);
-    if (erroAssinadas) console.error("Viabilidade: falha ao gerar links de download:", erroAssinadas.message);
+    if (erroAssinadas) {
+      console.error("Viabilidade: falha ao gerar links de download:", erroAssinadas.message);
+      erros.push("os links de download das versões já geradas");
+    }
     if (assinadas) urlPorCaminho = new Map(assinadas.map((a) => [a.path ?? "", a.signedUrl]));
   }
   const versoesAnaliseViabilidade: VersaoAnaliseViabilidade[] = listaVersoes.map((v) => ({
@@ -228,8 +282,10 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
         </p>
       </div>
 
-      {erroOutras && (
-        <BannerErroConsulta mensagem="Não consegui carregar sugestões de especialidade/matéria — os campos continuam funcionando, só sem sugestão." />
+      {erros.length > 0 && (
+        <BannerErroConsulta
+          mensagem={`Não foi possível carregar ${erros.join(", ")}. As seções continuam funcionando, mas alguns dados podem estar incompletos até recarregar a página.`}
+        />
       )}
 
       <CabecalhoViabilidadePanel

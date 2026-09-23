@@ -65,7 +65,7 @@ import {
 
 const TITULO_ANALISE_VIABILIDADE = "ANÁLISE DE VIABILIDADE TÉCNICO-PERICIAL";
 
-export type ResultadoCompilacaoViabilidade =
+type ResultadoCompilacaoViabilidade =
   | { status: "ok"; modelo: ModeloLaudo; snapshot: SnapshotAnaliseViabilidade }
   | { status: "erro"; mensagem: string };
 

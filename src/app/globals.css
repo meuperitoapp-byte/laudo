@@ -21,10 +21,14 @@
   /* Petróleo — ação primária */
   --color-petroleo-100: #dcebea;
   --color-petroleo-200: #b9d6d4;
+  --color-petroleo-300: #83b9ba;
   --color-petroleo-400: #4c9ca0; /* dark mode: cor de ação (clara o bastante p/ contraste em fundo escuro) */
   --color-petroleo-500: #1b535b;
   --color-petroleo-600: #123b41; /* light mode: cor de ação */
   --color-petroleo-700: #0b2a2e;
+  --color-petroleo-800: #081e21;
+  --color-petroleo-900: #061618;
+  --color-petroleo-950: #041011;
 
   /* Névoa — neutros (fundo, borda, texto discreto), com Grafite (900) como texto principal */
   --color-nevoa-25: #fbfaf8;
@@ -35,6 +39,7 @@
   --color-nevoa-400: #9b9488;
   --color-nevoa-500: #79736a;
   --color-nevoa-600: #5c5850;
+  --color-nevoa-700: #45423c;
   --color-nevoa-800: #2e2b27;
   --color-nevoa-850: #201e1b;
   --color-nevoa-900: #242220; /* grafite — texto principal em light mode */
@@ -42,21 +47,27 @@
 
   /* Musgo — sucesso */
   --color-musgo-100: #e1ede3;
+  --color-musgo-300: #95c3a3;
   --color-musgo-400: #6fae83; /* dark mode */
   --color-musgo-600: #3b6b4a; /* light mode */
+  --color-musgo-700: #345d41;
+  --color-musgo-800: #2d4f39;
   --color-musgo-950: #1e3327; /* dark mode: fundo de tag/badge */
 
   /* Âmbar — atenção/pendência */
   --color-ambar-100: #f3e8d3;
   --color-ambar-400: #d3a24b;
   --color-ambar-600: #9b6b1f;
+  --color-ambar-700: #835c1d;
   --color-ambar-950: #3a2e15;
 
   /* Vinho — erro/destrutivo */
   --color-vinho-100: #f3e1e1;
+  --color-vinho-300: #d69f9f;
   --color-vinho-400: #c77e7e;
   --color-vinho-600: #8c3a3a;
   --color-vinho-700: #6f2d2d; /* hover do botão de perigo */
+  --color-vinho-800: #5d2a2a;
   --color-vinho-950: #3a2323;
 }
 
