@@ -8,7 +8,6 @@ import {
   SITUACOES_FINANCEIRAS_AT,
   SITUACOES_PROCESSO_ORDENADA,
   HONORARIOS_FORMA_PAGAMENTO_AT,
-  ORGAO_CLASSE_SEED,
 } from "@/features/processos/catalogos";
 import type { ProcessosRow, TiposLaudoRow } from "@/types/database";
 import type { EtapaContratada } from "@/types/enums";
