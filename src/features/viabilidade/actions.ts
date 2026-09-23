@@ -61,6 +61,7 @@ import type {
   ViabilidadeRiscoGrau,
   ViabilidadeNecessidadeEspecialista,
   ViabilidadeTipoLiteratura,
+  ViabilidadeConclusao,
 } from "@/types/enums";
 import { VIABILIDADE_STATUS_ORDENADOS } from "./catalogos";
 
@@ -1467,5 +1468,134 @@ export async function excluirLiteraturaUtilizada(id: string, processoId: string)
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Matriz final de viabilidade (§28) — hub, qualitativa. SEM score numérico automático — apoia, não substitui o julgamento da perita. */
+export async function salvarMatrizViabilidade(formData: FormData): Promise<ActionResult> {
+  const analiseId = textoOuNull(formData.get("analise_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const update: AnalisesViabilidadeUpdate = {
+    matriz_suporte_documental: textoOuNull(formData.get("matriz_suporte_documental")),
+    matriz_sustentacao_conduta: textoOuNull(formData.get("matriz_sustentacao_conduta")),
+    matriz_nexo: textoOuNull(formData.get("matriz_nexo")),
+    matriz_dano: textoOuNull(formData.get("matriz_dano")),
+    matriz_fragilidades: textoOuNull(formData.get("matriz_fragilidades")),
+    matriz_provas_faltantes: textoOuNull(formData.get("matriz_provas_faltantes")),
+    matriz_risco_pericial: textoOuNull(formData.get("matriz_risco_pericial")),
+    matriz_sustentacao_global: textoOuNull(formData.get("matriz_sustentacao_global")),
+  };
+
+  const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/**
+ * Conclusão da viabilidade (§29) — classificação final. Fundamentação
+ * sempre obrigatória; Condicionada exige condicionante/providência
+ * registrada. Trava cruzada (pendência da fatia 2, §10): se limitações
+ * documentais estiverem marcadas "Impede conclusão" sem justificativa,
+ * bloqueia registrar qualquer conclusão até ela justificar lá.
+ */
+export async function salvarConclusaoViabilidade(formData: FormData): Promise<ActionResult> {
+  const analiseId = textoOuNull(formData.get("analise_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
+
+  const conclusao = (formData.get("conclusao") as ViabilidadeConclusao | "") || null;
+  const fundamentacao = textoOuNull(formData.get("conclusao_fundamentacao"));
+  const condicionantes = textoOuNull(formData.get("conclusao_condicionantes"));
+  if (conclusao && !fundamentacao) return { error: "Fundamentação é obrigatória pra registrar uma conclusão." };
+  if (conclusao === "viabilidade_condicionada" && !condicionantes) {
+    return { error: "Viabilidade condicionada exige o(s) condicionante(s)/providência registrados." };
+  }
+
+  const supabase = await createClient();
+
+  if (conclusao) {
+    const { data: analiseAtual } = await supabase
+      .from("analises_viabilidade")
+      .select("limitacoes_impacto, limitacoes_justificativa")
+      .eq("id", analiseId)
+      .maybeSingle();
+    if (analiseAtual?.limitacoes_impacto === "impede_conclusao" && !analiseAtual?.limitacoes_justificativa) {
+      return {
+        error:
+          'As limitações documentais estão marcadas como "Impede conclusão" e ainda não têm justificativa — preencha a justificativa na seção Limitações documentais antes de registrar a conclusão.',
+      };
+    }
+  }
+
+  const update: AnalisesViabilidadeUpdate = {
+    conclusao,
+    conclusao_fundamentacao: fundamentacao,
+    conclusao_elementos_favoraveis: textoOuNull(formData.get("conclusao_elementos_favoraveis")),
+    conclusao_fragilidades: textoOuNull(formData.get("conclusao_fragilidades")),
+    conclusao_condicionantes: condicionantes,
+  };
+
+  const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/** Recomendação técnica (§30) — justificativa sempre obrigatória. */
+export async function salvarRecomendacao(formData: FormData): Promise<ActionResult> {
+  const analiseId = textoOuNull(formData.get("analise_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
+
+  const recomendacao = textoOuNull(formData.get("recomendacao"));
+  const justificativa = textoOuNull(formData.get("recomendacao_justificativa"));
+  if (recomendacao && !justificativa) return { error: "Justificativa é obrigatória pra registrar uma recomendação." };
+
+  const supabase = await createClient();
+  const update: AnalisesViabilidadeUpdate = {
+    recomendacao,
+    recomendacao_justificativa: justificativa,
+  };
+
+  const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  return { success: true };
+}
+
+/**
+ * Próxima ação (§31) — hub, campo único (não repetível). "Automação:
+ * tarefa + Agenda" vem do próprio valor deste campo (fonte 15 do
+ * agregador da Central de Prazos) — sem coluna de resolvido separada,
+ * porque não é uma lista: quando a ação muda ou é concluída, ela mesma
+ * sobrescreve/limpa o campo (mesmo princípio de honorarios_recebidos_em
+ * — nunca inferido, sempre o que está escrito agora).
+ */
+export async function salvarProximaAcao(formData: FormData): Promise<ActionResult> {
+  const analiseId = textoOuNull(formData.get("analise_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const update: AnalisesViabilidadeUpdate = {
+    proxima_acao: textoOuNull(formData.get("proxima_acao")),
+    proxima_acao_responsavel: textoOuNull(formData.get("proxima_acao_responsavel")),
+    proxima_acao_prazo: textoOuNull(formData.get("proxima_acao_prazo")),
+    proxima_acao_prioridade: textoOuNull(formData.get("proxima_acao_prioridade")),
+  };
+
+  const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
   return { success: true };
 }

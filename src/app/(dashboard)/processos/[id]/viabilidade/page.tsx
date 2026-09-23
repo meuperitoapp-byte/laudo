@@ -25,6 +25,11 @@ import { TeseAdversaPanel } from "@/features/viabilidade/tese-adversa-panel";
 import { RaciocinioPericialPanel } from "@/features/viabilidade/raciocinio-pericial-panel";
 import { NecessidadeEspecialistaPanel } from "@/features/viabilidade/necessidade-especialista-panel";
 import { LiteraturaPanel } from "@/features/viabilidade/literatura-panel";
+import { MatrizPanel } from "@/features/viabilidade/matriz-panel";
+import { ConclusaoPanel } from "@/features/viabilidade/conclusao-panel";
+import { RecomendacaoPanel } from "@/features/viabilidade/recomendacao-panel";
+import { ProximaAcaoPanel } from "@/features/viabilidade/proxima-acao-panel";
+import { BloqueiosPanel } from "@/features/viabilidade/bloqueios-panel";
 import { ESPECIALIDADE_SEED, MATERIA_SEED } from "@/features/viabilidade/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
@@ -37,11 +42,13 @@ import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-con
  * comprovados + pontos técnicos/controvérsias, §11-13), 4 (condutas
  * analisadas + oportunidade diagnóstica/terapêutica + nexo causal + dano +
  * incapacidade + causas alternativas, §14-19), 5 (pontos favoráveis +
- * fragilidades + oportunidades probatórias + risco pericial, §20-23) e 6
+ * fragilidades + oportunidades probatórias + risco pericial, §20-23), 6
  * (tese adversa + raciocínio pericial + necessidade de especialista +
- * literatura, §24-27). Spec completa de 45 seções em memória do projeto
- * (analise-viabilidade-spec). As fatias 7-9 seguintes chegam em commits
- * futuros, contra o schema já aplicado.
+ * literatura, §24-27) e 7 (matriz final + conclusão + recomendação +
+ * próxima ação + bloqueios pra finalização, §28-31 e §42). Spec completa
+ * de 45 seções em memória do projeto (analise-viabilidade-spec). As
+ * fatias 8-9 (PDF, pós-entrega) seguintes chegam em commits futuros,
+ * contra o schema já aplicado.
  *
  * Nexo/Dano/Incapacidade são 1:1 por processo — garantidos (select-ou-
  * cria) igual à análise, cada um com seu próprio bloco condicional na UI
@@ -249,9 +256,23 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
 
       <LiteraturaPanel processoId={id} itens={literaturaDb ?? []} documentos={documentosDb ?? []} />
 
+      <MatrizPanel analise={analise} />
+
+      <ConclusaoPanel analise={analise} />
+
+      <RecomendacaoPanel analise={analise} />
+
+      <ProximaAcaoPanel analise={analise} />
+
+      <BloqueiosPanel
+        analise={analise}
+        temQuestoesTecnicas={(questoesDb ?? []).length > 0}
+        temDocumentosAvaliados={(avaliacoesDb ?? []).length > 0}
+      />
+
       <div className="rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 px-5 py-4 text-sm text-nevoa-500 dark:text-nevoa-400">
-        Próximas seções (matriz final, conclusão, recomendação, próxima ação, PDF etc.) chegam nas próximas fatias —
-        o resto do schema já está pronto, sem migration nova.
+        Próximas seções (geração de PDF com controle de versão, pós-entrega e satisfação) chegam nas próximas fatias
+        — o resto do schema já está pronto, sem migration nova.
       </div>
     </main>
   );

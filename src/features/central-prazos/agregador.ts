@@ -25,7 +25,13 @@
  * plugou a 13ª fonte — mesmo princípio, lê `caso_oportunidades_probatorias`
  * direto. Necessidade de especialista da Análise de Viabilidade (fatia 6,
  * 23/09/2026) plugou a 14ª fonte — mesmo princípio, lê
- * `caso_necessidade_especialista` direto.
+ * `caso_necessidade_especialista` direto. Próxima ação da Análise de
+ * Viabilidade (fatia 7, 23/09/2026) plugou a 15ª fonte — DIFERENTE das
+ * fontes 12-14: não é lista repetível, é campo único do hub
+ * (`analises_viabilidade.proxima_acao_prazo`), sem `resolvido_em` — o
+ * item existe exatamente enquanto o campo estiver preenchido, ela mesma
+ * atualiza/limpa quando a ação muda (mesmo princípio de
+ * honorarios_recebidos_em).
  */
 
 import type { createClient } from "@/lib/supabase/server";
@@ -62,6 +68,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     { data: documentosFaltantesDb },
     { data: oportunidadesProbatoriasDb },
     { data: necessidadeEspecialistaDb },
+    { data: proximaAcaoViabilidadeDb },
   ] = await Promise.all([
     // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
     // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
@@ -123,6 +130,12 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       .from("caso_necessidade_especialista")
       .select("id, processo_id, especialidade, nome_especialista, prazo, created_at")
       .is("resolvido_em", null),
+    // Fonte 15 — próxima ação da Análise de Viabilidade. Campo único do
+    // hub, não lista — só entra quando prazo estiver preenchido.
+    supabase
+      .from("analises_viabilidade")
+      .select("id, processo_id, proxima_acao, proxima_acao_responsavel, proxima_acao_prazo")
+      .not("proxima_acao_prazo", "is", null),
   ]);
   const processos = processosDb ?? [];
   const processoPorId = new Map(processos.map((p) => [p.id, p]));
@@ -512,6 +525,28 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: n.prazo,
       dataContexto: n.prazo ? null : { rotulo: "Cadastrado em", valor: n.created_at },
       ordenacao: n.prazo ?? n.created_at,
+      href: `/processos/${processo.id}/viabilidade`,
+    });
+  }
+
+  // ---- 15. Próxima ação da Análise de Viabilidade ----
+  // Prazo REAL (query já filtrou só quem tem prazo preenchido) — mesmo
+  // critério de honorarios_proximo_marco_em. Campo único do hub, não
+  // lista: sem `resolvido_em`, o item some sozinho quando ela muda ou
+  // limpa o campo.
+  for (const a of proximaAcaoViabilidadeDb ?? []) {
+    const processo = processoPorId.get(a.processo_id);
+    if (!processo || !a.proxima_acao_prazo) continue; // processo não ativo — fora da Central
+    itens.push({
+      id: `viabilidade_proxima_acao-${a.id}`,
+      categoria: "viabilidade_proxima_acao",
+      titulo: `${a.proxima_acao || "Próxima ação"} — ${identificarProcesso(processo)}`,
+      subtitulo: a.proxima_acao_responsavel ? `Responsável: ${a.proxima_acao_responsavel}` : null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.viabilidade_proxima_acao,
+      nivel: nivelPorPrazo(a.proxima_acao_prazo, hoje),
+      prazo: a.proxima_acao_prazo,
+      dataContexto: null,
+      ordenacao: a.proxima_acao_prazo,
       href: `/processos/${processo.id}/viabilidade`,
     });
   }

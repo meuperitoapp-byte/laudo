@@ -22,6 +22,7 @@ import type {
   ViabilidadeRiscoGrau,
   ViabilidadeNecessidadeEspecialista,
   ViabilidadeTipoLiteratura,
+  ViabilidadeConclusao,
 } from "@/types/enums";
 
 /**
@@ -311,3 +312,49 @@ export const TIPO_LITERATURA_ROTULOS: Record<ViabilidadeTipoLiteratura, string> 
   norma: "Norma",
   outro: "Outro",
 };
+
+/** Conclusão da viabilidade (§29) — classificação final obrigatória. */
+export const CONCLUSAO_ROTULOS: Record<ViabilidadeConclusao, string> = {
+  viavel: "Viável",
+  viavel_com_ressalvas: "Viável com ressalvas",
+  viabilidade_condicionada: "Viabilidade condicionada",
+  inconclusiva: "Inconclusiva",
+  nao_viavel: "Não viável",
+};
+export const CONCLUSAO_ORDENADA: ViabilidadeConclusao[] = [
+  "viavel",
+  "viavel_com_ressalvas",
+  "viabilidade_condicionada",
+  "inconclusiva",
+  "nao_viavel",
+];
+
+/**
+ * Recomendação técnica (§30) — catálogo editável (texto livre, sem CHECK
+ * no banco). Decisão confirmada pelo Jeferson (21/09/2026): as 11 etapas
+ * de EtapaContratada MENOS a própria "Análise de viabilidade" (não faz
+ * sentido recomendar continuar o serviço que já está rodando), mais 5
+ * opções do spec que não são serviço — incluindo "Não recomendar
+ * continuidade" (às vezes a recomendação certa é não contratar nada).
+ */
+export const RECOMENDACAO_SEED = [
+  "Estratégia pericial",
+  "Análise da contestação",
+  "Dados para réplica",
+  "Quesitos",
+  "Parecer técnico",
+  "Relatório técnico",
+  "Atestados",
+  "Declaração",
+  "Manifestação ao laudo pericial",
+  "Quesitos suplementares",
+  "Participação da perícia",
+  "Obter documentos",
+  "Avaliação de especialista",
+  "Aguardar novo marco",
+  "Não recomendar continuidade",
+  "Outro",
+] as const;
+
+/** Responsável pela próxima ação (§31) — catálogo editável, mesmo princípio dos demais. */
+export const PROXIMA_ACAO_RESPONSAVEL_SEED = ["Dra. Fernanda", "Assessor", "Atendimento", "Financeiro"] as const;
