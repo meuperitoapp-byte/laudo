@@ -103,6 +103,16 @@ body {
   color: var(--foreground);
 }
 
+/* Tailwind (desde a v3) zera o cursor de <button> pra "default" (seta), pra
+   bater com o comportamento nativo do browser — na prática isso faz todo
+   botão do app parecer não-clicável no hover. Restaura o cursor de mão pra
+   qualquer botão habilitado, sem precisar adicionar cursor-pointer em cada
+   um dos ~45 arquivos com <button> + no componente <Botao> compartilhado. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
 /* Nav superior com mais itens (item #7, PERICONS) pode passar da largura da
    tela em telas menores — rola horizontalmente sem barra de rolagem visível
    (comportamento padrão de barra de abas, distinto do artefato visual não
