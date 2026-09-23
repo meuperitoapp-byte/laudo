@@ -36,7 +36,8 @@ export interface ItemPainel {
     | "viabilidade_documento_faltante"
     | "viabilidade_oportunidade_probatoria"
     | "viabilidade_necessidade_especialista"
-    | "viabilidade_proxima_acao";
+    | "viabilidade_proxima_acao"
+    | "viabilidade_pos_entrega_reuniao";
   titulo: string;
   subtitulo: string | null;
   /** Texto fixo por categoria (ver rotulos.ts) pras fontes automáticas; pra `tarefa_manual` é a descrição que ela mesma digitou (ou um fallback genérico quando em branco). Nunca vazio. */

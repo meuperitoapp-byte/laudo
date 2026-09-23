@@ -31,6 +31,7 @@ import { RecomendacaoPanel } from "@/features/viabilidade/recomendacao-panel";
 import { ProximaAcaoPanel } from "@/features/viabilidade/proxima-acao-panel";
 import { BloqueiosPanel } from "@/features/viabilidade/bloqueios-panel";
 import { GerarAnaliseViabilidadePanel, type VersaoAnaliseViabilidade } from "@/features/viabilidade/gerar-analise-viabilidade-panel";
+import { PosEntregaPanel } from "@/features/viabilidade/pos-entrega-panel";
 import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
 import { ESPECIALIDADE_SEED, MATERIA_SEED } from "@/features/viabilidade/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
@@ -47,11 +48,12 @@ import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-con
  * fragilidades + oportunidades probatórias + risco pericial, §20-23), 6
  * (tese adversa + raciocínio pericial + necessidade de especialista +
  * literatura, §24-27), 7 (matriz final + conclusão + recomendação +
- * próxima ação + bloqueios pra finalização, §28-31 e §42) e 8 (geração do
+ * próxima ação + bloqueios pra finalização, §28-31 e §42), 8 (geração do
  * PDF/Word, §38 — reaproveita o motor de `geracao-laudo`, ver
- * compilar-pdf.ts). Spec completa de 45 seções em memória do projeto
- * (analise-viabilidade-spec). A fatia 9 (pós-entrega) chega num commit
- * futuro, contra o schema já aplicado.
+ * compilar-pdf.ts) e 9 (pós-entrega e satisfação, §39 — ÚLTIMA seção da
+ * spec). Spec completa de 45 seções em memória do projeto
+ * (analise-viabilidade-spec) — módulo 100% implementado conforme o
+ * recorte de escopo V1 aprovado.
  *
  * Nexo/Dano/Incapacidade são 1:1 por processo — garantidos (select-ou-
  * cria) igual à análise, cada um com seu próprio bloco condicional na UI
@@ -301,10 +303,7 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
 
       <GerarAnaliseViabilidadePanel processoId={id} versoes={versoesAnaliseViabilidade} />
 
-      <div className="rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 px-5 py-4 text-sm text-nevoa-500 dark:text-nevoa-400">
-        Próxima seção (pós-entrega e satisfação, §39) chega numa próxima fatia — o resto do schema já está pronto,
-        sem migration nova.
-      </div>
+      <PosEntregaPanel analise={analise} />
     </main>
   );
 }

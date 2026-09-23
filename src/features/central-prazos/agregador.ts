@@ -31,7 +31,12 @@
  * (`analises_viabilidade.proxima_acao_prazo`), sem `resolvido_em` — o
  * item existe exatamente enquanto o campo estiver preenchido, ela mesma
  * atualiza/limpa quando a ação muda (mesmo princípio de
- * honorarios_recebidos_em).
+ * honorarios_recebidos_em). Pós-entrega da Análise de Viabilidade (fatia
+ * 9, 23/09/2026, última fatia da spec) plugou a 16ª fonte — campo único
+ * também, mas SEM prazo real (não existe data de reunião marcada, só o
+ * sinal "precisa agendar"): cai em "sem_prazo" enquanto
+ * `pos_entrega_reuniao = 'agendar'`, some sozinho quando ela muda pra
+ * Sim/Não.
  */
 
 import type { createClient } from "@/lib/supabase/server";
@@ -69,6 +74,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     { data: oportunidadesProbatoriasDb },
     { data: necessidadeEspecialistaDb },
     { data: proximaAcaoViabilidadeDb },
+    { data: posEntregaViabilidadeDb },
   ] = await Promise.all([
     // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
     // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
@@ -136,6 +142,12 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       .from("analises_viabilidade")
       .select("id, processo_id, proxima_acao, proxima_acao_responsavel, proxima_acao_prazo")
       .not("proxima_acao_prazo", "is", null),
+    // Fonte 16 — pós-entrega da Análise de Viabilidade, reunião ainda por
+    // agendar. Campo único do hub, sem prazo real.
+    supabase
+      .from("analises_viabilidade")
+      .select("id, processo_id, updated_at")
+      .eq("pos_entrega_reuniao", "agendar"),
   ]);
   const processos = processosDb ?? [];
   const processoPorId = new Map(processos.map((p) => [p.id, p]));
@@ -547,6 +559,27 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: a.proxima_acao_prazo,
       dataContexto: null,
       ordenacao: a.proxima_acao_prazo,
+      href: `/processos/${processo.id}/viabilidade`,
+    });
+  }
+
+  // ---- 16. Pós-entrega da Análise de Viabilidade — reunião a agendar ----
+  // Sem prazo real (não existe data marcada, só o sinal de que precisa
+  // agendar) — cai em "sem_prazo", como as outras fontes desse tipo. Some
+  // sozinho quando ela muda a resposta pra Sim/Não.
+  for (const p of posEntregaViabilidadeDb ?? []) {
+    const processo = processoPorId.get(p.processo_id);
+    if (!processo) continue; // processo não ativo — fora da Central
+    itens.push({
+      id: `viabilidade_pos_entrega_reuniao-${p.id}`,
+      categoria: "viabilidade_pos_entrega_reuniao",
+      titulo: `Agendar reunião de apresentação — ${identificarProcesso(processo)}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.viabilidade_pos_entrega_reuniao,
+      nivel: "sem_prazo",
+      prazo: null,
+      dataContexto: null,
+      ordenacao: p.updated_at,
       href: `/processos/${processo.id}/viabilidade`,
     });
   }

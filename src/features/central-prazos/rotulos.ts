@@ -61,6 +61,7 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   viabilidade_oportunidade_probatoria: "Executar a providência probatória registrada.",
   viabilidade_necessidade_especialista: "Acionar/aguardar o especialista necessário.",
   viabilidade_proxima_acao: "Executar a próxima ação registrada na análise.",
+  viabilidade_pos_entrega_reuniao: "Agendar a reunião de apresentação do resultado.",
 };
 
 /**
@@ -97,4 +98,5 @@ export const GRUPO_AGENDA_POR_CATEGORIA: Record<ItemPainel["categoria"], GrupoAg
   viabilidade_oportunidade_probatoria: "prazos",
   viabilidade_necessidade_especialista: "prazos",
   viabilidade_proxima_acao: "prazos",
+  viabilidade_pos_entrega_reuniao: "prazos",
 };

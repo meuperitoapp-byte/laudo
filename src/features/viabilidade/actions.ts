@@ -62,6 +62,8 @@ import type {
   ViabilidadeNecessidadeEspecialista,
   ViabilidadeTipoLiteratura,
   ViabilidadeConclusao,
+  ViabilidadePosEntregaReuniao,
+  ViabilidadeSatisfacao,
 } from "@/types/enums";
 import { VIABILIDADE_STATUS_ORDENADOS } from "./catalogos";
 
@@ -1589,6 +1591,34 @@ export async function salvarProximaAcao(formData: FormData): Promise<ActionResul
     proxima_acao_responsavel: textoOuNull(formData.get("proxima_acao_responsavel")),
     proxima_acao_prazo: textoOuNull(formData.get("proxima_acao_prazo")),
     proxima_acao_prioridade: textoOuNull(formData.get("proxima_acao_prioridade")),
+  };
+
+  const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
+/**
+ * Pós-entrega e satisfação (§39) — hub, campo único. "Agendar" em
+ * pos_entrega_reuniao vira a 16ª fonte da Central de Prazos (sem prazo
+ * real — a reunião ainda não tem data marcada, só o sinal de que precisa
+ * ser agendada; mesmo princípio dos demais campos únicos do hub, some
+ * sozinho quando ela muda a resposta pra Sim/Não).
+ */
+export async function salvarPosEntrega(formData: FormData): Promise<ActionResult> {
+  const analiseId = textoOuNull(formData.get("analise_id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
+
+  const supabase = await createClient();
+  const update: AnalisesViabilidadeUpdate = {
+    pos_entrega_reuniao: (formData.get("pos_entrega_reuniao") as ViabilidadePosEntregaReuniao | "") || null,
+    pos_entrega_retorno_d7_em: textoOuNull(formData.get("pos_entrega_retorno_d7_em")),
+    pos_entrega_satisfacao: (formData.get("pos_entrega_satisfacao") as ViabilidadeSatisfacao | "") || null,
   };
 
   const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);

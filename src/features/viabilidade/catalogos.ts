@@ -23,6 +23,8 @@ import type {
   ViabilidadeNecessidadeEspecialista,
   ViabilidadeTipoLiteratura,
   ViabilidadeConclusao,
+  ViabilidadePosEntregaReuniao,
+  ViabilidadeSatisfacao,
 } from "@/types/enums";
 
 /**
@@ -358,3 +360,19 @@ export const RECOMENDACAO_SEED = [
 
 /** Responsável pela próxima ação (§31) — catálogo editável, mesmo princípio dos demais. */
 export const PROXIMA_ACAO_RESPONSAVEL_SEED = ["Dra. Fernanda", "Assessor", "Atendimento", "Financeiro"] as const;
+
+/** Houve reunião de apresentação pós-entrega (§39)? */
+export const POS_ENTREGA_REUNIAO_ROTULOS: Record<ViabilidadePosEntregaReuniao, string> = {
+  sim: "Sim",
+  nao: "Não",
+  agendar: "Agendar",
+};
+
+/** Experiência do cliente no retorno D+7 (§39). */
+export const SATISFACAO_ROTULOS: Record<ViabilidadeSatisfacao, string> = {
+  muito_satisfeito: "Muito satisfeito",
+  satisfeito: "Satisfeito",
+  neutro: "Neutro",
+  insatisfeito: "Insatisfeito",
+  muito_insatisfeito: "Muito insatisfeito",
+};
