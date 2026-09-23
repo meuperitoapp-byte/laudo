@@ -330,6 +330,7 @@ export type LaudoGeradoTipo =
   | 'escusa_declinio_pericial'
   | 'nao_comparecimento'
   | 'pedido_liberacao'
+  | 'analise_viabilidade'
 
 // ----------------------------------------------------------------------------
 // Fluxo Assistência Técnica (migration 20260910120000_pos_laudo_at)

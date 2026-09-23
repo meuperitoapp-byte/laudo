@@ -366,6 +366,21 @@ export interface SnapshotPedidoLiberacao {
 }
 
 /**
+ * Snapshot da Análise de Viabilidade (fatia 8, §38) — congela TODO o
+ * conteúdo externo (hub + tabelas repetíveis já filtradas pelas mesmas
+ * regras do PDF: só fatos validados, nunca risco/tese adversa/raciocínio
+ * interno) no momento da geração. `dados` fica solto de propósito — é só
+ * histórico/auditoria, nunca lido de volta por código (diferente de
+ * SnapshotRespostas, que alimenta o Pós-Laudo) — não vale a pena tipar
+ * campo a campo as 18 tabelas pra um uso que nunca desserializa.
+ */
+export interface SnapshotAnaliseViabilidade {
+  tipo: 'analise_viabilidade'
+  gerado_em: string
+  dados: Record<string, unknown>
+}
+
+/**
  * Forma de laudos_gerados.snapshot_respostas — união de todas as naturezas.
  * Narrow por `laudos_gerados.tipo` (ver acima).
  */
@@ -377,3 +392,4 @@ export type SnapshotLaudoGerado =
   | SnapshotEscusaDeclinio
   | SnapshotNaoComparecimento
   | SnapshotPedidoLiberacao
+  | SnapshotAnaliseViabilidade

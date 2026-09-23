@@ -30,6 +30,8 @@ import { ConclusaoPanel } from "@/features/viabilidade/conclusao-panel";
 import { RecomendacaoPanel } from "@/features/viabilidade/recomendacao-panel";
 import { ProximaAcaoPanel } from "@/features/viabilidade/proxima-acao-panel";
 import { BloqueiosPanel } from "@/features/viabilidade/bloqueios-panel";
+import { GerarAnaliseViabilidadePanel, type VersaoAnaliseViabilidade } from "@/features/viabilidade/gerar-analise-viabilidade-panel";
+import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
 import { ESPECIALIDADE_SEED, MATERIA_SEED } from "@/features/viabilidade/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
@@ -44,11 +46,12 @@ import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-con
  * incapacidade + causas alternativas, §14-19), 5 (pontos favoráveis +
  * fragilidades + oportunidades probatórias + risco pericial, §20-23), 6
  * (tese adversa + raciocínio pericial + necessidade de especialista +
- * literatura, §24-27) e 7 (matriz final + conclusão + recomendação +
- * próxima ação + bloqueios pra finalização, §28-31 e §42). Spec completa
- * de 45 seções em memória do projeto (analise-viabilidade-spec). As
- * fatias 8-9 (PDF, pós-entrega) seguintes chegam em commits futuros,
- * contra o schema já aplicado.
+ * literatura, §24-27), 7 (matriz final + conclusão + recomendação +
+ * próxima ação + bloqueios pra finalização, §28-31 e §42) e 8 (geração do
+ * PDF/Word, §38 — reaproveita o motor de `geracao-laudo`, ver
+ * compilar-pdf.ts). Spec completa de 45 seções em memória do projeto
+ * (analise-viabilidade-spec). A fatia 9 (pós-entrega) chega num commit
+ * futuro, contra o schema já aplicado.
  *
  * Nexo/Dano/Incapacidade são 1:1 por processo — garantidos (select-ou-
  * cria) igual à análise, cada um com seu próprio bloco condicional na UI
@@ -178,6 +181,32 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     console.error("Viabilidade: falha ao buscar necessidade de especialista:", erroNecessidadeEspecialista.message);
   if (erroLiteratura) console.error("Viabilidade: falha ao buscar literatura:", erroLiteratura.message);
 
+  const { data: versoesDb, error: erroVersoes } = await supabase
+    .from("laudos_gerados")
+    .select("*")
+    .eq("processo_id", id)
+    .eq("tipo", "analise_viabilidade")
+    .order("versao", { ascending: false });
+  if (erroVersoes) console.error("Viabilidade: falha ao buscar versões geradas:", erroVersoes.message);
+
+  const listaVersoes = versoesDb ?? [];
+  const caminhosVersoes = listaVersoes.flatMap((v) => [v.storage_path_pdf, v.storage_path_docx].filter((p): p is string => Boolean(p)));
+  let urlPorCaminho = new Map<string, string | null>();
+  if (caminhosVersoes.length > 0) {
+    const { data: assinadas, error: erroAssinadas } = await supabase.storage
+      .from(BUCKET_LAUDOS_GERADOS)
+      .createSignedUrls(caminhosVersoes, 60 * 60);
+    if (erroAssinadas) console.error("Viabilidade: falha ao gerar links de download:", erroAssinadas.message);
+    if (assinadas) urlPorCaminho = new Map(assinadas.map((a) => [a.path ?? "", a.signedUrl]));
+  }
+  const versoesAnaliseViabilidade: VersaoAnaliseViabilidade[] = listaVersoes.map((v) => ({
+    id: v.id,
+    versao: v.versao,
+    criadoEm: v.created_at,
+    urlPdf: v.storage_path_pdf ? (urlPorCaminho.get(v.storage_path_pdf) ?? null) : null,
+    urlDocx: v.storage_path_docx ? (urlPorCaminho.get(v.storage_path_docx) ?? null) : null,
+  }));
+
   const nomeCaso = processo.periciando_nome || processo.parte_autora || "Processo sem identificação";
 
   return (
@@ -270,9 +299,11 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
         temDocumentosAvaliados={(avaliacoesDb ?? []).length > 0}
       />
 
+      <GerarAnaliseViabilidadePanel processoId={id} versoes={versoesAnaliseViabilidade} />
+
       <div className="rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 px-5 py-4 text-sm text-nevoa-500 dark:text-nevoa-400">
-        Próximas seções (geração de PDF com controle de versão, pós-entrega e satisfação) chegam nas próximas fatias
-        — o resto do schema já está pronto, sem migration nova.
+        Próxima seção (pós-entrega e satisfação, §39) chega numa próxima fatia — o resto do schema já está pronto,
+        sem migration nova.
       </div>
     </main>
   );

@@ -470,4 +470,5 @@ export const TIPO_DOCUMENTO_ROTULOS: Record<LaudoGeradoTipo, string> = {
   escusa_declinio_pericial: "Escusa/Declínio do Encargo Já Aceito",
   nao_comparecimento: "Comunicação de Não Comparecimento ao Ato Pericial",
   pedido_liberacao: "Pedido de Liberação dos Honorários Periciais",
+  analise_viabilidade: "Análise de Viabilidade Técnico-Pericial",
 };
