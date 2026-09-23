@@ -11,6 +11,8 @@ import { ReuniaoEstrategiaPericialPanel } from "@/features/processos/reuniao-est
 import { NotaFiscalPanel } from "@/features/processos/nota-fiscal-panel";
 import { AnexoEtapaAtPanel } from "@/features/processos/anexo-etapa-at-panel";
 import { varianteSituacaoProcesso } from "@/features/processos/catalogos";
+import { VIABILIDADE_STATUS_ROTULOS } from "@/features/viabilidade/catalogos";
+import type { EtapaContratada } from "@/types/enums";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
 
@@ -41,6 +43,9 @@ const ETAPA_CONTRATADA_ROTULOS: Record<string, string> = {
   quesitos_suplementares: "Quesitos suplementares",
   participacao_pericia: "Participação da perícia",
 };
+/** Ordem fixa/canônica de exibição — a mesma dos 12 serviços definidos com ela, nunca a ordem em que foram marcados. */
+const ETAPAS_CONTRATADAS_ORDENADAS = Object.keys(ETAPA_CONTRATADA_ROTULOS) as EtapaContratada[];
+
 const ETAPA_CONTRATADA_SIGLAS: Record<string, string> = {
   analise_viabilidade: "AV",
   estrategia_pericial: "EP",
@@ -130,6 +135,7 @@ export default async function ProcessoDetalhePage({
     tipoLaudoResultado,
     primeiraSecaoResultado,
     { data: anexosDb, error: erroAnexos },
+    { data: viabilidadeStatusDb, error: erroViabilidadeStatus },
   ] = await Promise.all([
     supabase.from("processo_partes").select("*").eq("processo_id", id).order("ordem", { ascending: true }),
     // Gate do Módulo Pós-Laudo: a aba só abre quando existe um laudo (tipo =
@@ -166,6 +172,9 @@ export default async function ProcessoDetalhePage({
           .eq("processo_id", id)
           .eq("etapa_at", "analise_contestacao")
           .order("created_at", { ascending: true })
+      : Promise.resolve({ data: null, error: null }),
+    temAnaliseViabilidade
+      ? supabase.from("analises_viabilidade").select("status").eq("processo_id", id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
   const { data: tipoLaudo, error: erroTipoLaudo } = tipoLaudoResultado;
@@ -229,6 +238,11 @@ export default async function ProcessoDetalhePage({
       nomeArquivo: d.nome_arquivo,
       signedUrl: urlPorCaminho.get(d.storage_path) ?? null,
     }));
+  }
+
+  if (erroViabilidadeStatus) {
+    console.error(`Processo ${id}: falha ao buscar status da Análise de Viabilidade:`, erroViabilidadeStatus.message);
+    erros.push("o status da Análise de Viabilidade");
   }
   const nomesPoloAtivo = partes.filter((p) => p.polo === "ativo").map((p) => p.nome);
   const nomesPoloPassivo = partes.filter((p) => p.polo === "passivo").map((p) => p.nome);
@@ -301,11 +315,31 @@ export default async function ProcessoDetalhePage({
                 {processo.prazo_contratual_entrega ? dataCurta(processo.prazo_contratual_entrega) : "—"}
               </Campo>
               <Campo rotulo="Etapas contratadas" colSpan>
-                {processo.etapas_contratadas && processo.etapas_contratadas.length > 0
-                  ? processo.etapas_contratadas
-                      .map((e) => ETAPA_CONTRATADA_ROTULOS[e] ?? e)
-                      .join(", ")
-                  : "—"}
+                {processo.etapas_contratadas && processo.etapas_contratadas.length > 0 ? (
+                  <ol className="space-y-1">
+                    {ETAPAS_CONTRATADAS_ORDENADAS.filter((e) => processo.etapas_contratadas!.includes(e)).map((e, i) => (
+                      <li key={e} className="flex items-center gap-2">
+                        <span className="text-nevoa-400 dark:text-nevoa-600 tabular-nums text-xs w-4 text-right">{i + 1}.</span>
+                        <span>{ETAPA_CONTRATADA_ROTULOS[e] ?? e}</span>
+                        {e === "analise_viabilidade" && viabilidadeStatusDb?.status && (
+                          <Selo variante="neutro">{VIABILIDADE_STATUS_ROTULOS[viabilidadeStatusDb.status]}</Selo>
+                        )}
+                        {e === "estrategia_pericial" && (
+                          <Selo variante={processo.estrategia_pericial_reuniao_em ? "sucesso" : "atencao"}>
+                            {processo.estrategia_pericial_reuniao_em ? `Reunião ${dataCurta(processo.estrategia_pericial_reuniao_em)}` : "Aguardando reunião"}
+                          </Selo>
+                        )}
+                        {e === "analise_contestacao" && (
+                          <Selo variante={anexosContestacao.length > 0 ? "sucesso" : "atencao"}>
+                            {anexosContestacao.length > 0 ? "Arquivo anexado" : "Aguardando arquivo"}
+                          </Selo>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  "—"
+                )}
               </Campo>
             </>
           )}
