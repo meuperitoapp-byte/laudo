@@ -535,3 +535,6 @@ export type ViabilidadeTipoLiteratura =
   | 'legislacao'
   | 'norma'
   | 'outro'
+
+/** movimentacoes_financeiras.tipo — ledger manual do Financeiro (migration 20260930140000). */
+export type TipoMovimentacaoFinanceira = 'entrada' | 'saida'

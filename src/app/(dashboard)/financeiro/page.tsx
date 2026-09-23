@@ -7,8 +7,9 @@ import { DashboardCard } from "@/components/ui/dashboard-card";
 import { RankedBarList, ranquear } from "@/components/ui/ranked-bar-list";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 import { SITUACAO_PROCESSO_PROPOSTA_HONORARIOS, mesclarSugestoes } from "@/features/processos/catalogos";
-import { DespesasPanel } from "@/features/financeiro/despesas-panel";
-import { DESPESA_CATEGORIA_SEED } from "@/features/financeiro/catalogos";
+import { MovimentacoesPanel, type ProcessoOpcao } from "@/features/financeiro/movimentacoes-panel";
+import { MovimentacoesFiltros } from "@/features/financeiro/movimentacoes-filtros";
+import { MOVIMENTACAO_CATEGORIA_SEED, MOVIMENTACAO_CONTA_SEED } from "@/features/financeiro/catalogos";
 
 type ProcessoFinanceiro = {
   id: string;
@@ -46,6 +47,11 @@ function dataCurta(iso: string): string {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : new Date(iso).toLocaleDateString("pt-BR", { dateStyle: "short" });
 }
 
+/** Primeiro valor não-vazio de um search param (Next entrega string | string[] | undefined). */
+function param(v: string | string[] | undefined): string {
+  return (Array.isArray(v) ? v[0] : v)?.trim() ?? "";
+}
+
 function ListaProcessos({
   itens,
   vazio,
@@ -79,8 +85,8 @@ function ListaProcessos({
 }
 
 /**
- * Financeiro — painel consolidado, só leitura (nenhuma ação/formulário
- * aqui; os dados continuam sendo editados no cadastro de cada processo).
+ * Financeiro — painel consolidado, majoritariamente só leitura (os
+ * honorários continuam sendo editados no cadastro de cada processo).
  * Reaproveita a MESMA fonte da Central de Prazos (`montarPainel`) pra
  * Inadimplência, em vez de duplicar a lógica de atraso — mesmo princípio
  * já usado pela Agenda.
@@ -91,15 +97,36 @@ function ListaProcessos({
  * diferente e maior, ainda travado na decisão de papéis/permissões (ver
  * memória [[fila-melhorias-set-2026-parte2]]).
  *
- * "Saídas" (despesas) e nota fiscal por processo entraram em 19/09/2026,
- * a pedido dela depois de ver a v1 (só tinha entradas). "Relatórios" (da
- * lista original) continua de fora — formato nunca foi definido.
- * Sinalizado na própria tela, não é esquecimento.
+ * "Movimentações" (antiga "Saídas"/despesas) virou ledger único de
+ * entrada/saída em 23/09/2026, a pedido do financeiro dela — pra bater
+ * com o extrato bancário (data, tipo, categoria, conta, processo
+ * vinculado, valor, observações). Entrada é SEMPRE vinculada a um
+ * processo (decisão dela); saída pode ou não ter. 100% manual — nenhuma
+ * automação a partir de honorarios_recebidos_em/situacao_financeira.
+ * Filtro na lista (mesmo padrão visual de ProcessosFiltros) aplicado em
+ * memória sobre a lista JÁ carregada — o total de "Saídas" no topo
+ * continua vindo do total NÃO filtrado, pra ser um KPI estável.
+ * "Relatórios" (da lista original) continua de fora — formato nunca foi
+ * definido. Sinalizado na própria tela, não é esquecimento.
  */
-export default async function FinanceiroPage() {
+export default async function FinanceiroPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const filtro = {
+    processo: param(sp.mov_processo).toLowerCase(),
+    tipo: param(sp.mov_tipo),
+    conta: param(sp.mov_conta),
+    categoria: param(sp.mov_categoria),
+    dataInicial: param(sp.mov_data_inicial),
+    dataFinal: param(sp.mov_data_final),
+  };
+
   const supabase = await createClient();
 
-  const [{ data: processosDb, error: erroProcessos }, itensPainel, { data: despesasDb, error: erroDespesas }] =
+  const [{ data: processosDb, error: erroProcessos }, itensPainel, { data: movimentacoesDb, error: erroMovimentacoes }] =
     await Promise.all([
       supabase
         .from("processos")
@@ -107,10 +134,10 @@ export default async function FinanceiroPage() {
           "id, tipo_trabalho, situacao_processo, situacao_financeira, numero_processo, periciando_nome, parte_autora, honorario_apresentado, honorario_arbitrado, liberacao_solicitada_em, honorarios_recebidos_em, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, nota_fiscal_emitida, nota_fiscal_numero",
         ),
       montarPainel(supabase),
-      supabase.from("despesas").select("*").order("data", { ascending: false }),
+      supabase.from("movimentacoes_financeiras").select("*").order("data", { ascending: false }),
     ]);
   if (erroProcessos) console.error("Financeiro: falha ao buscar processos:", erroProcessos.message);
-  if (erroDespesas) console.error("Financeiro: falha ao buscar despesas:", erroDespesas.message);
+  if (erroMovimentacoes) console.error("Financeiro: falha ao buscar movimentações:", erroMovimentacoes.message);
 
   const processos: ProcessoFinanceiro[] = processosDb ?? [];
   const judiciais = processos.filter((p) => p.tipo_trabalho === "pericia_judicial");
@@ -125,7 +152,6 @@ export default async function FinanceiroPage() {
   const totalAReceberJudicial = judiciaisAReceber.reduce((soma, p) => soma + (valorHonorarioJudicial(p) ?? 0), 0);
   const totalRecebidoJudicial = judiciaisRecebidos.reduce((soma, p) => soma + (valorHonorarioJudicial(p) ?? 0), 0);
   const atPendentes = at.filter((p) => p.situacao_financeira !== "Pago").length;
-  const atPagos = at.filter((p) => p.situacao_financeira === "Pago").length;
 
   // Mesma fonte/lógica da Central de Prazos — nunca reinventar aqui quem está em atraso.
   const inadimplenciaAT = itensPainel.filter((i) => i.categoria === "honorarios_atraso_at");
@@ -134,24 +160,48 @@ export default async function FinanceiroPage() {
   const porSituacaoFinanceiraJudicial = ranquear(judiciais.map((p) => p.situacao_financeira));
   const porSituacaoFinanceiraAT = ranquear(at.map((p) => p.situacao_financeira));
 
-  const despesas = despesasDb ?? [];
-  const totalDespesas = despesas.reduce((soma, d) => soma + d.valor, 0);
-  const categoriasDespesasSugestoes = mesclarSugestoes(
-    DESPESA_CATEGORIA_SEED,
-    despesas.map((d) => d.categoria),
+  const processosOpcoes: ProcessoOpcao[] = processos.map((p) => ({ id: p.id, label: identificarProcesso(p) }));
+  const processoPorId = new Map(processos.map((p) => [p.id, p]));
+
+  const movimentacoes = movimentacoesDb ?? [];
+  // KPI "Saídas" no topo é sempre do total NÃO filtrado — não deve mudar
+  // conforme ela mexe no filtro da lista abaixo.
+  const totalSaidas = movimentacoes.filter((m) => m.tipo === "saida").reduce((soma, m) => soma + m.valor, 0);
+
+  const categoriasSugestoes = mesclarSugestoes(
+    MOVIMENTACAO_CATEGORIA_SEED,
+    movimentacoes.map((m) => m.categoria),
   );
+  const contasSugestoes = mesclarSugestoes(
+    MOVIMENTACAO_CONTA_SEED,
+    movimentacoes.map((m) => m.conta),
+  );
+
+  const movimentacoesFiltradas = movimentacoes.filter((m) => {
+    if (filtro.tipo && m.tipo !== filtro.tipo) return false;
+    if (filtro.conta && m.conta !== filtro.conta) return false;
+    if (filtro.categoria && m.categoria !== filtro.categoria) return false;
+    if (filtro.dataInicial && m.data < filtro.dataInicial) return false;
+    if (filtro.dataFinal && m.data > filtro.dataFinal) return false;
+    if (filtro.processo) {
+      const processo = m.processo_id ? processoPorId.get(m.processo_id) : null;
+      const label = processo ? identificarProcesso(processo).toLowerCase() : "";
+      if (!label.includes(filtro.processo)) return false;
+    }
+    return true;
+  });
 
   return (
     <main className="p-8 max-w-[1600px] mx-auto space-y-6">
       <div>
         <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Financeiro</h1>
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">
-          Visão consolidada do financeiro da operação — os valores continuam sendo cadastrados por processo, aqui é
-          só leitura.
+          Visão consolidada do financeiro da operação — os honorários continuam sendo cadastrados por processo, aqui
+          é leitura; as movimentações abaixo são um ledger manual à parte.
         </p>
       </div>
 
-      {(erroProcessos || erroDespesas) && (
+      {(erroProcessos || erroMovimentacoes) && (
         <BannerErroConsulta mensagem="Não consegui carregar tudo agora — os números abaixo podem estar incompletos." />
       )}
 
@@ -166,7 +216,7 @@ export default async function FinanceiroPage() {
           valor={moedaBRL(totalRecebidoJudicial)}
           icone={<HandCoins className="h-5 w-5" />}
         />
-        <StatTile rotulo="Saídas" valor={moedaBRL(totalDespesas)} icone={<TrendingDown className="h-5 w-5" />} />
+        <StatTile rotulo="Saídas" valor={moedaBRL(totalSaidas)} icone={<TrendingDown className="h-5 w-5" />} />
         <StatTile rotulo="AT pendentes" valor={atPendentes} icone={<TriangleAlert className="h-5 w-5" />} />
         <StatTile rotulo="Propostas em aberto" valor={propostas.length} icone={<FileText className="h-5 w-5" />} />
       </div>
@@ -261,16 +311,27 @@ export default async function FinanceiroPage() {
         <DashboardCard titulo="Honorários Judiciais" subtitulo="Distribuição por situação financeira">
           <RankedBarList itens={porSituacaoFinanceiraJudicial} />
         </DashboardCard>
+      </div>
 
-        <DashboardCard titulo="Saídas" subtitulo="Despesas do negócio — repasses, operacional, impostos/taxas etc.">
-          <DespesasPanel despesas={despesas} categoriasSugestoes={categoriasDespesasSugestoes} />
-        </DashboardCard>
+      <div>
+        <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-50 mb-1">Movimentações</h2>
+        <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mb-4">
+          Ledger manual de entrada e saída, pra bater com o extrato bancário (Asaas/Inter/Banco do Brasil).
+        </p>
+        <div className="space-y-4">
+          <MovimentacoesFiltros categorias={categoriasSugestoes} contas={contasSugestoes} />
+          <MovimentacoesPanel
+            movimentacoes={movimentacoesFiltradas}
+            processosOpcoes={processosOpcoes}
+            categoriasSugestoes={categoriasSugestoes}
+            contasSugestoes={contasSugestoes}
+          />
+        </div>
       </div>
 
       <div className="rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 px-5 py-4 text-sm text-nevoa-500 dark:text-nevoa-400">
         <strong className="text-nevoa-700 dark:text-nevoa-300">Ainda não incluído:</strong> Relatórios (formato ainda
-        não definido). Repasse a especialistas já entra em Saídas (categoria própria); se ela quiser amarrar uma
-        despesa a um processo específico, precisa de um campo novo — hoje é um ledger geral do negócio.
+        não definido).
       </div>
     </main>
   );
