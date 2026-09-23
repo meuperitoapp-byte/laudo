@@ -88,6 +88,7 @@ import type {
   ViabilidadeImpactoLimitacao,
   NivelUrgencia,
   TipoMovimentacaoFinanceira,
+  ModuloSistema,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -1718,6 +1719,34 @@ export type CasoNecessidadeEspecialistaInsert = ComDefaults<
 >
 export type CasoNecessidadeEspecialistaUpdate = Partial<CasoNecessidadeEspecialistaRow>
 
+export type PerfisRow = {
+  id: string
+  nome: string
+  created_at: string
+  updated_at: string
+}
+export type PerfisInsert = ComDefaults<PerfisRow, 'id' | 'created_at' | 'updated_at'>
+export type PerfisUpdate = Partial<PerfisRow>
+
+export type PerfilPermissoesRow = {
+  id: string
+  perfil_id: string
+  modulo: ModuloSistema
+  created_at: string
+}
+export type PerfilPermissoesInsert = ComDefaults<PerfilPermissoesRow, 'id' | 'created_at'>
+export type PerfilPermissoesUpdate = Partial<PerfilPermissoesRow>
+
+export type PerfilUsuariosRow = {
+  id: string
+  perfil_id: string
+  email: string
+  nome_exibicao: string
+  created_at: string
+}
+export type PerfilUsuariosInsert = ComDefaults<PerfilUsuariosRow, 'id' | 'created_at'>
+export type PerfilUsuariosUpdate = Partial<PerfilUsuariosRow>
+
 // ============================================================================
 // Database — shape esperado por createClient<Database>()
 // ============================================================================
@@ -1980,6 +2009,24 @@ export interface Database {
         Row: CasoNecessidadeEspecialistaRow
         Insert: CasoNecessidadeEspecialistaInsert
         Update: CasoNecessidadeEspecialistaUpdate
+        Relationships: []
+      }
+      perfis: {
+        Row: PerfisRow
+        Insert: PerfisInsert
+        Update: PerfisUpdate
+        Relationships: []
+      }
+      perfil_permissoes: {
+        Row: PerfilPermissoesRow
+        Insert: PerfilPermissoesInsert
+        Update: PerfilPermissoesUpdate
+        Relationships: []
+      }
+      perfil_usuarios: {
+        Row: PerfilUsuariosRow
+        Insert: PerfilUsuariosInsert
+        Update: PerfilUsuariosUpdate
         Relationships: []
       }
     }

@@ -542,3 +542,19 @@ export type ViabilidadeTipoLiteratura =
 
 /** movimentacoes_financeiras.tipo — ledger manual do Financeiro (migration 20260930140000). */
 export type TipoMovimentacaoFinanceira = 'entrada' | 'saida'
+
+/**
+ * perfil_permissoes.modulo — catálogo fixo dos itens do menu principal (ver
+ * src/components/ui/top-nav.tsx), não algo que ela "inventa" no painel de
+ * perfis (migration 20260930170000).
+ */
+export type ModuloSistema =
+  | 'dashboard'
+  | 'processos'
+  | 'hoje'
+  | 'agenda'
+  | 'financeiro'
+  | 'relacionamento'
+  | 'biblioteca_pericial'
+  | 'respostas_reutilizaveis'
+  | 'configuracoes'
