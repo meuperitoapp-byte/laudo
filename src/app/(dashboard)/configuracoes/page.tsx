@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
 import { ConfiguracoesForm } from "@/features/configuracoes/configuracoes-form";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
+import { obterContextoAcesso, podeAdministrarAcessos } from "@/features/acessos/contexto";
 
 const VALIDADE_URL_SEGUNDOS = 60 * 60;
 
@@ -35,13 +37,19 @@ async function urlAtivoGlobal(
 export default async function ConfiguracoesPage() {
   const supabase = await createClient();
 
-  const [{ data: config, error: erroConfig }, assinatura, logomarca] = await Promise.all([
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [{ data: config, error: erroConfig }, assinatura, logomarca, contexto] = await Promise.all([
     supabase.from("configuracoes").select("*").maybeSingle(),
     urlAtivoGlobal(supabase, "assinatura_perito"),
     urlAtivoGlobal(supabase, "logomarca"),
+    user?.email ? obterContextoAcesso(supabase, user.email) : Promise.resolve(null),
   ]);
   if (erroConfig) console.error("Configurações: falha ao buscar configuração:", erroConfig.message);
   const houveErro = Boolean(erroConfig) || assinatura.erro || logomarca.erro;
+  const mostrarLinkAcessos = contexto !== null && podeAdministrarAcessos(contexto);
 
   return (
     <main className="p-8 max-w-[1600px] mx-auto space-y-6">
@@ -53,6 +61,14 @@ export default async function ConfiguracoesPage() {
       </div>
       {houveErro && (
         <BannerErroConsulta mensagem="Não consegui carregar tudo agora — alguns dados abaixo podem estar incompletos." />
+      )}
+      {mostrarLinkAcessos && (
+        <Link
+          href="/configuracoes/acessos"
+          className="inline-block text-sm text-petroleo-600 hover:underline dark:text-petroleo-400"
+        >
+          Gerenciar perfis de acesso →
+        </Link>
       )}
       <ConfiguracoesForm config={config ?? null} urlAssinatura={assinatura.url} urlLogomarca={logomarca.url} />
     </main>
