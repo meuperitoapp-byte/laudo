@@ -36,11 +36,17 @@
  * também, mas SEM prazo real (não existe data de reunião marcada, só o
  * sinal "precisa agendar"): cai em "sem_prazo" enquanto
  * `pos_entrega_reuniao = 'agendar'`, some sozinho quando ela muda pra
- * Sim/Não.
+ * Sim/Não. Orçamento sem retorno (30/09/2026, feedback dela em prints
+ * anotados) plugou a 17ª fonte - prazo REAL (data de envio do orçamento +
+ * 7 dias), some sozinho quando `processos.data_contratacao` é preenchida
+ * (contratou) ou ela muda a resposta do orçamento. Mesma leva trouxe o
+ * campo `responsavel` em `ItemPainel` (texto livre, só nas fontes que têm
+ * esse dado - nunca inventado) pra separar a Agenda visualmente por quem
+ * deve executar.
  */
 
 import type { createClient } from "@/lib/supabase/server";
-import { hojeIsoBrasil, nivelPorPrazo, ordenarPainel, paraDiasUtc } from "./regras";
+import { hojeIsoBrasil, nivelPorPrazo, ordenarPainel, paraDiasUtc, somarDiasIso } from "./regras";
 import { PROVIDENCIA_POR_CATEGORIA } from "./rotulos";
 import type { ItemPainel } from "./tipos";
 
@@ -75,6 +81,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     { data: necessidadeEspecialistaDb },
     { data: proximaAcaoViabilidadeDb },
     { data: posEntregaViabilidadeDb },
+    { data: orcamentoSemRetornoDb },
   ] = await Promise.all([
     // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
     // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
@@ -83,7 +90,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     supabase
       .from("processos")
       .select(
-        "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, situacao_financeira, estrategia_pericial_reuniao_em",
+        "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, situacao_financeira, estrategia_pericial_reuniao_em, data_contratacao",
       )
       .eq("status", "em_andamento"),
     // Fonte 1 — ciclos de pós-laudo abertos.
@@ -111,7 +118,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     // Fonte 9 (parte 1) — tarefas/eventos manuais em aberto.
     supabase
       .from("central_tarefas")
-      .select("id, processo_id, tipo, titulo, descricao, data, hora, status, nivel_urgencia_manual")
+      .select("id, processo_id, tipo, titulo, descricao, data, hora, status, nivel_urgencia_manual, responsavel")
       .is("concluida_em", null),
     // Fonte 12 — documentos faltantes da Análise de Viabilidade, ainda não
     // resolvidos. Lê `caso_documentos_faltantes` DIRETO (nunca insere em
@@ -148,6 +155,16 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       .from("analises_viabilidade")
       .select("id, processo_id, updated_at")
       .eq("pos_entrega_reuniao", "agendar"),
+    // Fonte 17 — orçamento enviado na Pós-entrega, aguardando retorno em D+7.
+    // Prazo REAL calculado (data de envio + 7 dias) — o item some sozinho
+    // quando `processos.data_contratacao` é preenchida (contratou) ou ela
+    // muda a resposta do orçamento (mesmo princípio das fontes 15/16: campo
+    // único do hub, sem `resolvido_em`).
+    supabase
+      .from("analises_viabilidade")
+      .select("id, processo_id, pos_entrega_orcamento_enviado_em")
+      .eq("pos_entrega_orcamento_enviado", "sim")
+      .not("pos_entrega_orcamento_enviado_em", "is", null),
   ]);
   const processos = processosDb ?? [];
   const processoPorId = new Map(processos.map((p) => [p.id, p]));
@@ -192,6 +209,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: c.prazo,
       dataContexto: null,
       ordenacao: c.prazo ?? c.created_at,
+      responsavel: null,
       href: `/processos/${c.processo_id}/pos-laudo/${c.id}`,
     });
   }
@@ -215,6 +233,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: null,
       dataContexto: null,
       ordenacao: l.created_at,
+      responsavel: null,
       href: `/processos/${l.processo_id}/laudo`,
     });
   }
@@ -240,6 +259,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
         prazo: null,
         dataContexto: null,
         ordenacao: a.created_at,
+        responsavel: null,
         href,
       });
     } else {
@@ -253,6 +273,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
         prazo: null,
         dataContexto: { rotulo: "Entregue em", valor: a.entregue_ao_advogado_em },
         ordenacao: a.entregue_ao_advogado_em,
+        responsavel: null,
         href,
       });
     }
@@ -273,6 +294,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: null,
       dataContexto: null,
       ordenacao: d.created_at,
+      responsavel: null,
       href: `/processos/${d.processo_id}/documentos`,
     });
   }
@@ -293,6 +315,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: p.nomeacao_prazo_manifestacao,
       dataContexto: null,
       ordenacao: p.nomeacao_prazo_manifestacao ?? hoje,
+      responsavel: null,
       href: `/processos/${p.id}/editar`,
     });
   }
@@ -316,6 +339,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: p.agendamento_data,
       dataContexto: null,
       ordenacao: p.agendamento_data,
+      responsavel: null,
       href: `/processos/${p.id}/fluxo-principal`,
     });
   }
@@ -338,6 +362,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: null,
       dataContexto: { rotulo: "Solicitada em", valor: p.liberacao_solicitada_em },
       ordenacao: p.liberacao_solicitada_em,
+      responsavel: null,
       href: `/processos/${p.id}/fluxo-principal`,
     });
   }
@@ -370,6 +395,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: null,
       dataContexto: { rotulo: "Solicitado em", valor: p.documentos_solicitados_em },
       ordenacao: p.documentos_solicitados_em,
+      responsavel: null,
       href: `/processos/${p.id}`,
     });
   }
@@ -402,6 +428,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: t.data,
       dataContexto: null,
       ordenacao: t.data,
+      responsavel: t.responsavel,
       href: `/tarefas/${t.id}`,
     });
   }
@@ -425,6 +452,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
         prazo: p.honorarios_proximo_marco_em,
         dataContexto: null,
         ordenacao: p.honorarios_proximo_marco_em,
+        responsavel: null,
         href: `/processos/${p.id}`,
       });
     }
@@ -447,6 +475,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
         prazo: p.honorarios_vencimento,
         dataContexto: null,
         ordenacao: p.honorarios_vencimento,
+        responsavel: null,
         href: `/processos/${p.id}/editar`,
       });
     }
@@ -467,6 +496,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
         prazo: p.estrategia_pericial_reuniao_em,
         dataContexto: null,
         ordenacao: p.estrategia_pericial_reuniao_em,
+        responsavel: null,
         href: `/processos/${p.id}`,
       });
     }
@@ -494,6 +524,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: d.prazo,
       dataContexto: d.prazo ? null : { rotulo: "Cadastrado em", valor: d.created_at },
       ordenacao: d.prazo ?? d.created_at,
+      responsavel: d.responsavel,
       href: `/processos/${processo.id}/viabilidade`,
     });
   }
@@ -516,6 +547,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: o.prazo,
       dataContexto: o.prazo ? null : { rotulo: "Cadastrada em", valor: o.created_at },
       ordenacao: o.prazo ?? o.created_at,
+      responsavel: o.responsavel,
       href: `/processos/${processo.id}/viabilidade`,
     });
   }
@@ -537,6 +569,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: n.prazo,
       dataContexto: n.prazo ? null : { rotulo: "Cadastrado em", valor: n.created_at },
       ordenacao: n.prazo ?? n.created_at,
+      responsavel: null,
       href: `/processos/${processo.id}/viabilidade`,
     });
   }
@@ -559,6 +592,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: a.proxima_acao_prazo,
       dataContexto: null,
       ordenacao: a.proxima_acao_prazo,
+      responsavel: a.proxima_acao_responsavel,
       href: `/processos/${processo.id}/viabilidade`,
     });
   }
@@ -580,6 +614,33 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: null,
       dataContexto: null,
       ordenacao: p.updated_at,
+      responsavel: null,
+      href: `/processos/${processo.id}/viabilidade`,
+    });
+  }
+
+  // ---- 17. Orçamento enviado na Pós-entrega, sem retorno em D+7 ----
+  // Prazo REAL (data de envio + 7 dias) — some sozinho quando
+  // `processos.data_contratacao` é preenchida (contratou) ou ela muda a
+  // resposta do orçamento (query já filtrou só `= 'sim'` com data
+  // preenchida). Responsável fixo "Secretária": é ela quem envia o
+  // orçamento e faz o follow-up (CLAUDE.md/feedback da Dra. Fernanda,
+  // 30/09/2026) — não um dado digitado, por isso não vem de coluna.
+  for (const o of orcamentoSemRetornoDb ?? []) {
+    const processo = processoPorId.get(o.processo_id);
+    if (!processo || !o.pos_entrega_orcamento_enviado_em || processo.data_contratacao) continue;
+    const prazo = somarDiasIso(o.pos_entrega_orcamento_enviado_em, 7);
+    itens.push({
+      id: `viabilidade_orcamento_sem_retorno-${o.id}`,
+      categoria: "viabilidade_orcamento_sem_retorno",
+      titulo: `Orçamento sem retorno — ${identificarProcesso(processo)}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.viabilidade_orcamento_sem_retorno,
+      nivel: nivelPorPrazo(prazo, hoje),
+      prazo,
+      dataContexto: { rotulo: "Orçamento enviado em", valor: o.pos_entrega_orcamento_enviado_em },
+      ordenacao: prazo,
+      responsavel: "Secretária",
       href: `/processos/${processo.id}/viabilidade`,
     });
   }

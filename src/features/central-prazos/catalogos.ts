@@ -19,7 +19,8 @@ export const STATUS_TAREFA_SEED = [
 
 /**
  * Vocabulário editável de `central_tarefas.responsavel` — mesmo princípio
- * acima. Sem semente fixa (ainda não sabemos os nomes certos da equipe além
- * da própria Dra. Fernanda) — cresce sozinho a partir do que for digitado.
+ * acima. "Secretária" e "CEO" adicionados em 30/09/2026 junto com a
+ * separação visual da Agenda por responsável (ver rotulos.ts/agregador.ts) —
+ * cresce sozinho a partir do que for digitado além disso.
  */
-export const RESPONSAVEL_TAREFA_SEED: readonly string[] = ["Dra. Fernanda"];
+export const RESPONSAVEL_TAREFA_SEED: readonly string[] = ["Dra. Fernanda", "Secretária", "CEO", "Financeiro"];

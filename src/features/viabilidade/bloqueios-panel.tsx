@@ -28,7 +28,7 @@ export function BloqueiosPanel({
     { rotulo: "Questões técnicas analisadas", ok: temQuestoesTecnicas },
     { rotulo: "Conclusão selecionada", ok: Boolean(analise.conclusao) },
     { rotulo: "Fundamentação da conclusão", ok: Boolean(analise.conclusao_fundamentacao) },
-    { rotulo: "Recomendação registrada", ok: Boolean(analise.recomendacao) },
+    { rotulo: "Recomendação registrada", ok: Boolean(analise.recomendacao_justificativa) },
     { rotulo: "Próxima ação (ou encerramento definitivo)", ok: Boolean(analise.proxima_acao) || analise.status === "concluida" },
   ];
   const faltam = itens.filter((i) => !i.ok).length;

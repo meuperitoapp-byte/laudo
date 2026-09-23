@@ -8,6 +8,8 @@ import {
   type GrupoAgenda,
 } from "@/features/central-prazos/rotulos";
 import type { ItemPainel } from "@/features/central-prazos/tipos";
+import { RESPONSAVEL_TAREFA_SEED } from "@/features/central-prazos/catalogos";
+import { ResponsavelFiltro } from "@/features/central-prazos/responsavel-filtro";
 
 const DIAS_SEMANA_CURTO = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 const NOMES_MES = [
@@ -40,7 +42,7 @@ const FILTROS: { valor: GrupoAgenda | "todos"; rotulo: string }[] = [
   { valor: "tarefas", rotulo: GRUPO_AGENDA_ROTULOS.tarefas },
 ];
 
-type BuscaParams = { ano: number; mes: number; grupo: GrupoAgenda | "todos"; q: string };
+type BuscaParams = { ano: number; mes: number; grupo: GrupoAgenda | "todos"; q: string; responsavel: string };
 
 function querystring(params: Partial<BuscaParams>, base: BuscaParams): string {
   const efetivo = { ...base, ...params };
@@ -49,6 +51,7 @@ function querystring(params: Partial<BuscaParams>, base: BuscaParams): string {
   sp.set("mes", String(efetivo.mes));
   if (efetivo.grupo !== "todos") sp.set("grupo", efetivo.grupo);
   if (efetivo.q.trim()) sp.set("q", efetivo.q.trim());
+  if (efetivo.responsavel) sp.set("responsavel", efetivo.responsavel);
   return `/agenda?${sp.toString()}`;
 }
 
@@ -68,7 +71,7 @@ function querystring(params: Partial<BuscaParams>, base: BuscaParams): string {
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ano?: string; mes?: string; grupo?: string; q?: string }>;
+  searchParams: Promise<{ ano?: string; mes?: string; grupo?: string; q?: string; responsavel?: string }>;
 }) {
   const sp = await searchParams;
   const hoje = hojeIsoBrasil();
@@ -79,14 +82,22 @@ export default async function AgendaPage({
   const mesAtivo = Number(sp.mes) >= 1 && Number(sp.mes) <= 12 ? Number(sp.mes) : hojeMes;
   const grupoAtivo: GrupoAgenda | "todos" = FILTROS.some((f) => f.valor === sp.grupo) ? (sp.grupo as GrupoAgenda) : "todos";
   const q = sp.q ?? "";
-  const base: BuscaParams = { ano: anoAtivo, mes: mesAtivo, grupo: grupoAtivo, q };
+  const responsavelAtivo = sp.responsavel ?? "";
+  const base: BuscaParams = { ano: anoAtivo, mes: mesAtivo, grupo: grupoAtivo, q, responsavel: responsavelAtivo };
 
   const supabase = await createClient();
   const itens = await montarPainel(supabase);
 
   const comData = itens.filter((i): i is ItemPainel & { prazo: string } => i.prazo !== null);
   const porGrupo = grupoAtivo === "todos" ? comData : comData.filter((i) => GRUPO_AGENDA_POR_CATEGORIA[i.categoria] === grupoAtivo);
-  const filtrados = q.trim() ? porGrupo.filter((i) => i.titulo.toLowerCase().includes(q.trim().toLowerCase())) : porGrupo;
+  const porResponsavel = responsavelAtivo ? porGrupo.filter((i) => i.responsavel === responsavelAtivo) : porGrupo;
+  const filtrados = q.trim() ? porResponsavel.filter((i) => i.titulo.toLowerCase().includes(q.trim().toLowerCase())) : porResponsavel;
+
+  // Opções do filtro: catálogo conhecido + qualquer responsável digitado nos
+  // itens que ainda não esteja nele (texto livre — pode crescer sozinho).
+  const opcoesResponsavel = Array.from(
+    new Set([...RESPONSAVEL_TAREFA_SEED, ...comData.map((i) => i.responsavel).filter((r): r is string => Boolean(r))]),
+  ).sort((a, b) => a.localeCompare(b));
 
   const itensPorData = new Map<string, ItemPainel[]>();
   for (const item of filtrados) {
@@ -156,18 +167,22 @@ export default async function AgendaPage({
           )}
         </div>
 
-        <form method="get" action="/agenda" className="flex items-center gap-2">
-          <input type="hidden" name="ano" value={anoAtivo} />
-          <input type="hidden" name="mes" value={mesAtivo} />
-          {grupoAtivo !== "todos" && <input type="hidden" name="grupo" value={grupoAtivo} />}
-          <input
-            type="search"
-            name="q"
-            defaultValue={q}
-            placeholder="Procurar pelo nº do processo ou título"
-            className="w-72 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900 px-3 py-1.5 text-sm text-nevoa-800 dark:text-nevoa-100 placeholder:text-nevoa-400 focus:outline-none focus:ring-2 focus:ring-petroleo-500"
-          />
-        </form>
+        <div className="flex items-center gap-2">
+          <ResponsavelFiltro opcoes={opcoesResponsavel} />
+          <form method="get" action="/agenda" className="flex items-center gap-2">
+            <input type="hidden" name="ano" value={anoAtivo} />
+            <input type="hidden" name="mes" value={mesAtivo} />
+            {grupoAtivo !== "todos" && <input type="hidden" name="grupo" value={grupoAtivo} />}
+            {responsavelAtivo && <input type="hidden" name="responsavel" value={responsavelAtivo} />}
+            <input
+              type="search"
+              name="q"
+              defaultValue={q}
+              placeholder="Procurar pelo nº do processo ou título"
+              className="w-72 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900 px-3 py-1.5 text-sm text-nevoa-800 dark:text-nevoa-100 placeholder:text-nevoa-400 focus:outline-none focus:ring-2 focus:ring-petroleo-500"
+            />
+          </form>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 border-b border-nevoa-200 dark:border-nevoa-800">

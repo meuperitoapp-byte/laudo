@@ -25,6 +25,7 @@ import type {
   ViabilidadeConclusao,
   ViabilidadePosEntregaReuniao,
   ViabilidadeSatisfacao,
+  ViabilidadeOrcamentoEnviado,
 } from "@/types/enums";
 
 /**
@@ -389,34 +390,11 @@ export const CONCLUSAO_ORDENADA: ViabilidadeConclusao[] = [
 ];
 
 /**
- * Recomendação técnica (§30) — catálogo editável (texto livre, sem CHECK
- * no banco). Decisão confirmada pelo Jeferson (21/09/2026): as 11 etapas
- * de EtapaContratada MENOS a própria "Análise de viabilidade" (não faz
- * sentido recomendar continuar o serviço que já está rodando), mais 5
- * opções do spec que não são serviço — incluindo "Não recomendar
- * continuidade" (às vezes a recomendação certa é não contratar nada).
+ * Responsável pela próxima ação (§31) — catálogo editável, mesmo princípio
+ * dos demais. "Secretária" e "CEO" adicionados em 30/09/2026 junto com a
+ * separação visual da Agenda por responsável (ver central-prazos/rotulos.ts).
  */
-export const RECOMENDACAO_SEED = [
-  "Estratégia pericial",
-  "Análise da contestação",
-  "Dados para réplica",
-  "Quesitos",
-  "Parecer técnico",
-  "Relatório técnico",
-  "Atestados",
-  "Declaração",
-  "Manifestação ao laudo pericial",
-  "Quesitos suplementares",
-  "Participação da perícia",
-  "Obter documentos",
-  "Avaliação de especialista",
-  "Aguardar novo marco",
-  "Não recomendar continuidade",
-  "Outro",
-] as const;
-
-/** Responsável pela próxima ação (§31) — catálogo editável, mesmo princípio dos demais. */
-export const PROXIMA_ACAO_RESPONSAVEL_SEED = ["Dra. Fernanda", "Assessor", "Atendimento", "Financeiro"] as const;
+export const PROXIMA_ACAO_RESPONSAVEL_SEED = ["Dra. Fernanda", "Secretária", "CEO", "Financeiro", "Assessor", "Atendimento"] as const;
 
 /** Houve reunião de apresentação pós-entrega (§39)? */
 export const POS_ENTREGA_REUNIAO_ROTULOS: Record<ViabilidadePosEntregaReuniao, string> = {
@@ -432,4 +410,10 @@ export const SATISFACAO_ROTULOS: Record<ViabilidadeSatisfacao, string> = {
   neutro: "Neutro",
   insatisfeito: "Insatisfeito",
   muito_insatisfeito: "Muito insatisfeito",
+};
+
+/** Orçamento enviado após reunião de apresentação do resultado (§39). */
+export const ORCAMENTO_ENVIADO_ROTULOS: Record<ViabilidadeOrcamentoEnviado, string> = {
+  sim: "Sim",
+  nao: "Não",
 };

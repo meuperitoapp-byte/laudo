@@ -439,6 +439,9 @@ export type ViabilidadePosEntregaReuniao = 'sim' | 'nao' | 'agendar'
 /** analises_viabilidade.pos_entrega_satisfacao — §39. */
 export type ViabilidadeSatisfacao = 'muito_satisfeito' | 'satisfeito' | 'neutro' | 'insatisfeito' | 'muito_insatisfeito'
 
+/** analises_viabilidade.pos_entrega_orcamento_enviado — §39. */
+export type ViabilidadeOrcamentoEnviado = 'sim' | 'nao'
+
 /** caso_documentos_avaliados.relevancia — §7. */
 export type ViabilidadeRelevanciaDocumento = 'determinante' | 'alta' | 'media' | 'baixa' | 'sem_relevancia'
 

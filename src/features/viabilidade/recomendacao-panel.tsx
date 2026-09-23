@@ -3,9 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { salvarRecomendacao } from "./actions";
-import { RECOMENDACAO_SEED } from "./catalogos";
 import { Botao } from "@/components/ui/button";
-import { ComboboxCatalogo } from "@/components/ui/combobox-catalogo";
 import { Toast } from "@/components/ui/toast";
 import type { AnalisesViabilidadeRow } from "@/types/database";
 
@@ -15,11 +13,10 @@ const inputClass =
 const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1";
 
 /**
- * Recomendação técnica (§30) — catálogo editável, os serviços já
- * existentes no sistema (EtapaContratada, menos a própria Análise de
- * Viabilidade) + opções que não são serviço, incluindo "Não recomendar
- * continuidade" (decisão do Jeferson, 21/09/2026: às vezes a
- * recomendação certa é não contratar nada). Justificativa obrigatória.
+ * Recomendação técnica (§30) — simplificada pra um único campo de texto
+ * corrido (feedback da Dra. Fernanda, 30/09/2026: o combobox de catálogo
+ * era redundante com a justificativa em texto livre, tirado da tela e do
+ * banco).
  */
 export function RecomendacaoPanel({ analise }: { analise: AnalisesViabilidadeRow }) {
   const router = useRouter();
@@ -49,21 +46,12 @@ export function RecomendacaoPanel({ analise }: { analise: AnalisesViabilidadeRow
 
       <div>
         <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100 mb-1">Recomendação técnica</h2>
-        <label htmlFor="recomendacao" className={labelClass}>
-          §30 — qual providência é tecnicamente recomendada?
-        </label>
-        <ComboboxCatalogo
-          id="recomendacao"
-          name="recomendacao"
-          sugestoes={[...RECOMENDACAO_SEED]}
-          valorInicial={analise.recomendacao ?? ""}
-          rotuloNovo="Outra recomendação"
-        />
+        <p className="text-xs text-nevoa-500 dark:text-nevoa-400">§30 — qual providência é tecnicamente recomendada?</p>
       </div>
 
       <div>
         <label htmlFor="recomendacao_justificativa" className={labelClass}>
-          Justificativa {analise.recomendacao ? "(obrigatória)" : ""}
+          Justificativa
         </label>
         <textarea
           id="recomendacao_justificativa"

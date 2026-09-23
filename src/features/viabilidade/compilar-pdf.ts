@@ -334,9 +334,8 @@ function montarSecaoX(analise: CamposExternosAnalise, oportunidades: CasoOportun
       ),
     );
   }
-  if (analise.recomendacao) {
-    blocos.push(paragrafo(`Recomendação técnica: ${analise.recomendacao}`));
-    if (analise.recomendacao_justificativa) blocos.push(paragrafo(analise.recomendacao_justificativa));
+  if (analise.recomendacao_justificativa) {
+    blocos.push(paragrafo(`Recomendação técnica: ${analise.recomendacao_justificativa}`));
   }
   if (blocos.length === 0) return null;
   return { secaoId: "av-x", codigo: "av_oportunidades_recomendacoes", titulo: "X — OPORTUNIDADES PROBATÓRIAS E RECOMENDAÇÕES", ordem: 10, blocos };

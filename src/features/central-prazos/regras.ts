@@ -27,6 +27,16 @@ export function paraDiasUtc(dataIso: string): number {
   return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86_400_000;
 }
 
+/** "YYYY-MM-DD" + N dias, em UTC — inverso conceitual de `paraDiasUtc`, pra prazos calculados (ex.: D+7 a partir de uma data registrada). */
+export function somarDiasIso(dataIso: string, dias: number): string {
+  const totalDias = paraDiasUtc(dataIso) + dias;
+  const d = new Date(totalDias * 86_400_000);
+  const ano = d.getUTCFullYear();
+  const mes = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dia = String(d.getUTCDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
 /**
  * O "hoje" da Dra. Fernanda, não o do servidor. A página roda num Server
  * Component — sem fuso de navegador disponível — e o servidor pode estar em

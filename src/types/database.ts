@@ -69,6 +69,7 @@ import type {
   ViabilidadeConclusao,
   ViabilidadePosEntregaReuniao,
   ViabilidadeSatisfacao,
+  ViabilidadeOrcamentoEnviado,
   ViabilidadeRelevanciaDocumento,
   ViabilidadeImpactoDocumentoFaltante,
   ViabilidadeCategoriaLinhaTempo,
@@ -1198,7 +1199,6 @@ export type AnalisesViabilidadeRow = {
   conclusao_elementos_favoraveis: string | null
   conclusao_fragilidades: string | null
   conclusao_condicionantes: string | null
-  recomendacao: string | null
   recomendacao_justificativa: string | null
   proxima_acao: string | null
   proxima_acao_responsavel: string | null
@@ -1207,6 +1207,8 @@ export type AnalisesViabilidadeRow = {
   pos_entrega_reuniao: ViabilidadePosEntregaReuniao | null
   pos_entrega_retorno_d7_em: string | null
   pos_entrega_satisfacao: ViabilidadeSatisfacao | null
+  pos_entrega_orcamento_enviado: ViabilidadeOrcamentoEnviado | null
+  pos_entrega_orcamento_enviado_em: string | null
   origem_modulo: ModuloOrigemCaso
   atualizado_por_modulo: ModuloOrigemCaso
   criado_por: string | null
@@ -1264,7 +1266,6 @@ export type AnalisesViabilidadeInsert = ComDefaults<
   | 'conclusao_elementos_favoraveis'
   | 'conclusao_fragilidades'
   | 'conclusao_condicionantes'
-  | 'recomendacao'
   | 'recomendacao_justificativa'
   | 'proxima_acao'
   | 'proxima_acao_responsavel'
@@ -1273,6 +1274,8 @@ export type AnalisesViabilidadeInsert = ComDefaults<
   | 'pos_entrega_reuniao'
   | 'pos_entrega_retorno_d7_em'
   | 'pos_entrega_satisfacao'
+  | 'pos_entrega_orcamento_enviado'
+  | 'pos_entrega_orcamento_enviado_em'
   | 'origem_modulo'
   | 'atualizado_por_modulo'
   | 'criado_por'

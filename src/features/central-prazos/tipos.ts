@@ -37,12 +37,21 @@ export interface ItemPainel {
     | "viabilidade_oportunidade_probatoria"
     | "viabilidade_necessidade_especialista"
     | "viabilidade_proxima_acao"
-    | "viabilidade_pos_entrega_reuniao";
+    | "viabilidade_pos_entrega_reuniao"
+    | "viabilidade_orcamento_sem_retorno";
   titulo: string;
   subtitulo: string | null;
   /** Texto fixo por categoria (ver rotulos.ts) pras fontes automáticas; pra `tarefa_manual` é a descrição que ela mesma digitou (ou um fallback genérico quando em branco). Nunca vazio. */
   providencia: string;
   nivel: NivelUrgencia;
+  /**
+   * Quem deve executar — só quando a fonte tem esse dado (texto livre, mesmo
+   * catálogo de `central_tarefas.responsavel`/`proxima_acao_responsavel`).
+   * `null` nas fontes sem responsável natural (ex.: ciclo aberto, laudo sem
+   * protocolar) — nunca inventado. Alimenta o filtro por responsável da
+   * Agenda (30/09/2026).
+   */
+  responsavel: string | null;
   /** "YYYY-MM-DD" — só quando a categoria tem prazo de verdade (ciclo aberto, nomeação sem decisão com prazo de manifestação, agendamento marcado). */
   prazo: string | null;
   /** Data só pra exibir (ex.: "entregue em"), nunca usada pra calcular nível. */

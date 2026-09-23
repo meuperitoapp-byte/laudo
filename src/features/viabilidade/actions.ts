@@ -64,6 +64,7 @@ import type {
   ViabilidadeConclusao,
   ViabilidadePosEntregaReuniao,
   ViabilidadeSatisfacao,
+  ViabilidadeOrcamentoEnviado,
 } from "@/types/enums";
 import { VIABILIDADE_STATUS_ORDENADOS } from "./catalogos";
 
@@ -1549,19 +1550,16 @@ export async function salvarConclusaoViabilidade(formData: FormData): Promise<Ac
   return { success: true };
 }
 
-/** Recomendação técnica (§30) — justificativa sempre obrigatória. */
+/** Recomendação técnica (§30) — texto livre único, sem campo curto de catálogo. */
 export async function salvarRecomendacao(formData: FormData): Promise<ActionResult> {
   const analiseId = textoOuNull(formData.get("analise_id"));
   const processoId = textoOuNull(formData.get("processo_id"));
   if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
 
-  const recomendacao = textoOuNull(formData.get("recomendacao"));
   const justificativa = textoOuNull(formData.get("recomendacao_justificativa"));
-  if (recomendacao && !justificativa) return { error: "Justificativa é obrigatória pra registrar uma recomendação." };
 
   const supabase = await createClient();
   const update: AnalisesViabilidadeUpdate = {
-    recomendacao,
     recomendacao_justificativa: justificativa,
   };
 
@@ -1614,11 +1612,17 @@ export async function salvarPosEntrega(formData: FormData): Promise<ActionResult
   const processoId = textoOuNull(formData.get("processo_id"));
   if (!analiseId || !processoId) return { error: "Análise inválida — recarregue a página e tente de novo." };
 
+  const orcamentoEnviado = (formData.get("pos_entrega_orcamento_enviado") as ViabilidadeOrcamentoEnviado | "") || null;
+
   const supabase = await createClient();
   const update: AnalisesViabilidadeUpdate = {
     pos_entrega_reuniao: (formData.get("pos_entrega_reuniao") as ViabilidadePosEntregaReuniao | "") || null,
     pos_entrega_retorno_d7_em: textoOuNull(formData.get("pos_entrega_retorno_d7_em")),
     pos_entrega_satisfacao: (formData.get("pos_entrega_satisfacao") as ViabilidadeSatisfacao | "") || null,
+    pos_entrega_orcamento_enviado: orcamentoEnviado,
+    // Some junto com a resposta, pra nunca ficar uma data de envio "órfã" de
+    // um orçamento que passou a ser "Não" (ou foi limpo) depois.
+    pos_entrega_orcamento_enviado_em: orcamentoEnviado === "sim" ? textoOuNull(formData.get("pos_entrega_orcamento_enviado_em")) : null,
   };
 
   const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);

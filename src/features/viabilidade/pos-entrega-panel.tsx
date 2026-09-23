@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { salvarPosEntrega } from "./actions";
-import { POS_ENTREGA_REUNIAO_ROTULOS, SATISFACAO_ROTULOS } from "./catalogos";
+import { POS_ENTREGA_REUNIAO_ROTULOS, SATISFACAO_ROTULOS, ORCAMENTO_ENVIADO_ROTULOS } from "./catalogos";
 import { Botao } from "@/components/ui/button";
 import { Toast } from "@/components/ui/toast";
 import type { AnalisesViabilidadeRow } from "@/types/database";
@@ -15,6 +15,7 @@ const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400
 
 const SATISFACOES_NEGATIVAS = new Set(["insatisfeito", "muito_insatisfeito"]);
 const SATISFACOES_POSITIVAS = new Set(["muito_satisfeito", "satisfeito"]);
+const CONCLUSOES_VIAVEIS = new Set(["viavel", "viavel_com_ressalvas", "viabilidade_condicionada"]);
 
 /**
  * Pós-entrega e satisfação (§39) — última seção da spec. Campos únicos do
@@ -25,9 +26,14 @@ const SATISFACOES_POSITIVAS = new Set(["muito_satisfeito", "satisfeito"]);
  */
 export function PosEntregaPanel({ analise }: { analise: AnalisesViabilidadeRow }) {
   const router = useRouter();
+  const [reuniao, setReuniao] = useState(analise.pos_entrega_reuniao ?? "");
   const [satisfacao, setSatisfacao] = useState(analise.pos_entrega_satisfacao ?? "");
+  const [orcamentoEnviado, setOrcamentoEnviado] = useState(analise.pos_entrega_orcamento_enviado ?? "");
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const viavel = analise.conclusao !== null && CONCLUSOES_VIAVEIS.has(analise.conclusao);
+  const mostrarOrcamento = reuniao === "sim" && viavel;
 
   function salvar(formData: FormData) {
     setMensagem(null);
@@ -59,7 +65,13 @@ export function PosEntregaPanel({ analise }: { analise: AnalisesViabilidadeRow }
         <label htmlFor="pos_entrega_reuniao" className={labelClass}>
           Houve reunião de apresentação do resultado?
         </label>
-        <select id="pos_entrega_reuniao" name="pos_entrega_reuniao" defaultValue={analise.pos_entrega_reuniao ?? ""} className={inputClass}>
+        <select
+          id="pos_entrega_reuniao"
+          name="pos_entrega_reuniao"
+          value={reuniao}
+          onChange={(e) => setReuniao(e.target.value)}
+          className={inputClass}
+        >
           <option value="">— Não respondido —</option>
           {(Object.keys(POS_ENTREGA_REUNIAO_ROTULOS) as (keyof typeof POS_ENTREGA_REUNIAO_ROTULOS)[]).map((r) => (
             <option key={r} value={r}>
@@ -68,6 +80,48 @@ export function PosEntregaPanel({ analise }: { analise: AnalisesViabilidadeRow }
           ))}
         </select>
       </div>
+
+      {mostrarOrcamento && (
+        <div className="grid grid-cols-2 gap-4 rounded-lg border border-nevoa-200 dark:border-nevoa-800 p-4">
+          <div>
+            <label htmlFor="pos_entrega_orcamento_enviado" className={labelClass}>
+              Orçamento enviado?
+            </label>
+            <select
+              id="pos_entrega_orcamento_enviado"
+              name="pos_entrega_orcamento_enviado"
+              value={orcamentoEnviado}
+              onChange={(e) => setOrcamentoEnviado(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">— Não respondido —</option>
+              {(Object.keys(ORCAMENTO_ENVIADO_ROTULOS) as (keyof typeof ORCAMENTO_ENVIADO_ROTULOS)[]).map((o) => (
+                <option key={o} value={o}>
+                  {ORCAMENTO_ENVIADO_ROTULOS[o]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {orcamentoEnviado === "sim" && (
+            <div>
+              <label htmlFor="pos_entrega_orcamento_enviado_em" className={labelClass}>
+                Data de envio do orçamento
+              </label>
+              <input
+                id="pos_entrega_orcamento_enviado_em"
+                type="date"
+                name="pos_entrega_orcamento_enviado_em"
+                defaultValue={analise.pos_entrega_orcamento_enviado_em ?? ""}
+                className={inputClass}
+              />
+              <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+                Se em 7 dias não houver contratação, aparece um lembrete na Central de Prazos pra você contatar o
+                cliente.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>
