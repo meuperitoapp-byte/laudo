@@ -286,6 +286,8 @@ export type ProcessosRow = {
   honorarios_forma_pagamento: string | null
   /** ASSISTÊNCIA TÉCNICA só. Data de vencimento do contrato, fixa desde o cadastro. */
   honorarios_vencimento: string | null
+  /** Observações livres do financeiro (parcelamento, acordo específico etc.) — complementa honorarios_vencimento (migration 20260930220000). */
+  observacoes_financeiras: string | null
   // --- AT — ação por etapa (migration 20260922120000) ---
   /** Só etapa "estrategia_pericial". Data da reunião de explicações técnicas com o advogado — preenchida/limpa manualmente. */
   estrategia_pericial_reuniao_em: string | null
@@ -371,6 +373,7 @@ export type ProcessosInsert = ComDefaults<
   | 'honorarios_proximo_marco_descricao'
   | 'honorarios_forma_pagamento'
   | 'honorarios_vencimento'
+  | 'observacoes_financeiras'
   | 'estrategia_pericial_reuniao_em'
   | 'estrategia_pericial_responsavel'
   | 'analise_contestacao_observacoes'

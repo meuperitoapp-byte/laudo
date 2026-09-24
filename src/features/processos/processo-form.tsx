@@ -706,6 +706,19 @@ export function ProcessoForm({
                 Cartão e Pix não geram lembrete de cobrança — só Boleto e Transferência aparecem na Central de
                 Prazos, enquanto a situação financeira acima não estiver &ldquo;Pago&rdquo;.
               </p>
+              <div>
+                <label htmlFor="observacoes_financeiras" className={labelClass}>
+                  Observações financeiras
+                </label>
+                <textarea
+                  id="observacoes_financeiras"
+                  name="observacoes_financeiras"
+                  rows={3}
+                  placeholder="Ex.: parcelado em 3x, acordo de pagamento específico, etc."
+                  className={inputClass}
+                  defaultValue={processo?.observacoes_financeiras ?? ""}
+                />
+              </div>
             </>
           )}
 

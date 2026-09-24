@@ -111,6 +111,7 @@ export async function createProcesso(formData: FormData): Promise<ActionResult> 
     insert.prazo_contratual_entrega = optionalText(formData, "prazo_contratual_entrega");
     insert.honorarios_forma_pagamento = optionalText(formData, "honorarios_forma_pagamento");
     insert.honorarios_vencimento = optionalText(formData, "honorarios_vencimento");
+    insert.observacoes_financeiras = optionalText(formData, "observacoes_financeiras");
   }
 
   const { data, error } = await supabase
@@ -170,6 +171,7 @@ export async function updateProcesso(
     update.prazo_contratual_entrega = optionalText(formData, "prazo_contratual_entrega");
     update.honorarios_forma_pagamento = optionalText(formData, "honorarios_forma_pagamento");
     update.honorarios_vencimento = optionalText(formData, "honorarios_vencimento");
+    update.observacoes_financeiras = optionalText(formData, "observacoes_financeiras");
   }
 
   const { error } = await supabase.from("processos").update(update).eq("id", processoId);
