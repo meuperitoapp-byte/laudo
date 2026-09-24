@@ -90,7 +90,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     supabase
       .from("processos")
       .select(
-        "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, situacao_financeira, estrategia_pericial_reuniao_em, data_contratacao",
+        "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, situacao_financeira, estrategia_pericial_reuniao_em, estrategia_pericial_responsavel, data_contratacao",
       )
       .eq("status", "em_andamento"),
     // Fonte 1 — ciclos de pós-laudo abertos.
@@ -490,13 +490,13 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
         id: `reuniao_estrategia_pericial-${p.id}`,
         categoria: "reuniao_estrategia_pericial",
         titulo: `Reunião — Estratégia pericial — ${identificarProcesso(p)}`,
-        subtitulo: null,
+        subtitulo: p.estrategia_pericial_responsavel ? `Responsável: ${p.estrategia_pericial_responsavel}` : null,
         providencia: PROVIDENCIA_POR_CATEGORIA.reuniao_estrategia_pericial,
         nivel: nivelPorPrazo(p.estrategia_pericial_reuniao_em, hoje),
         prazo: p.estrategia_pericial_reuniao_em,
         dataContexto: null,
         ordenacao: p.estrategia_pericial_reuniao_em,
-        responsavel: null,
+        responsavel: p.estrategia_pericial_responsavel,
         href: `/processos/${p.id}`,
       });
     }

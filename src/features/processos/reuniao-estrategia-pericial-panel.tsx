@@ -29,18 +29,21 @@ const hojeIso = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_
 export function ReuniaoEstrategiaPericialPanel({
   processoId,
   reuniaoEm,
+  responsavel,
 }: {
   processoId: string;
   reuniaoEm: string | null;
+  responsavel: string | null;
 }) {
   const router = useRouter();
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [data, setData] = useState(hojeIso());
+  const [resp, setResp] = useState(responsavel ?? "");
 
   async function marcarReuniao() {
     setIsPending(true);
-    const r = await salvarReuniaoEstrategiaPericial(processoId, data || hojeIso());
+    const r = await salvarReuniaoEstrategiaPericial(processoId, data || hojeIso(), resp.trim() || null);
     setIsPending(false);
     if ("error" in r) {
       setMensagem({ tipo: "erro", texto: r.error });
@@ -52,7 +55,7 @@ export function ReuniaoEstrategiaPericialPanel({
 
   async function limparReuniao() {
     setIsPending(true);
-    const r = await salvarReuniaoEstrategiaPericial(processoId, null);
+    const r = await salvarReuniaoEstrategiaPericial(processoId, null, null);
     setIsPending(false);
     if ("error" in r) {
       setMensagem({ tipo: "erro", texto: r.error });
@@ -63,15 +66,19 @@ export function ReuniaoEstrategiaPericialPanel({
   }
 
   return (
-    <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-4">
+    <div
+      id="reuniao-estrategia-pericial"
+      className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-4 scroll-mt-20"
+    >
       <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">
         Reunião — Estratégia pericial
       </h3>
 
       {reuniaoEm ? (
         <>
-          <p className="text-xs text-nevoa-500 dark:text-nevoa-400">
+          <p className="text-xs text-nevoa-500 dark:text-nevoa-400 flex flex-wrap items-center gap-2">
             <Selo variante="sucesso">Marcada para {dataCurta(reuniaoEm)}</Selo>
+            {responsavel && <span>Responsável: {responsavel}</span>}
           </p>
           <Botao
             variante="secundaria"
@@ -88,18 +95,35 @@ export function ReuniaoEstrategiaPericialPanel({
           <p className="text-xs text-nevoa-500 dark:text-nevoa-400">
             Preencha quando combinar com o advogado a reunião de explicações técnicas.
           </p>
-          <div>
-            <label htmlFor="reuniao_estrategia_data" className={labelClass}>
-              Data da reunião
-            </label>
-            <input
-              id="reuniao_estrategia_data"
-              type="date"
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-              className={inputClass}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="reuniao_estrategia_data" className={labelClass}>
+                Data da reunião
+              </label>
+              <input
+                id="reuniao_estrategia_data"
+                type="date"
+                value={data}
+                onChange={(e) => setData(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="reuniao_estrategia_responsavel" className={labelClass}>
+                Responsável
+              </label>
+              <input
+                id="reuniao_estrategia_responsavel"
+                value={resp}
+                onChange={(e) => setResp(e.target.value)}
+                placeholder="Ex.: Secretária"
+                className={inputClass}
+              />
+            </div>
           </div>
+          <p className="text-xs text-nevoa-500 dark:text-nevoa-400">
+            Preenchendo o responsável, esse compromisso aparece na Agenda/tela de atividades dele.
+          </p>
           <Botao onClick={() => marcarReuniao()} disabled={isPending} carregando={isPending} textoCarregando="Salvando…">
             Marcar reunião
           </Botao>

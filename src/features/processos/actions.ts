@@ -315,16 +315,22 @@ export async function salvarProximoMarcoHonorarios(
 export async function salvarReuniaoEstrategiaPericial(
   processoId: string,
   data: string | null,
+  responsavel?: string | null,
 ): Promise<{ error: string } | { success: true }> {
   const supabase = await createClient();
 
   const { error } = await supabase
     .from("processos")
-    .update({ estrategia_pericial_reuniao_em: data })
+    .update({
+      estrategia_pericial_reuniao_em: data,
+      ...(responsavel !== undefined ? { estrategia_pericial_responsavel: responsavel } : {}),
+    })
     .eq("id", processoId);
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
   return { success: true };
 }
 
@@ -339,6 +345,37 @@ export async function salvarNotaFiscal(
   const { error } = await supabase
     .from("processos")
     .update({ nota_fiscal_emitida: emitida, nota_fiscal_numero: numero })
+    .eq("id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}`);
+  return { success: true };
+}
+
+/** Anotações livres do caso (pedido da secretária, 24/09/2026) — mostradas no cartão de identificação. */
+export async function salvarAnotacoesProcesso(
+  processoId: string,
+  anotacoes: string | null,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("processos").update({ anotacoes }).eq("id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}`);
+  return { success: true };
+}
+
+/** Anotações da perita ao estudar a contestação (24/09/2026) — complementa o anexo de arquivo em AnexoEtapaAtPanel. */
+export async function salvarAnaliseContestacaoObservacoes(
+  processoId: string,
+  observacoes: string | null,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("processos")
+    .update({ analise_contestacao_observacoes: observacoes })
     .eq("id", processoId);
   if (error) return { error: error.message };
 

@@ -286,9 +286,15 @@ export type ProcessosRow = {
   // --- AT — ação por etapa (migration 20260922120000) ---
   /** Só etapa "estrategia_pericial". Data da reunião de explicações técnicas com o advogado — preenchida/limpa manualmente. */
   estrategia_pericial_reuniao_em: string | null
+  /** Responsável pela reunião de Estratégia pericial — alimenta a Central de Prazos/Agenda (migration 20260930190000). */
+  estrategia_pericial_responsavel: string | null
+  /** Anotações da perita ao estudar a contestação — complementa o anexo de arquivo (migration 20260930190000). */
+  analise_contestacao_observacoes: string | null
   // --- AT — Área da demanda (migration 20260923120000) ---
   /** Só Assistência Técnica. Conselho profissional do objeto da demanda (CRM/CRO/CRP/CREFITO/COREN) — catálogo editável. */
   orgao_classe: string | null
+  /** Observações/anotações livres do caso — pedido da secretária (migration 20260930190000). */
+  anotacoes: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -363,7 +369,10 @@ export type ProcessosInsert = ComDefaults<
   | 'honorarios_forma_pagamento'
   | 'honorarios_vencimento'
   | 'estrategia_pericial_reuniao_em'
+  | 'estrategia_pericial_responsavel'
+  | 'analise_contestacao_observacoes'
   | 'orgao_classe'
+  | 'anotacoes'
   | 'created_by'
   | 'created_at'
   | 'updated_at'

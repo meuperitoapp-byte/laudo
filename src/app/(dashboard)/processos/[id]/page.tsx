@@ -10,6 +10,7 @@ import { ProximoMarcoHonorariosPanel } from "@/features/processos/proximo-marco-
 import { ReuniaoEstrategiaPericialPanel } from "@/features/processos/reuniao-estrategia-pericial-panel";
 import { NotaFiscalPanel } from "@/features/processos/nota-fiscal-panel";
 import { AnexoEtapaAtPanel } from "@/features/processos/anexo-etapa-at-panel";
+import { AnotacoesProcessoPanel } from "@/features/processos/anotacoes-processo-panel";
 import {
   varianteSituacaoProcesso,
   ETAPA_CONTRATADA_ROTULOS,
@@ -92,6 +93,14 @@ export default async function ProcessoDetalhePage({
   const temEstrategiaPericial = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("estrategia_pericial") ?? false);
   const temAnaliseContestacao = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("analise_contestacao") ?? false);
   const temAnaliseViabilidade = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("analise_viabilidade") ?? false);
+  // Barra de ações do laudo tradicional (Preencher laudo/Laudo final/
+  // Pós-laudo) — feedback dela (24/09/2026): só faz sentido pra Perícia
+  // Judicial ou pra etapa "Parecer técnico" de AT; as demais etapas de AT
+  // (viabilidade, estratégia, contestação, réplica, quesitos avulso,
+  // relatório técnico, atestado/declaração) têm ou vão ganhar telas
+  // próprias, sem usar essa máquina de laudo por seções.
+  const mostrarLaudoTradicional =
+    processo.tipo_trabalho === "pericia_judicial" || (processo.etapas_contratadas?.includes("parecer_tecnico") ?? false);
 
   // As 5 consultas abaixo só dependem do `id` do processo (já em mãos) ou de
   // flags já calculadas acima — nenhuma depende do RESULTADO de outra, então
@@ -296,14 +305,18 @@ export default async function ProcessoDetalhePage({
                           <Selo variante="neutro">{VIABILIDADE_STATUS_ROTULOS[viabilidadeStatusDb.status]}</Selo>
                         )}
                         {e === "estrategia_pericial" && (
-                          <Selo variante={processo.estrategia_pericial_reuniao_em ? "sucesso" : "atencao"}>
-                            {processo.estrategia_pericial_reuniao_em ? `Reunião ${dataCurta(processo.estrategia_pericial_reuniao_em)}` : "Aguardando reunião"}
-                          </Selo>
+                          <Link href="#reuniao-estrategia-pericial" className="hover:opacity-75">
+                            <Selo variante={processo.estrategia_pericial_reuniao_em ? "sucesso" : "atencao"}>
+                              {processo.estrategia_pericial_reuniao_em ? `Reunião ${dataCurta(processo.estrategia_pericial_reuniao_em)}` : "Aguardando reunião"}
+                            </Selo>
+                          </Link>
                         )}
                         {e === "analise_contestacao" && (
-                          <Selo variante={anexosContestacao.length > 0 ? "sucesso" : "atencao"}>
-                            {anexosContestacao.length > 0 ? "Arquivo anexado" : "Aguardando arquivo"}
-                          </Selo>
+                          <Link href="#analise-contestacao" className="hover:opacity-75">
+                            <Selo variante={anexosContestacao.length > 0 ? "sucesso" : "atencao"}>
+                              {anexosContestacao.length > 0 ? "Arquivo anexado" : "Aguardando arquivo"}
+                            </Selo>
+                          </Link>
                         )}
                       </li>
                     ))}
@@ -315,6 +328,7 @@ export default async function ProcessoDetalhePage({
             </>
           )}
         </dl>
+        <AnotacoesProcessoPanel processoId={processo.id} anotacoes={processo.anotacoes} />
       </div>
 
       <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6">
@@ -402,6 +416,7 @@ export default async function ProcessoDetalhePage({
         <ReuniaoEstrategiaPericialPanel
           processoId={processo.id}
           reuniaoEm={processo.estrategia_pericial_reuniao_em}
+          responsavel={processo.estrategia_pericial_responsavel}
         />
       )}
 
@@ -411,6 +426,7 @@ export default async function ProcessoDetalhePage({
           etapa="analise_contestacao"
           tituloEtapa="Análise da contestação"
           documentos={anexosContestacao}
+          observacoes={processo.analise_contestacao_observacoes}
         />
       )}
 
@@ -419,18 +435,19 @@ export default async function ProcessoDetalhePage({
       )}
 
       <div className="flex flex-wrap gap-3">
-        {primeiraSecaoId ? (
-          <Link
-            href={`/processos/${processo.id}/preenchimento/${primeiraSecaoId}`}
-            className={classesBotao("primaria")}
-          >
-            Preencher laudo
-          </Link>
-        ) : (
-          <span className="inline-flex items-center rounded-md border border-nevoa-200 dark:border-nevoa-800 px-4 py-2 text-sm text-nevoa-400 dark:text-nevoa-600">
-            Preencher laudo (defina o tipo de laudo)
-          </span>
-        )}
+        {mostrarLaudoTradicional &&
+          (primeiraSecaoId ? (
+            <Link
+              href={`/processos/${processo.id}/preenchimento/${primeiraSecaoId}`}
+              className={classesBotao("primaria")}
+            >
+              Preencher laudo
+            </Link>
+          ) : (
+            <span className="inline-flex items-center rounded-md border border-nevoa-200 dark:border-nevoa-800 px-4 py-2 text-sm text-nevoa-400 dark:text-nevoa-600">
+              Preencher laudo (defina o tipo de laudo)
+            </span>
+          ))}
         <Link href={`/processos/${processo.id}/editar`} className={classesBotao("secundaria")}>
           Editar dados do processo
         </Link>
@@ -445,21 +462,24 @@ export default async function ProcessoDetalhePage({
             Fluxo Principal
           </Link>
         )}
-        <Link href={`/processos/${processo.id}/laudo`} className={classesBotao("secundaria")}>
-          Laudo final
-        </Link>
-        {podeAbrirPosLaudo ? (
-          <Link href={`/processos/${processo.id}/pos-laudo`} className={classesBotao("secundaria")}>
-            Pós-laudo
+        {mostrarLaudoTradicional && (
+          <Link href={`/processos/${processo.id}/laudo`} className={classesBotao("secundaria")}>
+            Laudo final
           </Link>
-        ) : (
-          <span
-            className="inline-flex items-center rounded-md border border-nevoa-200 dark:border-nevoa-800 px-4 py-2 text-sm text-nevoa-400 dark:text-nevoa-600"
-            title="Disponível após marcar o laudo como protocolado, na tela Laudo final."
-          >
-            Pós-laudo (marque o laudo como protocolado)
-          </span>
         )}
+        {mostrarLaudoTradicional &&
+          (podeAbrirPosLaudo ? (
+            <Link href={`/processos/${processo.id}/pos-laudo`} className={classesBotao("secundaria")}>
+              Pós-laudo
+            </Link>
+          ) : (
+            <span
+              className="inline-flex items-center rounded-md border border-nevoa-200 dark:border-nevoa-800 px-4 py-2 text-sm text-nevoa-400 dark:text-nevoa-600"
+              title="Disponível após marcar o laudo como protocolado, na tela Laudo final."
+            >
+              Pós-laudo (marque o laudo como protocolado)
+            </span>
+          ))}
       </div>
 
       <div className="pt-4 border-t border-nevoa-200 dark:border-nevoa-800">
