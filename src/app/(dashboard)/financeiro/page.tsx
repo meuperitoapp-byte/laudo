@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wallet, HandCoins, TriangleAlert, FileText, TrendingDown } from "lucide-react";
+import { Wallet, HandCoins, FileText, TrendingDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { montarPainel, identificarProcesso } from "@/features/central-prazos/agregador";
 import { StatTile } from "@/components/ui/stat-tile";
@@ -29,6 +29,7 @@ type ProcessoFinanceiro = {
   honorarios_vencimento: string | null;
   nota_fiscal_emitida: "sim" | "nao" | null;
   nota_fiscal_numero: string | null;
+  valor_processo: number | null;
 };
 
 /** Duplicado de propósito (mesmo helper existe em processos/[id]/page.tsx) — é pouca coisa pra justificar um util compartilhado por 2 telas. */
@@ -131,7 +132,7 @@ export default async function FinanceiroPage({
       supabase
         .from("processos")
         .select(
-          "id, tipo_trabalho, situacao_processo, situacao_financeira, numero_processo, periciando_nome, parte_autora, honorario_apresentado, honorario_arbitrado, liberacao_solicitada_em, honorarios_recebidos_em, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, nota_fiscal_emitida, nota_fiscal_numero",
+          "id, tipo_trabalho, situacao_processo, situacao_financeira, numero_processo, periciando_nome, parte_autora, honorario_apresentado, honorario_arbitrado, liberacao_solicitada_em, honorarios_recebidos_em, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, nota_fiscal_emitida, nota_fiscal_numero, valor_processo",
         ),
       montarPainel(supabase),
       supabase.from("movimentacoes_financeiras").select("*").order("data", { ascending: false }),
@@ -151,7 +152,17 @@ export default async function FinanceiroPage({
 
   const totalAReceberJudicial = judiciaisAReceber.reduce((soma, p) => soma + (valorHonorarioJudicial(p) ?? 0), 0);
   const totalRecebidoJudicial = judiciaisRecebidos.reduce((soma, p) => soma + (valorHonorarioJudicial(p) ?? 0), 0);
-  const atPendentes = at.filter((p) => p.situacao_financeira !== "Pago").length;
+
+  // Demonstrativo de Assistência Técnica — mesmo princípio do Judicial acima,
+  // com valor_processo ("Valor do Serviço de Assistência Técnica") no lugar
+  // do honorário arbitrado/apresentado (feedback dela, 24/09/2026: só
+  // aparecia uma contagem "AT pendentes", sem os valores em R$).
+  const atAReceber = at.filter((p) => p.situacao_financeira !== "Pago" && p.valor_processo != null);
+  const atRecebidos = at
+    .filter((p) => p.situacao_financeira === "Pago")
+    .sort((a, b) => (b.honorarios_recebidos_em ?? "").localeCompare(a.honorarios_recebidos_em ?? ""));
+  const totalAReceberAT = atAReceber.reduce((soma, p) => soma + (p.valor_processo ?? 0), 0);
+  const totalRecebidoAT = atRecebidos.reduce((soma, p) => soma + (p.valor_processo ?? 0), 0);
 
   // Mesma fonte/lógica da Central de Prazos — nunca reinventar aqui quem está em atraso.
   const inadimplenciaAT = itensPainel.filter((i) => i.categoria === "honorarios_atraso_at");
@@ -205,7 +216,7 @@ export default async function FinanceiroPage({
         <BannerErroConsulta mensagem="Não consegui carregar tudo agora — os números abaixo podem estar incompletos." />
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatTile
           rotulo="A receber (Judicial)"
           valor={moedaBRL(totalAReceberJudicial)}
@@ -217,7 +228,16 @@ export default async function FinanceiroPage({
           icone={<HandCoins className="h-5 w-5" />}
         />
         <StatTile rotulo="Saídas" valor={moedaBRL(totalSaidas)} icone={<TrendingDown className="h-5 w-5" />} />
-        <StatTile rotulo="AT pendentes" valor={atPendentes} icone={<TriangleAlert className="h-5 w-5" />} />
+        <StatTile
+          rotulo="A receber (AT)"
+          valor={moedaBRL(totalAReceberAT)}
+          icone={<Wallet className="h-5 w-5" />}
+        />
+        <StatTile
+          rotulo="Recebido (AT)"
+          valor={moedaBRL(totalRecebidoAT)}
+          icone={<HandCoins className="h-5 w-5" />}
+        />
         <StatTile rotulo="Propostas em aberto" valor={propostas.length} icone={<FileText className="h-5 w-5" />} />
       </div>
 
@@ -280,6 +300,28 @@ export default async function FinanceiroPage({
               ))}
             </ul>
           )}
+        </DashboardCard>
+
+        <DashboardCard titulo="A Receber (AT)" subtitulo="Assistência Técnica — valor do serviço ainda não pago">
+          <ListaProcessos
+            itens={atAReceber}
+            vazio="Nenhum valor de Assistência Técnica pendente."
+            linha={(p) => ({
+              texto: identificarProcesso(p),
+              detalhe: moedaBRL(p.valor_processo),
+            })}
+          />
+        </DashboardCard>
+
+        <DashboardCard titulo="Recebidos (AT)" subtitulo="Assistência Técnica — situação financeira Pago">
+          <ListaProcessos
+            itens={atRecebidos}
+            vazio="Nenhum recebimento de Assistência Técnica confirmado ainda."
+            linha={(p) => ({
+              texto: identificarProcesso(p),
+              detalhe: moedaBRL(p.valor_processo),
+            })}
+          />
         </DashboardCard>
 
         <DashboardCard titulo="Serviços AT" subtitulo="Situação financeira — Pago / Não pago / Em parcelamento">
