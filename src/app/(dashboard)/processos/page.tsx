@@ -8,6 +8,8 @@ import {
   SITUACOES_FINANCEIRAS_SEED,
   mesclarSugestoes,
   varianteSituacaoProcesso,
+  ETAPA_CONTRATADA_ROTULOS,
+  ETAPAS_CONTRATADAS_ORDENADAS,
 } from "@/features/processos/catalogos";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 import type { TipoTrabalhoProcesso } from "@/types/enums";
@@ -153,7 +155,10 @@ export default async function ProcessosPage({
                   Tipo de trabalho
                 </th>
                 <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400">
-                  Tipo de laudo
+                  Área da demanda
+                </th>
+                <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400">
+                  Etapa contratada
                 </th>
                 <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wide text-nevoa-500 dark:text-nevoa-400">
                   Situação
@@ -186,6 +191,13 @@ export default async function ProcessosPage({
                   </td>
                   <td className="py-2.5 px-4 text-nevoa-700 dark:text-nevoa-300">
                     {p.tipo_laudo_id ? (nomePorTipoLaudo.get(p.tipo_laudo_id) ?? "—") : "—"}
+                  </td>
+                  <td className="py-2.5 px-4 text-nevoa-700 dark:text-nevoa-300">
+                    {p.etapas_contratadas && p.etapas_contratadas.length > 0
+                      ? ETAPAS_CONTRATADAS_ORDENADAS.filter((e) => p.etapas_contratadas?.includes(e))
+                          .map((e) => ETAPA_CONTRATADA_ROTULOS[e])
+                          .join(", ")
+                      : "—"}
                   </td>
                   <td className="py-2.5 px-4">
                     {p.situacao_processo ? (

@@ -10,9 +10,13 @@ import { ProximoMarcoHonorariosPanel } from "@/features/processos/proximo-marco-
 import { ReuniaoEstrategiaPericialPanel } from "@/features/processos/reuniao-estrategia-pericial-panel";
 import { NotaFiscalPanel } from "@/features/processos/nota-fiscal-panel";
 import { AnexoEtapaAtPanel } from "@/features/processos/anexo-etapa-at-panel";
-import { varianteSituacaoProcesso } from "@/features/processos/catalogos";
+import {
+  varianteSituacaoProcesso,
+  ETAPA_CONTRATADA_ROTULOS,
+  ETAPAS_CONTRATADAS_ORDENADAS,
+  ETAPA_CONTRATADA_SIGLAS,
+} from "@/features/processos/catalogos";
 import { VIABILIDADE_STATUS_ROTULOS } from "@/features/viabilidade/catalogos";
-import type { EtapaContratada } from "@/types/enums";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
 
@@ -27,39 +31,6 @@ function dataCurta(iso: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 }
-
-/** Etapas contratadas da Assistência Técnica — rótulo e sigla (a sigla prefixa o título do processo de AT). */
-const ETAPA_CONTRATADA_ROTULOS: Record<string, string> = {
-  analise_viabilidade: "Análise de viabilidade",
-  estrategia_pericial: "Estratégia pericial",
-  analise_contestacao: "Análise da contestação",
-  dados_replica: "Dados para réplica",
-  quesitos: "Quesitos",
-  parecer_tecnico: "Parecer técnico",
-  relatorio_tecnico: "Relatório técnico",
-  atestados: "Atestados",
-  declaracao: "Declaração",
-  manifestacao_laudo_pericial: "Manifestação ao laudo pericial",
-  quesitos_suplementares: "Quesitos suplementares",
-  participacao_pericia: "Participação da perícia",
-};
-/** Ordem fixa/canônica de exibição — a mesma dos 12 serviços definidos com ela, nunca a ordem em que foram marcados. */
-const ETAPAS_CONTRATADAS_ORDENADAS = Object.keys(ETAPA_CONTRATADA_ROTULOS) as EtapaContratada[];
-
-const ETAPA_CONTRATADA_SIGLAS: Record<string, string> = {
-  analise_viabilidade: "AV",
-  estrategia_pericial: "EP",
-  analise_contestacao: "AC",
-  dados_replica: "DR",
-  quesitos: "Q",
-  parecer_tecnico: "PT",
-  relatorio_tecnico: "RT",
-  atestados: "ATE",
-  declaracao: "DECL",
-  manifestacao_laudo_pericial: "ML",
-  quesitos_suplementares: "QS",
-  participacao_pericia: "PP",
-};
 
 const SIM_NAO_ROTULOS: Record<string, string> = { sim: "Sim", nao: "Não" };
 const ACEITOU_NOMEACAO_ROTULOS: Record<string, string> = {
@@ -364,7 +335,7 @@ export default async function ProcessoDetalhePage({
           <Campo rotulo="Ação / Objeto" colSpan>
             {processo.acao_objeto ?? "—"}
           </Campo>
-          <Campo rotulo="Valor do processo">{moedaBRL(processo.valor_processo)}</Campo>
+          <Campo rotulo="Valor do serviço">{moedaBRL(processo.valor_processo)}</Campo>
           <Campo rotulo="Justiça gratuita">
             {processo.justica_gratuita ? SIM_NAO_ROTULOS[processo.justica_gratuita] : "—"}
           </Campo>

@@ -17,8 +17,6 @@ const dataCurta = (iso: string) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 };
 
-const hojeIso = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-
 /**
  * Estado do caso, não do formulário do processo — convive com qualquer
  * `situacao_processo`. `documentos_solicitados_em` some da Central de Prazos
@@ -37,11 +35,15 @@ export function DocumentosPendentesPanel({
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [isPending, setIsPending] = useState(false);
 
-  const [f, setF] = useState({ data: hojeIso(), descricao: "" });
+  const [f, setF] = useState({ data: "", descricao: "" });
 
   async function marcarSolicitado() {
+    if (!f.data) {
+      setMensagem({ tipo: "erro", texto: "Escolha a data em que o documento foi solicitado." });
+      return;
+    }
     setIsPending(true);
-    const r = await salvarDocumentosSolicitados(processoId, f.data || hojeIso(), f.descricao.trim() || null);
+    const r = await salvarDocumentosSolicitados(processoId, f.data, f.descricao.trim() || null);
     setIsPending(false);
     if ("error" in r) {
       setMensagem({ tipo: "erro", texto: r.error });

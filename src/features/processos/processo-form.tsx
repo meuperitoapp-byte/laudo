@@ -747,6 +747,11 @@ export function ProcessoForm({
             </div>
           )}
 
+        </Cartao>
+      )}
+
+      {tipoTrabalho && (
+        <Cartao titulo="Link externo">
           <div>
             <label htmlFor="url_processo" className={labelClass}>
               Url do Processo

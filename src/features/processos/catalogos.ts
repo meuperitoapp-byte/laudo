@@ -1,3 +1,38 @@
+import type { EtapaContratada } from "@/types/enums";
+
+/** Etapas contratadas da Assistência Técnica — rótulo e sigla (a sigla prefixa o título do processo de AT). Compartilhado entre a tela de detalhe e a listagem de processos. */
+export const ETAPA_CONTRATADA_ROTULOS: Record<EtapaContratada, string> = {
+  analise_viabilidade: "Análise de viabilidade",
+  estrategia_pericial: "Estratégia pericial",
+  analise_contestacao: "Análise da contestação",
+  dados_replica: "Dados para réplica",
+  quesitos: "Quesitos",
+  parecer_tecnico: "Parecer técnico",
+  relatorio_tecnico: "Relatório técnico",
+  atestados: "Atestados",
+  declaracao: "Declaração",
+  manifestacao_laudo_pericial: "Manifestação ao laudo pericial",
+  quesitos_suplementares: "Quesitos suplementares",
+  participacao_pericia: "Participação da perícia",
+};
+/** Ordem fixa/canônica de exibição — a mesma dos 12 serviços definidos com ela, nunca a ordem em que foram marcados. */
+export const ETAPAS_CONTRATADAS_ORDENADAS = Object.keys(ETAPA_CONTRATADA_ROTULOS) as EtapaContratada[];
+
+export const ETAPA_CONTRATADA_SIGLAS: Record<EtapaContratada, string> = {
+  analise_viabilidade: "AV",
+  estrategia_pericial: "EP",
+  analise_contestacao: "AC",
+  dados_replica: "DR",
+  quesitos: "Q",
+  parecer_tecnico: "PT",
+  relatorio_tecnico: "RT",
+  atestados: "ATE",
+  declaracao: "DECL",
+  manifestacao_laudo_pericial: "ML",
+  quesitos_suplementares: "QS",
+  participacao_pericia: "PP",
+};
+
 /**
  * Listas-semente dos catálogos de texto livre do cadastro de processo
  * (Situação do Processo, Situação Financeira, Ação/Objeto, especialização da
