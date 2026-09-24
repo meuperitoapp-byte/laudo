@@ -331,6 +331,35 @@ export type LaudoGeradoTipo =
   | 'nao_comparecimento'
   | 'pedido_liberacao'
   | 'analise_viabilidade'
+  | 'atestado'
+  | 'declaracao'
+
+/** atestados.tipo_documento — mesma estrutura pros dois, só o título do documento muda. */
+export type AtestadoTipoDocumento = 'atestado' | 'declaracao'
+
+/** atestados.finalidades — múltipla seleção, abre os blocos condicionais correspondentes (§2 do modelo). */
+export type AtestadoFinalidade =
+  | 'capacidade_laborativa'
+  | 'incapacidade_laborativa'
+  | 'capacidade_funcional'
+  | 'necessidade_afastamento'
+  | 'condicao_clinica'
+  | 'capacidade_civil'
+  | 'necessidade_assistencia_terceiros'
+  | 'aptidao_atividade'
+  | 'outra'
+
+/** atestados.conclusao_modelo — os 6 modelos A-F do documento (§5), sempre editável depois de escolhido. */
+export type AtestadoConclusaoModelo =
+  | 'capacidade_preservada'
+  | 'incapacidade_temporaria'
+  | 'inconclusiva'
+  | 'capacidade_funcional'
+  | 'necessidade_assistencia'
+  | 'ausencia_necessidade_assistencia'
+
+/** atestados.cc_necessidade_terceiros — §6 do modelo (capacidade civil). */
+export type AtestadoNecessidadeTerceiros = 'sim' | 'nao' | 'parcial'
 
 // ----------------------------------------------------------------------------
 // Fluxo Assistência Técnica (migration 20260910120000_pos_laudo_at)

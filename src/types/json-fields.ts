@@ -380,6 +380,13 @@ export interface SnapshotAnaliseViabilidade {
   dados: Record<string, unknown>
 }
 
+/** Mesmo princípio de SnapshotAnaliseViabilidade — histórico/auditoria, nunca lido de volta. */
+export interface SnapshotAtestado {
+  tipo: 'atestado' | 'declaracao'
+  gerado_em: string
+  dados: Record<string, unknown>
+}
+
 /**
  * Forma de laudos_gerados.snapshot_respostas — união de todas as naturezas.
  * Narrow por `laudos_gerados.tipo` (ver acima).
@@ -393,3 +400,4 @@ export type SnapshotLaudoGerado =
   | SnapshotNaoComparecimento
   | SnapshotPedidoLiberacao
   | SnapshotAnaliseViabilidade
+  | SnapshotAtestado

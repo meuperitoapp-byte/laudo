@@ -93,6 +93,8 @@ export default async function ProcessoDetalhePage({
   const temEstrategiaPericial = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("estrategia_pericial") ?? false);
   const temAnaliseContestacao = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("analise_contestacao") ?? false);
   const temAnaliseViabilidade = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("analise_viabilidade") ?? false);
+  const temAtestado = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("atestados") ?? false);
+  const temDeclaracao = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("declaracao") ?? false);
   // Barra de ações do laudo tradicional (Preencher laudo/Laudo final/
   // Pós-laudo) — feedback dela (24/09/2026): só faz sentido pra Perícia
   // Judicial ou pra etapa "Parecer técnico" de AT; as demais etapas de AT
@@ -407,6 +409,32 @@ export default async function ProcessoDetalhePage({
               Análise de Viabilidade Técnico-Pericial
             </h3>
             <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Abrir a janela estruturada da análise</p>
+          </div>
+          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
+        </Link>
+      )}
+
+      {temAtestado && (
+        <Link
+          href={`/processos/${processo.id}/atestado`}
+          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
+        >
+          <div>
+            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Atestado Médico-Pericial</h3>
+            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Preencher e gerar o atestado (PDF/Word)</p>
+          </div>
+          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
+        </Link>
+      )}
+
+      {temDeclaracao && (
+        <Link
+          href={`/processos/${processo.id}/declaracao`}
+          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
+        >
+          <div>
+            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Declaração Médico-Pericial</h3>
+            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Preencher e gerar a declaração (PDF/Word)</p>
           </div>
           <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
         </Link>

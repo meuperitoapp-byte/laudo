@@ -471,4 +471,6 @@ export const TIPO_DOCUMENTO_ROTULOS: Record<LaudoGeradoTipo, string> = {
   nao_comparecimento: "Comunicação de Não Comparecimento ao Ato Pericial",
   pedido_liberacao: "Pedido de Liberação dos Honorários Periciais",
   analise_viabilidade: "Análise de Viabilidade Técnico-Pericial",
+  atestado: "Atestado Médico-Pericial",
+  declaracao: "Declaração Médico-Pericial",
 };

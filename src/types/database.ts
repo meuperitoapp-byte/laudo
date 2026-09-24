@@ -89,6 +89,9 @@ import type {
   NivelUrgencia,
   TipoMovimentacaoFinanceira,
   ModuloSistema,
+  AtestadoTipoDocumento,
+  AtestadoConclusaoModelo,
+  AtestadoNecessidadeTerceiros,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -1766,6 +1769,73 @@ export type ChatMensagensRow = {
 export type ChatMensagensInsert = ComDefaults<ChatMensagensRow, 'id' | 'created_at'>
 export type ChatMensagensUpdate = Partial<ChatMensagensRow>
 
+export type AtestadosRow = {
+  id: string
+  processo_id: string
+  tipo_documento: AtestadoTipoDocumento
+  finalidades: string[]
+  finalidade_outra_descricao: string | null
+  documentos_referenciados: string[]
+  data_avaliacao: string | null
+  diagnostico: string | null
+  cid: string | null
+  condicao_atual: string | null
+  repercussao_funcional: string | null
+  conclusao_modelo: AtestadoConclusaoModelo | null
+  conclusao_texto: string | null
+  cc_consciencia: string | null
+  cc_orientacao: string | null
+  cc_memoria: string | null
+  cc_compreensao: string | null
+  cc_juizo_critico: string | null
+  cc_capacidade_decisoria: string | null
+  cc_comunicacao: string | null
+  cc_autonomia_avd: string | null
+  cc_necessidade_terceiros: AtestadoNecessidadeTerceiros | null
+  capacidade_civil_texto: string | null
+  conclusao_final: string | null
+  complemento_reavaliacao_periodo: string | null
+  complemento_condicao_na_data: boolean
+  complemento_limitada_elementos: boolean
+  local_emissao: string | null
+  data_emissao: string | null
+  created_at: string
+  updated_at: string
+}
+export type AtestadosInsert = ComDefaults<
+  AtestadosRow,
+  | 'id'
+  | 'finalidades'
+  | 'finalidade_outra_descricao'
+  | 'documentos_referenciados'
+  | 'data_avaliacao'
+  | 'diagnostico'
+  | 'cid'
+  | 'condicao_atual'
+  | 'repercussao_funcional'
+  | 'conclusao_modelo'
+  | 'conclusao_texto'
+  | 'cc_consciencia'
+  | 'cc_orientacao'
+  | 'cc_memoria'
+  | 'cc_compreensao'
+  | 'cc_juizo_critico'
+  | 'cc_capacidade_decisoria'
+  | 'cc_comunicacao'
+  | 'cc_autonomia_avd'
+  | 'cc_necessidade_terceiros'
+  | 'capacidade_civil_texto'
+  | 'conclusao_final'
+  | 'complemento_reavaliacao_periodo'
+  | 'complemento_condicao_na_data'
+  | 'complemento_limitada_elementos'
+  | 'local_emissao'
+  | 'data_emissao'
+  | 'created_at'
+  | 'updated_at'
+>
+export type AtestadosUpdate = Partial<AtestadosRow>
+
 // ============================================================================
 // Database — shape esperado por createClient<Database>()
 // ============================================================================
@@ -2052,6 +2122,12 @@ export interface Database {
         Row: ChatMensagensRow
         Insert: ChatMensagensInsert
         Update: ChatMensagensUpdate
+        Relationships: []
+      }
+      atestados: {
+        Row: AtestadosRow
+        Insert: AtestadosInsert
+        Update: AtestadosUpdate
         Relationships: []
       }
     }
