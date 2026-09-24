@@ -6,6 +6,8 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { User } from "lucide-react";
 import { signOut } from "@/features/auth/actions";
+import { moduloDaRota } from "@/features/acessos/mapa-modulos";
+import type { ModuloSistema } from "@/types/enums";
 
 interface ItemNav {
   href: string;
@@ -46,10 +48,19 @@ const ITENS: ItemNav[] = [
  * de navegação. Fica atrás de um ícone de perfil, num menu que abre ao
  * clicar (mesmo lugar de onde sai o "Sair").
  */
-export function TopNav({ email }: { email: string }) {
+export function TopNav({ email, modulosPermitidos }: { email: string; modulosPermitidos: ModuloSistema[] | null }) {
   const pathname = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // `null` = admin, vê tudo (mesmo comportamento de sempre). Perfil restrito
+  // só vê o item se o módulo daquela rota estiver na lista liberada — mesmo
+  // mapa usado pelo middleware pra bloquear de verdade (mapa-modulos.ts),
+  // nunca desalinhado.
+  const itensVisiveis = modulosPermitidos === null ? ITENS : ITENS.filter((item) => {
+    const modulo = moduloDaRota(item.href);
+    return modulo !== null && modulosPermitidos.includes(modulo);
+  });
 
   useEffect(() => {
     if (!menuAberto) return;
@@ -73,7 +84,7 @@ export function TopNav({ email }: { email: string }) {
         </Link>
 
         <nav className="nav-scroll flex items-center gap-2 flex-1 min-w-0 overflow-x-auto overflow-y-visible">
-          {ITENS.map((item) => {
+          {itensVisiveis.map((item) => {
             const ativo = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link

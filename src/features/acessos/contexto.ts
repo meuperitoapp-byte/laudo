@@ -1,7 +1,14 @@
-import type { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import type { ModuloSistema } from "@/types/enums";
 
-type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
+// Tipo genérico (não o `Awaited<ReturnType<typeof createClient>>` de
+// server.ts) de propósito — esta função também é chamada de dentro do
+// middleware (src/lib/supabase/middleware.ts), que monta seu próprio
+// cliente via `createServerClient` direto, sem passar pelo wrapper de
+// server.ts (o middleware não tem acesso a `cookies()` de next/headers do
+// mesmo jeito). Ambos os clientes satisfazem este tipo.
+type SupabaseServer = SupabaseClient<Database>;
 
 /**
  * Resultado da consulta de acesso do usuário logado.
@@ -32,13 +39,17 @@ export async function obterContextoAcesso(supabase: SupabaseServer, email: strin
     .select("perfil_id, nome_exibicao")
     .eq("email", email)
     .maybeSingle();
-  // Falha de consulta aqui não pode virar "acesso total por engano" — melhor
-  // tratar como restrito-sem-módulos (bloqueia tudo) do que abrir a exceção
-  // de segurança em silêncio. Mas também não é comum o bastante pra virar
-  // um banner de erro visível — só loga.
+  // Falha de consulta aqui vira "admin" (acesso total), não "bloqueia tudo"
+  // — o inverso do que pareceria mais seguro à primeira vista. Motivo: esta
+  // checagem roda no middleware, em TODA navegação de TODO mundo (inclusive
+  // a Dra. Fernanda); se o Supabase engasgar por um instante e a resposta
+  // fosse "bloqueia tudo", o sistema inteiro ficaria inacessível pra ela
+  // também. O risco oposto (alguém restrito ganhar acesso total por alguns
+  // segundos numa falha rara) é bem menor que travar o sistema inteiro pra
+  // todo mundo por causa de uma instabilidade passageira.
   if (erroVinculo) {
     console.error(`Acessos: falha ao buscar vínculo de perfil para ${email}:`, erroVinculo.message);
-    return { tipo: "restrito", perfilId: "", perfilNome: "", nomeExibicao: email, modulosPermitidos: [] };
+    return { tipo: "admin" };
   }
   if (!vinculo) return { tipo: "admin" };
 

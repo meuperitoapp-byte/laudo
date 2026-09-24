@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
+import { obterContextoAcesso, temAcessoAoModulo } from "@/features/acessos/contexto";
+import { moduloDaRota, CAMINHO_DO_MODULO } from "@/features/acessos/mapa-modulos";
 
 /**
  * Roda em toda requisição (ver src/middleware.ts). Duas responsabilidades:
@@ -54,6 +56,35 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard"; // porta de entrada do sistema (decisão do Jeferson, 19/09/2026)
     return NextResponse.redirect(url);
+  }
+
+  // Bloqueio por perfil de acesso (Etapa 4, 30/09/2026) — só entra aqui pra
+  // rota dentro de um módulo conhecido (moduloDaRota devolve null pra /login,
+  // /auth/callback etc., que nunca são bloqueadas por perfil). Admin (sem
+  // linha em perfil_usuarios) sempre passa — grandfather rule, ver
+  // contexto.ts. `try/catch` de propósito: se a consulta de perfil falhar
+  // (rede/Supabase fora do ar), a falha NUNCA pode travar o sistema inteiro
+  // pra todo mundo (inclusive pra Dra. Fernanda) — melhor deixar passar como
+  // se este bloqueio não existisse do que derrubar o acesso de quem sempre
+  // teve acesso total.
+  if (user?.email) {
+    const modulo = moduloDaRota(pathname);
+    if (modulo) {
+      try {
+        const contexto = await obterContextoAcesso(supabase, user.email);
+        if (!temAcessoAoModulo(contexto, modulo)) {
+          const url = request.nextUrl.clone();
+          if (contexto.tipo === "restrito" && contexto.modulosPermitidos.length > 0) {
+            url.pathname = CAMINHO_DO_MODULO[contexto.modulosPermitidos[0]];
+          } else {
+            url.pathname = "/sem-acesso";
+          }
+          return NextResponse.redirect(url);
+        }
+      } catch (erro) {
+        console.error("Middleware: falha ao checar perfil de acesso, liberando por segurança:", erro);
+      }
+    }
   }
 
   return supabaseResponse;

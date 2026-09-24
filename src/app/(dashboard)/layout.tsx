@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/ui/top-nav";
+import { obterContextoAcesso } from "@/features/acessos/contexto";
 
 export default async function DashboardLayout({
   children,
@@ -26,9 +27,16 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  // Contexto de acesso (Etapa 4, 30/09/2026) — só pra decidir quais itens de
+  // menu MOSTRAR (o bloqueio de verdade contra acesso direto por URL já
+  // aconteceu no middleware, antes desta página renderizar). Admin (sem
+  // perfil atribuído) vê o menu inteiro, como sempre.
+  const contexto = user.email ? await obterContextoAcesso(supabase, user.email) : { tipo: "admin" as const };
+  const modulosPermitidos = contexto.tipo === "admin" ? null : contexto.modulosPermitidos;
+
   return (
     <div className="min-h-screen flex flex-col">
-      <TopNav email={user.email ?? ""} />
+      <TopNav email={user.email ?? ""} modulosPermitidos={modulosPermitidos} />
       <div className="flex-1 bg-nevoa-25 dark:bg-nevoa-950">{children}</div>
     </div>
   );
