@@ -4,8 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { Selo } from "@/components/ui/badge";
 import { classesBotao } from "@/components/ui/button";
 import { montarPainel } from "@/features/central-prazos/agregador";
+import { filtrarPorAcesso } from "@/features/central-prazos/regras";
 import { NIVEL_ROTULOS, NIVEL_SELO_VARIANTE, URGENTE_BADGE_CLASSE } from "@/features/central-prazos/rotulos";
 import type { ItemPainel } from "@/features/central-prazos/tipos";
+import { obterContextoAcesso } from "@/features/acessos/contexto";
 
 const dataCurta = (iso: string) => {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -52,7 +54,19 @@ export default async function HojePage({
   const abaAtiva = aba === "proximos" ? "proximos" : "hoje";
 
   const supabase = await createClient();
-  const itens = await montarPainel(supabase);
+  // getSession() (não getUser()) — o middleware já validou o token pra esta
+  // mesma requisição, momentos antes (mesmo raciocínio do layout do
+  // dashboard). Só usada aqui pra filtrar a lista por responsável, não pra
+  // decidir se ela pode ver a página (isso já foi decidido antes de chegar
+  // aqui).
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const [todosItens, contexto] = await Promise.all([
+    montarPainel(supabase),
+    session?.user.email ? obterContextoAcesso(supabase, session.user.email) : Promise.resolve({ tipo: "admin" as const }),
+  ]);
+  const itens = filtrarPorAcesso(todosItens, contexto);
 
   const hoje = itens.filter((i) => i.nivel === "critica" || i.nivel === "urgente");
   const dentroDoPrazo = itens.filter((i) => i.nivel === "alta" || i.nivel === "atencao" || i.nivel === "programada");

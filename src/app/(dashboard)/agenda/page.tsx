@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { montarPainel } from "@/features/central-prazos/agregador";
-import { hojeIsoBrasil, NIVEL_ORDEM } from "@/features/central-prazos/regras";
+import { hojeIsoBrasil, NIVEL_ORDEM, filtrarPorAcesso } from "@/features/central-prazos/regras";
 import {
   GRUPO_AGENDA_ROTULOS,
   GRUPO_AGENDA_POR_CATEGORIA,
@@ -10,6 +10,7 @@ import {
 import type { ItemPainel } from "@/features/central-prazos/tipos";
 import { RESPONSAVEL_TAREFA_SEED } from "@/features/central-prazos/catalogos";
 import { ResponsavelFiltro } from "@/features/central-prazos/responsavel-filtro";
+import { obterContextoAcesso } from "@/features/acessos/contexto";
 
 const DIAS_SEMANA_CURTO = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 const NOMES_MES = [
@@ -86,7 +87,20 @@ export default async function AgendaPage({
   const base: BuscaParams = { ano: anoAtivo, mes: mesAtivo, grupo: grupoAtivo, q, responsavel: responsavelAtivo };
 
   const supabase = await createClient();
-  const itens = await montarPainel(supabase);
+  // getSession() (não getUser()) — mesmo raciocínio do layout do dashboard:
+  // o middleware já validou a sessão pra esta mesma requisição.
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const [todosItens, contexto] = await Promise.all([
+    montarPainel(supabase),
+    session?.user.email ? obterContextoAcesso(supabase, session.user.email) : Promise.resolve({ tipo: "admin" as const }),
+  ]);
+  // Perfil restrito (Etapa 5, 30/09/2026): só vê os próprios itens, sem o
+  // seletor de responsável — não faz sentido escolher "ver de outra pessoa"
+  // quando o próprio acesso já é limitado ao que é seu.
+  const itens = filtrarPorAcesso(todosItens, contexto);
+  const podeEscolherResponsavel = contexto.tipo === "admin";
 
   const comData = itens.filter((i): i is ItemPainel & { prazo: string } => i.prazo !== null);
   const porGrupo = grupoAtivo === "todos" ? comData : comData.filter((i) => GRUPO_AGENDA_POR_CATEGORIA[i.categoria] === grupoAtivo);
@@ -168,7 +182,7 @@ export default async function AgendaPage({
         </div>
 
         <div className="flex items-center gap-2">
-          <ResponsavelFiltro opcoes={opcoesResponsavel} />
+          {podeEscolherResponsavel && <ResponsavelFiltro opcoes={opcoesResponsavel} />}
           <form method="get" action="/agenda" className="flex items-center gap-2">
             <input type="hidden" name="ano" value={anoAtivo} />
             <input type="hidden" name="mes" value={mesAtivo} />

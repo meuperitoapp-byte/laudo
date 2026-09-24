@@ -9,6 +9,7 @@
  */
 
 import type { ItemPainel, NivelUrgencia } from "./tipos";
+import type { ContextoAcesso } from "@/features/acessos/contexto";
 
 /** Rank de exibição — quanto menor, mais no topo da lista. Nunca um item de rank maior aparece antes de um de rank menor. */
 export const NIVEL_ORDEM: Record<NivelUrgencia, number> = {
@@ -98,6 +99,18 @@ export function nivelPorPrazo(prazoIso: string | null, hojeIso: string): NivelUr
  * nunca aparece antes de um "Crítica"/"Urgente", não importa quantos itens
  * sem data existam na lista (requisito do Jeferson, 11/09/2026).
  */
+/**
+ * "Tela de atividades" por pessoa (Etapa 5, 30/09/2026) — perfil restrito só
+ * vê os itens atribuídos a ele mesmo (comparando com `nome_exibicao`, ver
+ * migration 20260930170000); admin (Dra. Fernanda, sem perfil atribuído)
+ * continua vendo tudo, como sempre. Usada por /hoje e /agenda, os dois
+ * consumidores de `montarPainel`.
+ */
+export function filtrarPorAcesso(itens: ItemPainel[], contexto: ContextoAcesso): ItemPainel[] {
+  if (contexto.tipo === "admin") return itens;
+  return itens.filter((i) => i.responsavel === contexto.nomeExibicao);
+}
+
 export function ordenarPainel(itens: ItemPainel[]): ItemPainel[] {
   return [...itens].sort((a, b) => {
     const porNivel = NIVEL_ORDEM[a.nivel] - NIVEL_ORDEM[b.nivel];
