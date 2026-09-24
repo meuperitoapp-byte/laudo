@@ -30,7 +30,10 @@ function useAcao() {
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function executar(fn: () => Promise<{ error: string } | { success: true }>, sucesso = "Salvo.") {
+  function executar<T extends { success: true }>(
+    fn: () => Promise<{ error: string } | T>,
+    sucesso: string | ((resultado: T) => string) = "Salvo.",
+  ) {
     setMensagem(null);
     startTransition(async () => {
       const resultado = await fn();
@@ -38,7 +41,8 @@ function useAcao() {
         setMensagem({ tipo: "erro", texto: resultado.error });
         return;
       }
-      setMensagem({ tipo: "ok", texto: sucesso });
+      const texto = typeof sucesso === "function" ? sucesso(resultado) : sucesso;
+      setMensagem({ tipo: "ok", texto });
       router.refresh();
     });
   }
@@ -155,7 +159,11 @@ function AdicionarUsuarioForm({ perfis }: { perfis: Perfil[] }) {
   const { mensagem, setMensagem, isPending, executar } = useAcao();
 
   function salvar(formData: FormData) {
-    executar(() => convidarUsuario(formData), "Convite enviado e perfil vinculado.");
+    executar(() => convidarUsuario(formData), (resultado) =>
+      resultado.jaExistia
+        ? "Perfil vinculado. Esse e-mail já tinha conta — não foi enviado convite novo; peça pra essa pessoa entrar direto pela tela de login."
+        : "Convite enviado e perfil vinculado.",
+    );
   }
 
   if (perfis.length === 0) {

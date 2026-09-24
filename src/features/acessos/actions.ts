@@ -129,7 +129,9 @@ export async function salvarPermissoesPerfil(formData: FormData): Promise<Action
  * manda e-mail de novo. Upsert por e-mail: atribuir a mesma pessoa a outro
  * perfil substitui o vínculo anterior.
  */
-export async function convidarUsuario(formData: FormData): Promise<ActionResult> {
+export async function convidarUsuario(
+  formData: FormData,
+): Promise<{ error: string } | { success: true; jaExistia: boolean }> {
   const guard = await exigirAdmin();
   if ("error" in guard) return guard;
 
@@ -161,7 +163,7 @@ export async function convidarUsuario(formData: FormData): Promise<ActionResult>
   if (error) return { error: error.message };
 
   revalidatePath("/configuracoes/acessos");
-  return { success: true };
+  return { success: true, jaExistia: Boolean(jaExistia) };
 }
 
 /**
