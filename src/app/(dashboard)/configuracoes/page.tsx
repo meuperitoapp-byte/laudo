@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
 import { ConfiguracoesForm } from "@/features/configuracoes/configuracoes-form";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
+import { classesBotao } from "@/components/ui/button";
 import { obterContextoAcesso, podeAdministrarAcessos } from "@/features/acessos/contexto";
 
 const VALIDADE_URL_SEGUNDOS = 60 * 60;
@@ -63,12 +65,22 @@ export default async function ConfiguracoesPage() {
         <BannerErroConsulta mensagem="Não consegui carregar tudo agora — alguns dados abaixo podem estar incompletos." />
       )}
       {mostrarLinkAcessos && (
-        <Link
-          href="/configuracoes/acessos"
-          className="inline-block text-sm text-petroleo-600 hover:underline dark:text-petroleo-400"
-        >
-          Gerenciar perfis de acesso →
-        </Link>
+        <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-petroleo-100 dark:bg-petroleo-900/40 text-petroleo-600 dark:text-petroleo-400 shrink-0">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Perfis de acesso</h2>
+              <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
+                Controle quem enxerga o quê no sistema — só você vê esta seção.
+              </p>
+            </div>
+          </div>
+          <Link href="/configuracoes/acessos" className={classesBotao("primaria", "shrink-0")}>
+            Gerenciar perfis de acesso
+          </Link>
+        </div>
       )}
       <ConfiguracoesForm config={config ?? null} urlAssinatura={assinatura.url} urlLogomarca={logomarca.url} />
     </main>
