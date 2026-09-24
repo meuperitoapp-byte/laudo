@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { obterContextoAcesso, podeAdministrarAcessos } from "./contexto";
 import type { ModuloSistema } from "@/types/enums";
 
@@ -117,13 +119,17 @@ export async function salvarPermissoesPerfil(formData: FormData): Promise<Action
 }
 
 /**
- * Vincula um e-mail a um perfil. AINDA NÃO cria o login de verdade (isso é
- * a Etapa 3, convite por e-mail via Admin API) — até lá, o e-mail só
- * funciona de verdade se já existir como usuário no Supabase (criado
- * manualmente pelo Jeferson, mesmo processo de sempre). Upsert por e-mail:
- * atribuir a mesma pessoa a outro perfil substitui o vínculo anterior.
+ * Convida um e-mail (Etapa 3, Admin API) e já vincula ao perfil escolhido —
+ * um só passo pra ela, como pedido ("digita o e-mail e o sistema
+ * convida"). Se o e-mail já existir como usuário (ex.: alguém que o
+ * Jeferson cadastrou manualmente antes desta etapa existir, ou já
+ * convidado antes), `inviteUserByEmail` retorna erro "already been
+ * registered" — tratado como sucesso aqui, porque o objetivo (esse e-mail
+ * consegue logar E fica vinculado ao perfil) já está satisfeito, só não
+ * manda e-mail de novo. Upsert por e-mail: atribuir a mesma pessoa a outro
+ * perfil substitui o vínculo anterior.
  */
-export async function vincularUsuario(formData: FormData): Promise<ActionResult> {
+export async function convidarUsuario(formData: FormData): Promise<ActionResult> {
   const guard = await exigirAdmin();
   if ("error" in guard) return guard;
 
@@ -131,6 +137,23 @@ export async function vincularUsuario(formData: FormData): Promise<ActionResult>
   const email = textoOuNull(formData.get("email"))?.toLowerCase() ?? null;
   const nomeExibicao = textoOuNull(formData.get("nome_exibicao"));
   if (!perfilId || !email || !nomeExibicao) return { error: "Preencha perfil, e-mail e nome de exibição." };
+
+  const adminClient = createAdminClient();
+  if (!adminClient) {
+    return {
+      error:
+        "Convite por e-mail ainda não está configurado (falta a SUPABASE_SERVICE_ROLE_KEY) — peça pro Jeferson configurar.",
+    };
+  }
+
+  const origin = (await headers()).get("origin") ?? "http://localhost:3000";
+  const { error: erroConvite } = await adminClient.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${origin}/auth/callback`,
+  });
+  const jaExistia = erroConvite?.message.toLowerCase().includes("already been registered");
+  if (erroConvite && !jaExistia) {
+    return { error: `Não consegui convidar: ${erroConvite.message}` };
+  }
 
   const { error } = await guard.supabase
     .from("perfil_usuarios")

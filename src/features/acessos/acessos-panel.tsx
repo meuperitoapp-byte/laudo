@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { criarPerfil, renomearPerfil, excluirPerfil, salvarPermissoesPerfil, vincularUsuario, desvincularUsuario } from "./actions";
+import { criarPerfil, renomearPerfil, excluirPerfil, salvarPermissoesPerfil, convidarUsuario, desvincularUsuario } from "./actions";
 import { MODULO_ROTULOS, MODULOS_ORDENADOS } from "./catalogos";
 import { Botao } from "@/components/ui/button";
 import { Toast } from "@/components/ui/toast";
@@ -155,7 +155,7 @@ function AdicionarUsuarioForm({ perfis }: { perfis: Perfil[] }) {
   const { mensagem, setMensagem, isPending, executar } = useAcao();
 
   function salvar(formData: FormData) {
-    executar(() => vincularUsuario(formData), "Pessoa vinculada ao perfil.");
+    executar(() => convidarUsuario(formData), "Convite enviado e perfil vinculado.");
   }
 
   if (perfis.length === 0) {
@@ -190,8 +190,8 @@ function AdicionarUsuarioForm({ perfis }: { perfis: Perfil[] }) {
           ))}
         </select>
       </div>
-      <Botao type="submit" carregando={isPending} textoCarregando="Vinculando…">
-        Vincular
+      <Botao type="submit" carregando={isPending} textoCarregando="Convidando…">
+        Convidar
       </Botao>
       {mensagem && mensagem.tipo === "erro" && (
         <p className="sm:col-span-4 text-sm text-vinho-600 dark:text-vinho-400">{mensagem.texto}</p>
@@ -263,8 +263,8 @@ export function AcessosPanel({ perfis, permissoesPorPerfil, usuarios }: {
         <div>
           <h2 className="font-title text-lg font-semibold text-nevoa-900 dark:text-nevoa-50">Pessoas com acesso</h2>
           <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
-            Vincula um e-mail a um perfil. Isso ainda não cria o login — a pessoa só consegue entrar se já tiver
-            usuário criado no sistema.
+            Convide por e-mail e já escolha o perfil — a pessoa recebe um link pra criar acesso e, ao entrar, já
+            enxerga só os módulos do perfil escolhido.
           </p>
         </div>
         {usuarios.length > 0 && (
