@@ -64,6 +64,7 @@ export async function atualizarQuesito(input: {
   origem: string | null;
   pergunta: string;
   resposta: string | null;
+  apresentar: boolean;
 }): Promise<ActionResult> {
   const pergunta = input.pergunta.trim();
   if (!pergunta) {
@@ -75,6 +76,7 @@ export async function atualizarQuesito(input: {
     origem: input.origem?.trim() || null,
     pergunta,
     resposta: input.resposta?.trim() || null,
+    apresentar: input.apresentar,
   };
 
   const { error } = await supabase.from("quesitos").update(update).eq("id", input.quesitoId);

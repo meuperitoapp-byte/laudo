@@ -38,7 +38,7 @@ export async function uploadDocumento(processoId: string, formData: FormData): P
     return { error: "Selecione um arquivo." };
   }
   if (arquivo.size > TAMANHO_MAXIMO_BYTES) {
-    return { error: "Arquivo maior que 25MB — não é possível enviar." };
+    return { error: "Arquivo maior que 50MB — não é possível enviar." };
   }
 
   const tipo = formData.get("tipo") as TipoDocumento | null;

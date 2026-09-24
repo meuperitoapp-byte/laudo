@@ -333,6 +333,10 @@ export type LaudoGeradoTipo =
   | 'analise_viabilidade'
   | 'atestado'
   | 'declaracao'
+  | 'orientacao_replica'
+  | 'quesitos_parte'
+  | 'relatorio_tecnico'
+  | 'estrategia_pericial'
 
 /** atestados.tipo_documento — mesma estrutura pros dois, só o título do documento muda. */
 export type AtestadoTipoDocumento = 'atestado' | 'declaracao'
@@ -588,3 +592,79 @@ export type ModuloSistema =
   | 'respostas_reutilizaveis'
   | 'configuracoes'
   | 'chat'
+
+// ----------------------------------------------------------------------------
+// Lote PERICONS 24/09/2026 — Análise da Contestação, Orientação para Réplica,
+// Quesitos (documento à parte), Relatório Técnico, Estratégia Pericial.
+// V1 enxuto: sem geração automática de tarefa/versionamento por adendo (fica
+// pra 2ª rodada depois que a Dra. Fernanda testar o V1).
+// ----------------------------------------------------------------------------
+
+/** Prioridade — reutilizada pela "próxima ação" da Contestação e da Estratégia Pericial. */
+export type PrioridadeTarefa = 'normal' | 'alta' | 'urgente'
+
+/** contestacao_argumentos.repercussao — §1 do modelo (matriz de confronto). */
+export type ContestacaoRepercussao =
+  | 'nao_interfere'
+  | 'exige_esclarecimento'
+  | 'fragiliza_parcialmente'
+  | 'fragiliza_significativamente'
+  | 'pode_ser_enfrentado_tecnicamente'
+  | 'exige_prova_complementar'
+  | 'deve_ser_esclarecido_pela_pericia'
+
+/** contestacao_argumentos.decisoes — §2 do modelo, múltipla seleção por argumento. */
+export type ContestacaoDecisao =
+  | 'enfrentar_replica'
+  | 'contextualizar_replica'
+  | 'nao_enfrentar'
+  | 'solicitar_documento'
+  | 'preservar_pericia'
+  | 'transformar_quesito'
+  | 'preparacao_pericia'
+  | 'atualizar_estrategia'
+  | 'avaliar_parecer'
+  | 'outro'
+
+/** analises_contestacao.proxima_acao — §3 do modelo. */
+export type ContestacaoProximaAcao =
+  | 'gerar_orientacao_replica'
+  | 'elaborar_quesitos'
+  | 'solicitar_documentos'
+  | 'atualizar_estrategia'
+  | 'preparar_parecer_tecnico'
+  | 'aguardar_manifestacao'
+  | 'outro'
+
+/** quesitos_documentos.parte_selecionada — cabeçalho "QUESITOS DA [...]" do modelo. */
+export type QuesitoParteProcessual = 'autora' | 're' | 'reclamante' | 'reclamada' | 'parte_assistida'
+
+/** relatorios_tecnicos.documentacao_suficiente — §II do modelo. */
+export type RelatorioTecnicoDocumentacaoSuficiente = 'sim' | 'parcialmente' | 'nao'
+
+/** estrategia_fragilidades.classificacao — §9 do modelo. */
+export type EstrategiaFragilidadeClassificacao =
+  | 'controlavel'
+  | 'depende_documento'
+  | 'depende_pericia'
+  | 'nao_controlavel'
+
+/** estrategia_teses_adversas.destino — §10 do modelo. */
+export type EstrategiaTeseAdversaDestino = 'replica' | 'quesito' | 'pericia'
+
+/** estrategia_documentos_provas.prioridade — §11 do modelo. */
+export type EstrategiaDocumentoPrioridade = 'essencial' | 'importante' | 'complementar'
+
+/** estrategia_documentos_provas.acao — §11 do modelo. */
+export type EstrategiaDocumentoAcao = 'solicitar' | 'obter'
+
+/** estrategias_periciais.proxima_acao — §15 do modelo. */
+export type EstrategiaProximaAcao =
+  | 'elaborar_quesitos'
+  | 'solicitar_documentos'
+  | 'preparar_pericia'
+  | 'gerar_orientacao_replica'
+  | 'elaborar_parecer_relatorio'
+  | 'atualizar_estrategia'
+  | 'aguardar_andamento'
+  | 'outro'

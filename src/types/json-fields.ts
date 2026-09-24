@@ -387,6 +387,28 @@ export interface SnapshotAtestado {
   dados: Record<string, unknown>
 }
 
+/** Lote PERICONS 24/09/2026 — mesmo princípio de SnapshotAnaliseViabilidade, histórico/auditoria. */
+export interface SnapshotOrientacaoReplica {
+  tipo: 'orientacao_replica'
+  gerado_em: string
+  dados: Record<string, unknown>
+}
+export interface SnapshotQuesitosParte {
+  tipo: 'quesitos_parte'
+  gerado_em: string
+  dados: Record<string, unknown>
+}
+export interface SnapshotRelatorioTecnico {
+  tipo: 'relatorio_tecnico'
+  gerado_em: string
+  dados: Record<string, unknown>
+}
+export interface SnapshotEstrategiaPericial {
+  tipo: 'estrategia_pericial'
+  gerado_em: string
+  dados: Record<string, unknown>
+}
+
 /**
  * Forma de laudos_gerados.snapshot_respostas — união de todas as naturezas.
  * Narrow por `laudos_gerados.tipo` (ver acima).
@@ -401,3 +423,7 @@ export type SnapshotLaudoGerado =
   | SnapshotPedidoLiberacao
   | SnapshotAnaliseViabilidade
   | SnapshotAtestado
+  | SnapshotOrientacaoReplica
+  | SnapshotQuesitosParte
+  | SnapshotRelatorioTecnico
+  | SnapshotEstrategiaPericial

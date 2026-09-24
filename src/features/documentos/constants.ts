@@ -1,10 +1,11 @@
 /** Bucket do Supabase Storage — ver migration 20260824090000_storage_bucket_documentos.sql. */
 export const BUCKET_DOCUMENTOS = "documentos-processos";
 
-/** 25MB — mesmo limite configurado no bucket (file_size_limit); checado no
- * client antes do upload só pra dar feedback mais rápido, o bucket é quem
- * garante de verdade. */
-export const TAMANHO_MAXIMO_BYTES = 26214400;
+/** 50MB — mesmo limite configurado no bucket (file_size_limit, ver migration
+ * 20260930280000); checado no client antes do upload só pra dar feedback mais
+ * rápido, o bucket é quem garante de verdade. Aumentado de 25MB (24/09/2026,
+ * feedback da Patrícia: PDF de orçamento com fotos/arte não cabia). */
+export const TAMANHO_MAXIMO_BYTES = 52428800;
 
 /**
  * Sugestões de categoria pra Matriz de Documentos Analisados (Seção VI de

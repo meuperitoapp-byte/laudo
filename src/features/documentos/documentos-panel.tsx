@@ -343,7 +343,7 @@ function UploadForm({ processoId }: { processoId: string }) {
       return;
     }
     if (arquivo.size > TAMANHO_MAXIMO_BYTES) {
-      setErro("Arquivo maior que 25MB — não é possível enviar.");
+      setErro("Arquivo maior que 50MB — não é possível enviar.");
       return;
     }
     startTransition(async () => {

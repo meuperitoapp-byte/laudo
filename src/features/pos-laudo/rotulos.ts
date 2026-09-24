@@ -473,4 +473,8 @@ export const TIPO_DOCUMENTO_ROTULOS: Record<LaudoGeradoTipo, string> = {
   analise_viabilidade: "Análise de Viabilidade Técnico-Pericial",
   atestado: "Atestado Médico-Pericial",
   declaracao: "Declaração Médico-Pericial",
+  orientacao_replica: "Orientação Técnico-Pericial para Réplica",
+  quesitos_parte: "Quesitos Técnico-Periciais",
+  relatorio_tecnico: "Relatório Técnico",
+  estrategia_pericial: "Estratégia Pericial",
 };

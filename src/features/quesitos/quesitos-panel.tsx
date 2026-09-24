@@ -66,6 +66,7 @@ function QuesitoCard({
   const [origem, setOrigem] = useState(quesito.origem ?? "");
   const [pergunta, setPergunta] = useState(quesito.pergunta);
   const [resposta, setResposta] = useState(quesito.resposta ?? "");
+  const [apresentar, setApresentar] = useState(quesito.apresentar);
   const [erro, setErro] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -78,19 +79,22 @@ function QuesitoCard({
     origem: quesito.origem ?? "",
     pergunta: quesito.pergunta,
     resposta: quesito.resposta ?? "",
+    apresentar: quesito.apresentar,
   });
-  const dirty = origem !== salvo.origem || pergunta !== salvo.pergunta || resposta !== salvo.resposta;
+  const dirty =
+    origem !== salvo.origem || pergunta !== salvo.pergunta || resposta !== salvo.resposta || apresentar !== salvo.apresentar;
 
   function salvar() {
     setErro(null);
     startTransition(async () => {
-      const alvo = { origem, pergunta, resposta };
+      const alvo = { origem, pergunta, resposta, apresentar };
       const resultado = await atualizarQuesito({
         quesitoId: quesito.id,
         processoId,
         origem: alvo.origem || null,
         pergunta: alvo.pergunta,
         resposta: alvo.resposta || null,
+        apresentar: alvo.apresentar,
       });
       if ("error" in resultado) {
         setErro(resultado.error);
@@ -123,10 +127,12 @@ function QuesitoCard({
     setOrigem(quesito.origem ?? "");
     setPergunta(quesito.pergunta);
     setResposta(quesito.resposta ?? "");
+    setApresentar(quesito.apresentar);
     setSalvo({
       origem: quesito.origem ?? "",
       pergunta: quesito.pergunta,
       resposta: quesito.resposta ?? "",
+      apresentar: quesito.apresentar,
     });
   }
 
@@ -232,6 +238,11 @@ function QuesitoCard({
           className={inputClass}
         />
       </div>
+
+      <label className="flex items-center gap-2 text-sm text-nevoa-700 dark:text-nevoa-300">
+        <input type="checkbox" checked={apresentar} onChange={(e) => setApresentar(e.target.checked)} />
+        Apresentar no documento final
+      </label>
 
       <div className="flex flex-wrap items-center gap-3">
         <Botao

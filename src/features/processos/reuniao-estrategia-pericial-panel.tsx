@@ -17,33 +17,42 @@ const dataCurta = (iso: string) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 };
 
-const hojeIso = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-
 /**
  * Etapa "Estratégia pericial" (Assistência Técnica) — item 2 do lote
  * pós-Fase-2 (21/09/2026): a secretária marca com o advogado a data da
  * reunião de explicações técnicas. Mesmo padrão de estado-do-caso do
  * DocumentosPendentesPanel/ProximoMarcoHonorariosPanel — preenchido/limpo
  * manualmente, sem prazo/lembrete associado (não é algo que vence).
+ *
+ * Feedback da Dra. Fernanda (24/09/2026): quem marca a data é a Patrícia,
+ * DEPOIS de combinar com o advogado — o campo não pode vir pré-preenchido
+ * com a data de hoje (senão parece já marcada). Responsável também deixou de
+ * ser texto livre — vira os nomes dos logins já criados.
  */
 export function ReuniaoEstrategiaPericialPanel({
   processoId,
   reuniaoEm,
   responsavel,
+  nomesResponsaveis,
 }: {
   processoId: string;
   reuniaoEm: string | null;
   responsavel: string | null;
+  nomesResponsaveis: string[];
 }) {
   const router = useRouter();
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [isPending, setIsPending] = useState(false);
-  const [data, setData] = useState(hojeIso());
+  const [data, setData] = useState("");
   const [resp, setResp] = useState(responsavel ?? "");
 
   async function marcarReuniao() {
+    if (!data) {
+      setMensagem({ tipo: "erro", texto: "Informe a data combinada com o advogado." });
+      return;
+    }
     setIsPending(true);
-    const r = await salvarReuniaoEstrategiaPericial(processoId, data || hojeIso(), resp.trim() || null);
+    const r = await salvarReuniaoEstrategiaPericial(processoId, data, resp.trim() || null);
     setIsPending(false);
     if ("error" in r) {
       setMensagem({ tipo: "erro", texto: r.error });
@@ -112,13 +121,19 @@ export function ReuniaoEstrategiaPericialPanel({
               <label htmlFor="reuniao_estrategia_responsavel" className={labelClass}>
                 Responsável
               </label>
-              <input
+              <select
                 id="reuniao_estrategia_responsavel"
                 value={resp}
                 onChange={(e) => setResp(e.target.value)}
-                placeholder="Ex.: Secretária"
                 className={inputClass}
-              />
+              >
+                <option value="">Selecione…</option>
+                {nomesResponsaveis.map((nome) => (
+                  <option key={nome} value={nome}>
+                    {nome}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <p className="text-xs text-nevoa-500 dark:text-nevoa-400">

@@ -92,6 +92,17 @@ import type {
   AtestadoTipoDocumento,
   AtestadoConclusaoModelo,
   AtestadoNecessidadeTerceiros,
+  PrioridadeTarefa,
+  ContestacaoRepercussao,
+  ContestacaoDecisao,
+  ContestacaoProximaAcao,
+  QuesitoParteProcessual,
+  RelatorioTecnicoDocumentacaoSuficiente,
+  EstrategiaFragilidadeClassificacao,
+  EstrategiaTeseAdversaDestino,
+  EstrategiaDocumentoPrioridade,
+  EstrategiaDocumentoAcao,
+  EstrategiaProximaAcao,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -652,14 +663,240 @@ export type QuesitosRow = {
   pergunta: string
   resposta: string | null
   ordem: number | null
+  apresentar: boolean
   created_at: string
   updated_at: string
 }
 export type QuesitosInsert = ComDefaults<
   QuesitosRow,
-  'id' | 'origem' | 'resposta' | 'ordem' | 'created_at' | 'updated_at'
+  'id' | 'origem' | 'resposta' | 'ordem' | 'apresentar' | 'created_at' | 'updated_at'
 >
 export type QuesitosUpdate = Partial<QuesitosRow>
+
+// ============================================================================
+// quesitos_documentos (lote PERICONS 24/09/2026)
+// ============================================================================
+export type QuesitosDocumentosRow = {
+  id: string
+  processo_id: string
+  parte_selecionada: QuesitoParteProcessual | null
+  endereco_juizo: string | null
+  pontos_controvertidos: string | null
+  sintese_tese: string | null
+  o_que_demonstrar_pericia: string | null
+  local_emissao: string | null
+  data_emissao: string | null
+  created_at: string
+  updated_at: string
+}
+export type QuesitosDocumentosInsert = ComDefaults<
+  QuesitosDocumentosRow,
+  | 'id'
+  | 'parte_selecionada'
+  | 'endereco_juizo'
+  | 'pontos_controvertidos'
+  | 'sintese_tese'
+  | 'o_que_demonstrar_pericia'
+  | 'local_emissao'
+  | 'data_emissao'
+  | 'created_at'
+  | 'updated_at'
+>
+export type QuesitosDocumentosUpdate = Partial<QuesitosDocumentosRow>
+
+// ============================================================================
+// relatorios_tecnicos (lote PERICONS 24/09/2026)
+// ============================================================================
+export type RelatoriosTecnicosRow = {
+  id: string
+  processo_id: string
+  solicitante: string | null
+  objeto_relatorio: string | null
+  questao_tecnica_principal: string | null
+  documentos_referenciados: string[]
+  documentacao_suficiente: RelatorioTecnicoDocumentacaoSuficiente | null
+  documentacao_suficiente_detalhe: string | null
+  sintese_tecnica_caso: string | null
+  analise_tecnica: string | null
+  campos_complementares: string[]
+  campo_diagnostico_cid: string | null
+  campo_conduta: string | null
+  campo_nexo_causal: string | null
+  campo_dano: string | null
+  campo_incapacidade: string | null
+  campo_tratamento: string | null
+  campo_prognostico: string | null
+  conclusao: string | null
+  documentos_complementares_texto: string | null
+  local_emissao: string | null
+  data_emissao: string | null
+  created_at: string
+  updated_at: string
+}
+export type RelatoriosTecnicosInsert = ComDefaults<
+  RelatoriosTecnicosRow,
+  | 'id'
+  | 'solicitante'
+  | 'objeto_relatorio'
+  | 'questao_tecnica_principal'
+  | 'documentos_referenciados'
+  | 'documentacao_suficiente'
+  | 'documentacao_suficiente_detalhe'
+  | 'sintese_tecnica_caso'
+  | 'analise_tecnica'
+  | 'campos_complementares'
+  | 'campo_diagnostico_cid'
+  | 'campo_conduta'
+  | 'campo_nexo_causal'
+  | 'campo_dano'
+  | 'campo_incapacidade'
+  | 'campo_tratamento'
+  | 'campo_prognostico'
+  | 'conclusao'
+  | 'documentos_complementares_texto'
+  | 'local_emissao'
+  | 'data_emissao'
+  | 'created_at'
+  | 'updated_at'
+>
+export type RelatoriosTecnicosUpdate = Partial<RelatoriosTecnicosRow>
+
+// ============================================================================
+// estrategias_periciais + tabelas repetíveis (lote PERICONS 24/09/2026, V1 enxuto)
+// ============================================================================
+export type EstrategiasPericiaisRow = {
+  id: string
+  processo_id: string
+  resumo_tecnico_caso: string | null
+  questao_central: string | null
+  questoes_secundarias: string[]
+  tese_principal: string | null
+  cadeia_estado_anterior: string | null
+  cadeia_evento: string | null
+  cadeia_alteracao: string | null
+  cadeia_persistencia: string | null
+  cadeia_exame_diagnostico: string | null
+  cadeia_dano_repercussao: string | null
+  pontos_pericia: string[]
+  conclusao_direcao_estrategica: string | null
+  proxima_acao: EstrategiaProximaAcao | null
+  proxima_acao_outra: string | null
+  responsavel: string | null
+  prazo: string | null
+  prioridade: PrioridadeTarefa
+  local_emissao: string | null
+  data_emissao: string | null
+  created_at: string
+  updated_at: string
+}
+export type EstrategiasPericiaisInsert = ComDefaults<
+  EstrategiasPericiaisRow,
+  | 'id'
+  | 'resumo_tecnico_caso'
+  | 'questao_central'
+  | 'questoes_secundarias'
+  | 'tese_principal'
+  | 'cadeia_estado_anterior'
+  | 'cadeia_evento'
+  | 'cadeia_alteracao'
+  | 'cadeia_persistencia'
+  | 'cadeia_exame_diagnostico'
+  | 'cadeia_dano_repercussao'
+  | 'pontos_pericia'
+  | 'conclusao_direcao_estrategica'
+  | 'proxima_acao'
+  | 'proxima_acao_outra'
+  | 'responsavel'
+  | 'prazo'
+  | 'prioridade'
+  | 'local_emissao'
+  | 'data_emissao'
+  | 'created_at'
+  | 'updated_at'
+>
+export type EstrategiasPericiaisUpdate = Partial<EstrategiasPericiaisRow>
+
+export type EstrategiaEixosTeseRow = {
+  id: string
+  estrategia_id: string
+  ordem: number
+  titulo: string
+  tese_especifica: string | null
+  base_atual: string | null
+  created_at: string
+  updated_at: string
+}
+export type EstrategiaEixosTeseInsert = ComDefaults<
+  EstrategiaEixosTeseRow,
+  'id' | 'ordem' | 'tese_especifica' | 'base_atual' | 'created_at' | 'updated_at'
+>
+export type EstrategiaEixosTeseUpdate = Partial<EstrategiaEixosTeseRow>
+
+export type EstrategiaPontosInvestigacaoRow = {
+  id: string
+  estrategia_id: string
+  ordem: number
+  ponto: string
+  o_que_sabemos: string | null
+  o_que_demonstrar: string | null
+  como_provar: string | null
+  created_at: string
+  updated_at: string
+}
+export type EstrategiaPontosInvestigacaoInsert = ComDefaults<
+  EstrategiaPontosInvestigacaoRow,
+  'id' | 'ordem' | 'o_que_sabemos' | 'o_que_demonstrar' | 'como_provar' | 'created_at' | 'updated_at'
+>
+export type EstrategiaPontosInvestigacaoUpdate = Partial<EstrategiaPontosInvestigacaoRow>
+
+export type EstrategiaFragilidadesRow = {
+  id: string
+  estrategia_id: string
+  ordem: number
+  fragilidade: string
+  classificacao: EstrategiaFragilidadeClassificacao | null
+  created_at: string
+  updated_at: string
+}
+export type EstrategiaFragilidadesInsert = ComDefaults<
+  EstrategiaFragilidadesRow,
+  'id' | 'ordem' | 'classificacao' | 'created_at' | 'updated_at'
+>
+export type EstrategiaFragilidadesUpdate = Partial<EstrategiaFragilidadesRow>
+
+export type EstrategiaTesesAdversasRow = {
+  id: string
+  estrategia_id: string
+  ordem: number
+  tese_adversa: string
+  resposta_tecnica: string | null
+  evidencia_necessaria: string | null
+  destino: EstrategiaTeseAdversaDestino | null
+  created_at: string
+  updated_at: string
+}
+export type EstrategiaTesesAdversasInsert = ComDefaults<
+  EstrategiaTesesAdversasRow,
+  'id' | 'ordem' | 'resposta_tecnica' | 'evidencia_necessaria' | 'destino' | 'created_at' | 'updated_at'
+>
+export type EstrategiaTesesAdversasUpdate = Partial<EstrategiaTesesAdversasRow>
+
+export type EstrategiaDocumentosProvasRow = {
+  id: string
+  estrategia_id: string
+  ordem: number
+  documento: string
+  motivo: string | null
+  prioridade: EstrategiaDocumentoPrioridade | null
+  acao: EstrategiaDocumentoAcao | null
+  created_at: string
+  updated_at: string
+}
+export type EstrategiaDocumentosProvasInsert = ComDefaults<
+  EstrategiaDocumentosProvasRow,
+  'id' | 'ordem' | 'motivo' | 'prioridade' | 'acao' | 'created_at' | 'updated_at'
+>
+export type EstrategiaDocumentosProvasUpdate = Partial<EstrategiaDocumentosProvasRow>
 
 // ============================================================================
 // laudos_gerados  (estendida em 20260905120000_pos_laudo_schema.sql)
@@ -1840,6 +2077,93 @@ export type AtestadosInsert = ComDefaults<
 export type AtestadosUpdate = Partial<AtestadosRow>
 
 // ============================================================================
+// analises_contestacao / contestacao_argumentos (lote PERICONS 24/09/2026)
+// ============================================================================
+export type AnalisesContestacaoRow = {
+  id: string
+  processo_id: string
+  proxima_acao: ContestacaoProximaAcao | null
+  proxima_acao_outra: string | null
+  responsavel: string | null
+  prazo: string | null
+  prioridade: PrioridadeTarefa
+  concluida: boolean
+  created_at: string
+  updated_at: string
+}
+export type AnalisesContestacaoInsert = ComDefaults<
+  AnalisesContestacaoRow,
+  | 'id'
+  | 'proxima_acao'
+  | 'proxima_acao_outra'
+  | 'responsavel'
+  | 'prazo'
+  | 'prioridade'
+  | 'concluida'
+  | 'created_at'
+  | 'updated_at'
+>
+export type AnalisesContestacaoUpdate = Partial<AnalisesContestacaoRow>
+
+export type ContestacaoArgumentosRow = {
+  id: string
+  analise_id: string
+  ordem: number
+  argumento: string
+  analise_tecnica: string | null
+  evidencia_documento: string | null
+  repercussao: ContestacaoRepercussao | null
+  orientacao: string | null
+  decisoes: ContestacaoDecisao[]
+  decisao_outra: string | null
+  incluir_na_replica: boolean
+  created_at: string
+  updated_at: string
+}
+export type ContestacaoArgumentosInsert = ComDefaults<
+  ContestacaoArgumentosRow,
+  | 'id'
+  | 'ordem'
+  | 'analise_tecnica'
+  | 'evidencia_documento'
+  | 'repercussao'
+  | 'orientacao'
+  | 'decisoes'
+  | 'decisao_outra'
+  | 'incluir_na_replica'
+  | 'created_at'
+  | 'updated_at'
+>
+export type ContestacaoArgumentosUpdate = Partial<ContestacaoArgumentosRow>
+
+// ============================================================================
+// replicas (lote PERICONS 24/09/2026)
+// ============================================================================
+export type ReplicasRow = {
+  id: string
+  processo_id: string
+  documentos_nao_considerados: string | null
+  pontos_preservados_pericia: string | null
+  conclusao_tecnica: string | null
+  local_emissao: string | null
+  data_emissao: string | null
+  created_at: string
+  updated_at: string
+}
+export type ReplicasInsert = ComDefaults<
+  ReplicasRow,
+  | 'id'
+  | 'documentos_nao_considerados'
+  | 'pontos_preservados_pericia'
+  | 'conclusao_tecnica'
+  | 'local_emissao'
+  | 'data_emissao'
+  | 'created_at'
+  | 'updated_at'
+>
+export type ReplicasUpdate = Partial<ReplicasRow>
+
+// ============================================================================
 // Database — shape esperado por createClient<Database>()
 // ============================================================================
 export interface Database {
@@ -2131,6 +2455,72 @@ export interface Database {
         Row: AtestadosRow
         Insert: AtestadosInsert
         Update: AtestadosUpdate
+        Relationships: []
+      }
+      analises_contestacao: {
+        Row: AnalisesContestacaoRow
+        Insert: AnalisesContestacaoInsert
+        Update: AnalisesContestacaoUpdate
+        Relationships: []
+      }
+      contestacao_argumentos: {
+        Row: ContestacaoArgumentosRow
+        Insert: ContestacaoArgumentosInsert
+        Update: ContestacaoArgumentosUpdate
+        Relationships: []
+      }
+      replicas: {
+        Row: ReplicasRow
+        Insert: ReplicasInsert
+        Update: ReplicasUpdate
+        Relationships: []
+      }
+      quesitos_documentos: {
+        Row: QuesitosDocumentosRow
+        Insert: QuesitosDocumentosInsert
+        Update: QuesitosDocumentosUpdate
+        Relationships: []
+      }
+      relatorios_tecnicos: {
+        Row: RelatoriosTecnicosRow
+        Insert: RelatoriosTecnicosInsert
+        Update: RelatoriosTecnicosUpdate
+        Relationships: []
+      }
+      estrategias_periciais: {
+        Row: EstrategiasPericiaisRow
+        Insert: EstrategiasPericiaisInsert
+        Update: EstrategiasPericiaisUpdate
+        Relationships: []
+      }
+      estrategia_eixos_tese: {
+        Row: EstrategiaEixosTeseRow
+        Insert: EstrategiaEixosTeseInsert
+        Update: EstrategiaEixosTeseUpdate
+        Relationships: []
+      }
+      estrategia_pontos_investigacao: {
+        Row: EstrategiaPontosInvestigacaoRow
+        Insert: EstrategiaPontosInvestigacaoInsert
+        Update: EstrategiaPontosInvestigacaoUpdate
+        Relationships: []
+      }
+      estrategia_fragilidades: {
+        Row: EstrategiaFragilidadesRow
+        Insert: EstrategiaFragilidadesInsert
+        Update: EstrategiaFragilidadesUpdate
+        Relationships: []
+      }
+      estrategia_teses_adversas: {
+        Row: EstrategiaTesesAdversasRow
+        Insert: EstrategiaTesesAdversasInsert
+        Update: EstrategiaTesesAdversasUpdate
+        Relationships: []
+      }
+      estrategia_documentos_provas: {
+        Row: EstrategiaDocumentosProvasRow
+        Insert: EstrategiaDocumentosProvasInsert
+        Update: EstrategiaDocumentosProvasUpdate
         Relationships: []
       }
     }
