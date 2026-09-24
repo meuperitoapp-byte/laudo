@@ -68,9 +68,9 @@ export default async function DashboardPage() {
   const pendenciasAbertas = itensPainel.length;
 
   const porSituacaoProcesso = ranquear(ativos.map((p) => p.situacao_processo));
-  const porSituacaoFinanceira = ranquear(
-    ativos.filter((p) => p.tipo_trabalho === "pericia_judicial").map((p) => p.situacao_financeira),
-  );
+  const ativosPericiaJudicial = ativos.filter((p) => p.tipo_trabalho === "pericia_judicial");
+  const porSituacaoFinanceira = ranquear(ativosPericiaJudicial.map((p) => p.situacao_financeira));
+  const porSituacaoFinanceiraTotal = ativosPericiaJudicial.length;
   // Item #10 da fila de melhorias (19-20/09/2026): ela perguntou se dava pra
   // totalizar a situação financeira da Assistência Técnica também (ex.: "AT -
   // Maria José - parcelado em 5x - cartão" / "AT - João da Silva - pago -
@@ -123,17 +123,18 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <DashboardCard titulo="Situação do processo" subtitulo={`${emAndamento} processos em andamento`}>
+        <DashboardCard titulo="Situação do processo" subtitulo={`${emAndamento} processos em andamento`} total={emAndamento}>
           <RankedBarList itens={porSituacaoProcesso} cor="var(--chart-teal)" />
         </DashboardCard>
 
-        <DashboardCard titulo="Situação financeira — Perícia Judicial">
+        <DashboardCard titulo="Situação financeira — Perícia Judicial" total={porSituacaoFinanceiraTotal}>
           <RankedBarList itens={porSituacaoFinanceira} cor="var(--chart-amber)" />
         </DashboardCard>
 
         <DashboardCard
           titulo="Situação financeira — Assistência Técnica"
           subtitulo="Pago / Não pago / Em parcelamento"
+          total={ativosAT.length}
         >
           <RankedBarList itens={porSituacaoFinanceiraAT} cor="var(--chart-teal)" />
         </DashboardCard>
@@ -141,15 +142,16 @@ export default async function DashboardPage() {
         <DashboardCard
           titulo="Forma de pagamento — Assistência Técnica"
           subtitulo="Cartão e Pix não geram cobrança; Boleto e Transferência entram na Central de Prazos"
+          total={ativosAT.length}
         >
           <RankedBarList itens={porFormaPagamentoAT} cor="var(--chart-amber)" />
         </DashboardCard>
 
-        <DashboardCard titulo="Perícia Judicial × Assistência Técnica">
+        <DashboardCard titulo="Perícia Judicial × Assistência Técnica" total={emAndamento}>
           <DonutChart itens={donutTipoTrabalho} />
         </DashboardCard>
 
-        <DashboardCard titulo="Escritórios que mais indicam" subtitulo="Top 8 — de onde vêm os casos">
+        <DashboardCard titulo="Escritórios que mais indicam" subtitulo="Top 8 — de onde vêm os casos" total={escritoriosDb?.length ?? 0}>
           {erroEscritorios ? (
             <p className="text-sm text-vinho-600 dark:text-vinho-400">Erro ao carregar: {erroEscritorios.message}</p>
           ) : (
