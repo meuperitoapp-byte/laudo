@@ -47,6 +47,13 @@ const ITENS: ItemNav[] = [
  * — some espaço fixo com nomes de e-mail longos, que agora sobra pros itens
  * de navegação. Fica atrás de um ícone de perfil, num menu que abre ao
  * clicar (mesmo lugar de onde sai o "Sair").
+ *
+ * Bug corrigido (24/09/2026, relato dela): header e sua div interna tinham
+ * `overflow-hidden` — desnecessário (a rolagem horizontal do menu já é
+ * autocontida no próprio `<nav>` via `.nav-scroll`, ver globals.css), e
+ * cortava o menu de perfil, que é `position: absolute` e estica além da
+ * altura de 56px da barra. Resultado: o menu abria mas ficava invisível/
+ * cortado, parecendo "sobreposto" e sem dar pra clicar em "Sair".
  */
 export function TopNav({ email, modulosPermitidos }: { email: string; modulosPermitidos: ModuloSistema[] | null }) {
   const pathname = usePathname();
@@ -74,8 +81,8 @@ export function TopNav({ email, modulosPermitidos }: { email: string; modulosPer
   }, [menuAberto]);
 
   return (
-    <header className="bg-petroleo-700 dark:bg-nevoa-900 border-b border-petroleo-800/60 dark:border-nevoa-800 overflow-hidden">
-      <div className="flex items-center gap-2 px-6 h-14 overflow-hidden">
+    <header className="bg-petroleo-700 dark:bg-nevoa-900 border-b border-petroleo-800/60 dark:border-nevoa-800">
+      <div className="flex items-center gap-2 px-6 h-14">
         <Link href="/dashboard" className="flex items-center gap-2.5 pr-5 mr-1 shrink-0">
           <Image src="/logo-pericons.png" alt="" width={32} height={32} className="h-8 w-8 object-contain" priority />
           <span className="font-title text-[15px] font-semibold text-white hidden sm:inline">

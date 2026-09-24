@@ -21,16 +21,21 @@ export function ranquear(valores: (string | null)[], rotuloVazio = "Não informa
  * dataviz) pra distribuições com muitas categorias (situação do processo
  * chega a 13 valores hoje): um donut de 13 fatias vira ruído ilegível bem
  * antes disso ("mais de ~7 classes → tabela/lista", não mais cor). Cor
- * única (petroleo de gráfico) porque o trabalho aqui é comparar MAGNITUDE
- * entre categorias, não distinguir identidade — não precisa de paleta
- * categórica nem do teste de daltonismo que ela exige.
+ * única DENTRO da lista (nunca uma por categoria) porque o trabalho aqui é
+ * comparar MAGNITUDE entre categorias, não distinguir identidade — não
+ * precisa de paleta categórica nem do teste de daltonismo que ela exige.
+ *
+ * `cor` alterna entre os dois cartões do dashboard (24/09/2026, feedback
+ * dela: "muito feio, tudo igual") — só entre as 2 cores de gráfico já
+ * validadas (--chart-teal/--chart-amber), nunca uma cor nova inventada por
+ * cartão.
  *
  * Cada linha já vem ordenada por quem chama (maior primeiro). A barra
  * cresce da esquerda (base, quadrada) pra direita (ponta, arredondada);
  * o valor fica fora da barra, numa coluna própria à direita, alinhado —
  * por isso `tabular-nums` aqui (é coluna, não número solto).
  */
-export function RankedBarList({ itens }: { itens: ItemBarra[] }) {
+export function RankedBarList({ itens, cor = "var(--chart-teal)" }: { itens: ItemBarra[]; cor?: string }) {
   const maior = Math.max(1, ...itens.map((i) => i.valor));
 
   if (itens.length === 0) {
@@ -53,7 +58,7 @@ export function RankedBarList({ itens }: { itens: ItemBarra[] }) {
               <div className="h-2 rounded-r-[4px] bg-nevoa-100 dark:bg-nevoa-800/60 overflow-hidden">
                 <div
                   className="h-full rounded-r-[4px]"
-                  style={{ width: `${largura}%`, backgroundColor: "var(--chart-teal)" }}
+                  style={{ width: `${largura}%`, backgroundColor: cor }}
                 />
               </div>
             </div>

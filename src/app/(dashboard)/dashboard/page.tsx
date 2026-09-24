@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { montarPainel } from "@/features/central-prazos/agregador";
 import { hojeIsoBrasil } from "@/features/central-prazos/regras";
 import { RankedBarList, ranquear } from "@/components/ui/ranked-bar-list";
+import { DonutChart } from "@/components/ui/donut-chart";
 import { StatTile } from "@/components/ui/stat-tile";
 import { DashboardCard } from "@/components/ui/dashboard-card";
 
@@ -16,8 +17,14 @@ import { DashboardCard } from "@/components/ui/dashboard-card";
  * Distribuições com muitas categorias (situação do processo chega a 13
  * valores) usam lista de barras ranqueadas, não donut — mais de ~7 fatias
  * num donut vira ilegível bem antes disso (ver skill de dataviz, "choosing
- * a form"). Cor única por lista: o trabalho aqui é comparar MAGNITUDE entre
- * categorias, não identidade — dispensa paleta categórica inteira.
+ * a form"). Cor única DENTRO de cada lista: o trabalho ali é comparar
+ * MAGNITUDE entre categorias, não identidade — dispensa paleta categórica
+ * inteira. A única exceção é "Perícia Judicial × Assistência Técnica": só 2
+ * categorias, divisão de um TODO — aí sim é donut (ver DonutChart).
+ *
+ * Cor por CARTÃO alterna entre as 2 cores de gráfico já validadas
+ * (--chart-teal/--chart-amber, ver globals.css) — feedback dela em
+ * 24/09/2026 ("muito feio, tudo igual"). Nunca uma cor nova inventada.
  */
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -76,6 +83,14 @@ export default async function DashboardPage() {
   const porTipoTrabalho = ranquear(
     ativos.map((p) => (p.tipo_trabalho === "assistencia_tecnica" ? "Assistência Técnica" : "Perícia Judicial")),
   );
+  // Única distribuição que é de fato uma divisão de um TODO em poucas partes
+  // (2 categorias) — por isso é a única que vira donut no dashboard, não
+  // lista de barras (ver comentário de RankedBarList).
+  const CORES_TIPO_TRABALHO: Record<string, string> = {
+    "Perícia Judicial": "var(--chart-teal)",
+    "Assistência Técnica": "var(--chart-amber)",
+  };
+  const donutTipoTrabalho = porTipoTrabalho.map((item) => ({ ...item, cor: CORES_TIPO_TRABALHO[item.rotulo] ?? "var(--chart-teal)" }));
   const porEscritorio = ranquear((escritoriosDb ?? []).map((p) => p.escritorio_indicacao), "Sem indicação registrada").slice(
     0,
     8,
@@ -109,36 +124,36 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DashboardCard titulo="Situação do processo" subtitulo={`${emAndamento} processos em andamento`}>
-          <RankedBarList itens={porSituacaoProcesso} />
+          <RankedBarList itens={porSituacaoProcesso} cor="var(--chart-teal)" />
         </DashboardCard>
 
         <DashboardCard titulo="Situação financeira — Perícia Judicial">
-          <RankedBarList itens={porSituacaoFinanceira} />
+          <RankedBarList itens={porSituacaoFinanceira} cor="var(--chart-amber)" />
         </DashboardCard>
 
         <DashboardCard
           titulo="Situação financeira — Assistência Técnica"
           subtitulo="Pago / Não pago / Em parcelamento"
         >
-          <RankedBarList itens={porSituacaoFinanceiraAT} />
+          <RankedBarList itens={porSituacaoFinanceiraAT} cor="var(--chart-teal)" />
         </DashboardCard>
 
         <DashboardCard
           titulo="Forma de pagamento — Assistência Técnica"
           subtitulo="Cartão e Pix não geram cobrança; Boleto e Transferência entram na Central de Prazos"
         >
-          <RankedBarList itens={porFormaPagamentoAT} />
+          <RankedBarList itens={porFormaPagamentoAT} cor="var(--chart-amber)" />
         </DashboardCard>
 
         <DashboardCard titulo="Perícia Judicial × Assistência Técnica">
-          <RankedBarList itens={porTipoTrabalho} />
+          <DonutChart itens={donutTipoTrabalho} />
         </DashboardCard>
 
         <DashboardCard titulo="Escritórios que mais indicam" subtitulo="Top 8 — de onde vêm os casos">
           {erroEscritorios ? (
             <p className="text-sm text-vinho-600 dark:text-vinho-400">Erro ao carregar: {erroEscritorios.message}</p>
           ) : (
-            <RankedBarList itens={porEscritorio} />
+            <RankedBarList itens={porEscritorio} cor="var(--chart-amber)" />
           )}
         </DashboardCard>
       </div>
