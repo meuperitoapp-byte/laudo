@@ -18,6 +18,7 @@ const PREFIXO_MODULO: [prefixo: string, modulo: ModuloSistema][] = [
   ["/biblioteca-pericial", "biblioteca_pericial"],
   ["/respostas-reutilizaveis", "respostas_reutilizaveis"],
   ["/configuracoes", "configuracoes"],
+  ["/chat", "chat"],
 ];
 
 /** A qual módulo esta rota pertence — `null` pra rota fora do grupo (dashboard) (login, callback, etc.), que nunca é bloqueada por perfil. */
@@ -39,4 +40,5 @@ export const CAMINHO_DO_MODULO: Record<ModuloSistema, string> = {
   biblioteca_pericial: "/biblioteca-pericial",
   respostas_reutilizaveis: "/respostas-reutilizaveis",
   configuracoes: "/configuracoes",
+  chat: "/chat",
 };

@@ -1747,6 +1747,16 @@ export type PerfilUsuariosRow = {
 export type PerfilUsuariosInsert = ComDefaults<PerfilUsuariosRow, 'id' | 'created_at'>
 export type PerfilUsuariosUpdate = Partial<PerfilUsuariosRow>
 
+export type ChatMensagensRow = {
+  id: string
+  autor_email: string
+  autor_nome: string
+  texto: string
+  created_at: string
+}
+export type ChatMensagensInsert = ComDefaults<ChatMensagensRow, 'id' | 'created_at'>
+export type ChatMensagensUpdate = Partial<ChatMensagensRow>
+
 // ============================================================================
 // Database — shape esperado por createClient<Database>()
 // ============================================================================
@@ -2027,6 +2037,12 @@ export interface Database {
         Row: PerfilUsuariosRow
         Insert: PerfilUsuariosInsert
         Update: PerfilUsuariosUpdate
+        Relationships: []
+      }
+      chat_mensagens: {
+        Row: ChatMensagensRow
+        Insert: ChatMensagensInsert
+        Update: ChatMensagensUpdate
         Relationships: []
       }
     }

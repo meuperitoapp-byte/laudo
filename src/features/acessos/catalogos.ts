@@ -11,6 +11,7 @@ export const MODULO_ROTULOS: Record<ModuloSistema, string> = {
   biblioteca_pericial: "Biblioteca Pericial",
   respostas_reutilizaveis: "Respostas",
   configuracoes: "Configurações",
+  chat: "Chat",
 };
 
 /** Ordem de exibição no painel — mesma ordem do menu principal. */
@@ -24,4 +25,5 @@ export const MODULOS_ORDENADOS: ModuloSistema[] = [
   "biblioteca_pericial",
   "respostas_reutilizaveis",
   "configuracoes",
+  "chat",
 ];

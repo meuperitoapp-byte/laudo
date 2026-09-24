@@ -558,3 +558,4 @@ export type ModuloSistema =
   | 'biblioteca_pericial'
   | 'respostas_reutilizaveis'
   | 'configuracoes'
+  | 'chat'

@@ -33,6 +33,7 @@ const ITENS: ItemNav[] = [
   { href: "/relacionamento", rotulo: "Relacionamento" },
   { href: "/biblioteca-pericial", rotulo: "Biblioteca Pericial" },
   { href: "/respostas-reutilizaveis", rotulo: "Respostas" },
+  { href: "/chat", rotulo: "Chat" },
   { href: "/configuracoes", rotulo: "Configurações" },
 ];
 
