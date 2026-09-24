@@ -899,6 +899,18 @@ export type EstrategiaDocumentosProvasInsert = ComDefaults<
 export type EstrategiaDocumentosProvasUpdate = Partial<EstrategiaDocumentosProvasRow>
 
 // ============================================================================
+// atualizacoes_sistema (sino de notificações, 24/09/2026)
+// ============================================================================
+export type AtualizacoesSistemaRow = {
+  id: string
+  titulo: string
+  descricao: string | null
+  created_at: string
+}
+export type AtualizacoesSistemaInsert = ComDefaults<AtualizacoesSistemaRow, 'id' | 'descricao' | 'created_at'>
+export type AtualizacoesSistemaUpdate = Partial<AtualizacoesSistemaRow>
+
+// ============================================================================
 // laudos_gerados  (estendida em 20260905120000_pos_laudo_schema.sql)
 // ============================================================================
 export type LaudosGeradosRow = {
@@ -2521,6 +2533,12 @@ export interface Database {
         Row: EstrategiaDocumentosProvasRow
         Insert: EstrategiaDocumentosProvasInsert
         Update: EstrategiaDocumentosProvasUpdate
+        Relationships: []
+      }
+      atualizacoes_sistema: {
+        Row: AtualizacoesSistemaRow
+        Insert: AtualizacoesSistemaInsert
+        Update: AtualizacoesSistemaUpdate
         Relationships: []
       }
     }

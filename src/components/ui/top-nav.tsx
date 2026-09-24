@@ -7,7 +7,9 @@ import { usePathname } from "next/navigation";
 import { User } from "lucide-react";
 import { signOut } from "@/features/auth/actions";
 import { moduloDaRota } from "@/features/acessos/mapa-modulos";
+import { NotificacoesSino } from "@/components/ui/notificacoes-sino";
 import type { ModuloSistema } from "@/types/enums";
+import type { AtualizacoesSistemaRow } from "@/types/database";
 
 interface ItemNav {
   href: string;
@@ -56,7 +58,15 @@ const ITENS: ItemNav[] = [
  * altura de 56px da barra. Resultado: o menu abria mas ficava invisível/
  * cortado, parecendo "sobreposto" e sem dar pra clicar em "Sair".
  */
-export function TopNav({ email, modulosPermitidos }: { email: string; modulosPermitidos: ModuloSistema[] | null }) {
+export function TopNav({
+  email,
+  modulosPermitidos,
+  atualizacoes,
+}: {
+  email: string;
+  modulosPermitidos: ModuloSistema[] | null;
+  atualizacoes: AtualizacoesSistemaRow[];
+}) {
   const pathname = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -110,6 +120,8 @@ export function TopNav({ email, modulosPermitidos }: { email: string; modulosPer
             );
           })}
         </nav>
+
+        <NotificacoesSino atualizacoes={atualizacoes} />
 
         <div ref={menuRef} className="relative shrink-0 pl-2">
           <button

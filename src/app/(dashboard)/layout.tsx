@@ -34,9 +34,20 @@ export default async function DashboardLayout({
   const contexto = user.email ? await obterContextoAcesso(supabase, user.email) : { tipo: "admin" as const };
   const modulosPermitidos = contexto.tipo === "admin" ? null : contexto.modulosPermitidos;
 
+  // Sino de notificações (24/09/2026) — as 30 mais recentes bastam; é um
+  // changelog curto, não um feed sem fim.
+  const { data: atualizacoesDb, error: erroAtualizacoes } = await supabase
+    .from("atualizacoes_sistema")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(30);
+  if (erroAtualizacoes) {
+    console.error("Layout: falha ao buscar atualizações do sistema:", erroAtualizacoes.message);
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
-      <TopNav email={user.email ?? ""} modulosPermitidos={modulosPermitidos} />
+      <TopNav email={user.email ?? ""} modulosPermitidos={modulosPermitidos} atualizacoes={atualizacoesDb ?? []} />
       <div className="flex-1 bg-nevoa-25 dark:bg-nevoa-950">{children}</div>
     </div>
   );
