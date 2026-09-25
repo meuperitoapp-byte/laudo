@@ -87,6 +87,15 @@
    */
   --chart-teal: #0e9c95;
   --chart-amber: #c17d1f;
+  /* Par divergente do Gráfico de Faturamento (Financeiro, 25/09/2026) — teal
+     (entrada) já validado acima; vinho aqui é uma tonalidade PRÓPRIA pra
+     dado (não a mesma de --color-vinho-*, que é a cor de status "erro" —
+     reaproveitar o token de status pra série de gráfico falha o piso de
+     croma no modo escuro). Validado junto com --chart-teal: ΔE normal 27.3
+     (claro) / 23.3 (escuro), ΔE daltonismo 17.1 (claro) / 7.9 (escuro — faixa
+     de alerta, por isso o gráfico sempre rotula "Faturamento"/"Saídas" por
+     extenso, nunca só a cor). */
+  --chart-vinho: #8c3a3a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -95,6 +104,7 @@
     --foreground: var(--color-nevoa-100);
     --chart-teal: #2ba89f;
     --chart-amber: #bd8630;
+    --chart-vinho: #cf6a6a;
   }
 }
 

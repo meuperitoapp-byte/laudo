@@ -10,6 +10,8 @@ import { SITUACAO_PROCESSO_PROPOSTA_HONORARIOS, mesclarSugestoes } from "@/featu
 import { MovimentacoesPanel, type ProcessoOpcao } from "@/features/financeiro/movimentacoes-panel";
 import { MovimentacoesFiltros } from "@/features/financeiro/movimentacoes-filtros";
 import { MOVIMENTACAO_CATEGORIA_SEED, MOVIMENTACAO_CONTA_SEED } from "@/features/financeiro/catalogos";
+import { agregarPorMes, anosComMovimentacao, type MesFaturamento } from "@/features/financeiro/faturamento-mensal";
+import { FaturamentoMensalChart } from "@/components/ui/faturamento-mensal-chart";
 
 type ProcessoFinanceiro = {
   id: string;
@@ -179,6 +181,19 @@ export default async function FinanceiroPage({
   // conforme ela mexe no filtro da lista abaixo.
   const totalSaidas = movimentacoes.filter((m) => m.tipo === "saida").reduce((soma, m) => soma + m.valor, 0);
 
+  // Gráfico de Faturamento mensal (25/09/2026, pedido dela: "avaliar por mês
+  // ... atuar para o crescimento da empresa"). Um ano por vez, com seletor —
+  // pré-computa TODOS os anos com lançamento pra trocar sem recarregar a
+  // página. Ano inicial = o mais recente com movimentação (nunca o ano
+  // corrente se ela ainda não lançou nada nele).
+  const anosDisponiveis = anosComMovimentacao(movimentacoes);
+  const anoAtual = new Date().getFullYear();
+  const anosParaMostrar = anosDisponiveis.includes(anoAtual) ? anosDisponiveis : [anoAtual, ...anosDisponiveis];
+  const anoInicialGrafico = anosDisponiveis[0] ?? anoAtual;
+  const faturamentoPorAno: Record<number, MesFaturamento[]> = Object.fromEntries(
+    anosParaMostrar.map((a) => [a, agregarPorMes(movimentacoes, a)]),
+  );
+
   const categoriasSugestoes = mesclarSugestoes(
     MOVIMENTACAO_CATEGORIA_SEED,
     movimentacoes.map((m) => m.categoria),
@@ -240,6 +255,8 @@ export default async function FinanceiroPage({
         />
         <StatTile rotulo="Propostas em aberto" valor={propostas.length} icone={<FileText className="h-5 w-5" />} />
       </div>
+
+      <FaturamentoMensalChart dadosPorAno={faturamentoPorAno} anos={anosParaMostrar} anoInicial={anoInicialGrafico} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DashboardCard titulo="A Receber" subtitulo="Judicial — honorário arbitrado (ou apresentado) ainda não recebido">
