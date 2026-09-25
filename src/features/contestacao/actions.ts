@@ -74,6 +74,8 @@ export async function salvarArgumentoContestacao(formData: FormData): Promise<Ac
   if (!argumento) return { error: "O que a defesa sustenta não pode ficar vazio." };
 
   const supabase = await createClient();
+  const resolvidoAtual = textoOuNull(formData.get("resolvido_em_atual"));
+  const marcarResolvido = formData.get("resolvido") === "on";
   const update: ContestacaoArgumentosUpdate = {
     argumento,
     analise_tecnica: textoOuNull(formData.get("analise_tecnica")),
@@ -83,6 +85,9 @@ export async function salvarArgumentoContestacao(formData: FormData): Promise<Ac
     decisoes: formData.getAll("decisoes") as ContestacaoDecisao[],
     decisao_outra: textoOuNull(formData.get("decisao_outra")),
     incluir_na_replica: formData.get("incluir_na_replica") === "on",
+    // Mantém o timestamp original se já estava marcado (não reinicia a cada
+    // "Salvar"); só grava now() na transição de desmarcado -> marcado.
+    resolvido_em: marcarResolvido ? (resolvidoAtual ?? new Date().toISOString()) : null,
   };
 
   const { error } = await supabase.from("contestacao_argumentos").update(update).eq("id", id);
@@ -120,5 +125,43 @@ export async function salvarProximaAcaoContestacao(formData: FormData): Promise<
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/analise-contestacao`);
+  return { success: true };
+}
+
+/**
+ * §2 do modelo — "Transformar em quesito" alimenta o módulo de Quesitos,
+ * sem redigitação. Cria o quesito no fim da lista (mesmo cálculo de ordem de
+ * criarQuesito, quesitos/actions.ts) com o texto do argumento como pergunta
+ * de partida — a perita revisa/ajusta na tela de Quesitos antes de gerar o
+ * documento (sistema não decide, só evita redigitar).
+ */
+export async function enviarArgumentoParaQuesitos(argumentoId: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const { data: argumento, error: erroArgumento } = await supabase
+    .from("contestacao_argumentos")
+    .select("argumento")
+    .eq("id", argumentoId)
+    .single();
+  if (erroArgumento) return { error: erroArgumento.message };
+
+  const { data: ultimo, error: erroUltimo } = await supabase
+    .from("quesitos")
+    .select("ordem")
+    .eq("processo_id", processoId)
+    .order("ordem", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroUltimo) return { error: erroUltimo.message };
+
+  const { error } = await supabase.from("quesitos").insert({
+    processo_id: processoId,
+    origem: "Análise da Contestação",
+    pergunta: argumento.argumento,
+    ordem: (ultimo?.ordem ?? 0) + 1,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}/quesitos`);
   return { success: true };
 }

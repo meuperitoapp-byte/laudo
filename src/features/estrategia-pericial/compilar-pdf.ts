@@ -21,6 +21,7 @@ import {
   PRIORIDADE_DOCUMENTO_ROTULOS,
   ACAO_DOCUMENTO_ROTULOS,
 } from "./catalogos";
+import { CATEGORIA_LINHA_TEMPO_ROTULOS } from "@/features/viabilidade/catalogos";
 import type {
   EstrategiasPericiaisRow,
   EstrategiaEixosTeseRow,
@@ -28,6 +29,9 @@ import type {
   EstrategiaFragilidadesRow,
   EstrategiaTesesAdversasRow,
   EstrategiaDocumentosProvasRow,
+  EstrategiaPlanoAcaoRow,
+  EstrategiaResponsabilidadesRow,
+  CasoLinhaTempoMedicaRow,
 } from "@/types/database";
 
 export type ResultadoEstrategiaPericial =
@@ -55,6 +59,14 @@ function formatarDataExtenso(dataIso: string): string {
   const [, ano, mes, dia] = m;
   return `${parseInt(dia, 10)} de ${MESES_EXTENSO[parseInt(mes, 10) - 1]} de ${ano}`;
 }
+function dataCurta(iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+
+function tabela(colunas: string[], linhas: string[][]): BlocoConteudo {
+  return { tipo: "tabela", colunas, linhas };
+}
 
 export async function compilarEstrategiaPericial(processoId: string, estrategiaId: string): Promise<ResultadoEstrategiaPericial> {
   const supabase = await createClient();
@@ -68,6 +80,9 @@ export async function compilarEstrategiaPericial(processoId: string, estrategiaI
     { data: fragilidadesDb, error: erroFragilidades },
     { data: tesesDb, error: erroTeses },
     { data: documentosDb, error: erroDocumentos },
+    { data: planoAcaoDb, error: erroPlanoAcao },
+    { data: responsabilidadesDb, error: erroResponsabilidades },
+    { data: linhaTempoDb, error: erroLinhaTempo },
   ] = await Promise.all([
     supabase.from("processos").select("*").eq("id", processoId).single(),
     supabase.from("estrategias_periciais").select("*").eq("id", estrategiaId).single(),
@@ -77,6 +92,9 @@ export async function compilarEstrategiaPericial(processoId: string, estrategiaI
     supabase.from("estrategia_fragilidades").select("*").eq("estrategia_id", estrategiaId).order("ordem", { ascending: true }),
     supabase.from("estrategia_teses_adversas").select("*").eq("estrategia_id", estrategiaId).order("ordem", { ascending: true }),
     supabase.from("estrategia_documentos_provas").select("*").eq("estrategia_id", estrategiaId).order("ordem", { ascending: true }),
+    supabase.from("estrategia_plano_acao").select("*").eq("estrategia_id", estrategiaId).order("ordem", { ascending: true }),
+    supabase.from("estrategia_responsabilidades").select("*").eq("estrategia_id", estrategiaId).order("ordem", { ascending: true }),
+    supabase.from("caso_linha_tempo_medica").select("*").eq("processo_id", processoId).order("data", { ascending: true }),
   ]);
   if (erroProcesso) return { status: "erro", mensagem: erroProcesso.message };
   if (erroEstrategia) return { status: "erro", mensagem: erroEstrategia.message };
@@ -86,12 +104,18 @@ export async function compilarEstrategiaPericial(processoId: string, estrategiaI
   if (erroFragilidades) return { status: "erro", mensagem: erroFragilidades.message };
   if (erroTeses) return { status: "erro", mensagem: erroTeses.message };
   if (erroDocumentos) return { status: "erro", mensagem: erroDocumentos.message };
+  if (erroPlanoAcao) return { status: "erro", mensagem: erroPlanoAcao.message };
+  if (erroResponsabilidades) return { status: "erro", mensagem: erroResponsabilidades.message };
+  if (erroLinhaTempo) return { status: "erro", mensagem: erroLinhaTempo.message };
 
   const eixos: EstrategiaEixosTeseRow[] = eixosDb ?? [];
   const pontos: EstrategiaPontosInvestigacaoRow[] = pontosDb ?? [];
   const fragilidades: EstrategiaFragilidadesRow[] = fragilidadesDb ?? [];
   const teses: EstrategiaTesesAdversasRow[] = tesesDb ?? [];
   const documentos: EstrategiaDocumentosProvasRow[] = documentosDb ?? [];
+  const planoAcao: EstrategiaPlanoAcaoRow[] = planoAcaoDb ?? [];
+  const responsabilidades: EstrategiaResponsabilidadesRow[] = responsabilidadesDb ?? [];
+  const linhaTempo: CasoLinhaTempoMedicaRow[] = linhaTempoDb ?? [];
 
   const cabecalhoBase = montarCabecalhoAssistenciaTecnica(processo);
   const cabecalho = { ...cabecalhoBase, tituloDocumento: TITULO_ESTRATEGIA_PERICIAL };
@@ -125,6 +149,26 @@ export async function compilarEstrategiaPericial(processoId: string, estrategiaI
     secoes.push({ secaoId: "ep-4", codigo: "tese_pericial", titulo: "4 — TESE PERICIAL E EIXOS", ordem: 4, blocos: blocosTese });
   }
 
+  if (linhaTempo.length > 0) {
+    secoes.push({
+      secaoId: "ep-5",
+      codigo: "linha_tempo",
+      titulo: "5 — LINHA DO TEMPO E MARCOS PROBATÓRIOS",
+      ordem: 5,
+      blocos: [
+        tabela(
+          ["Data", "Categoria", "Evento", "Marco crítico"],
+          linhaTempo.map((e) => [
+            dataCurta(e.data),
+            e.categoria ? CATEGORIA_LINHA_TEMPO_ROTULOS[e.categoria] : "—",
+            e.evento,
+            e.marco_critico ? "Sim" : "Não",
+          ]),
+        ),
+      ],
+    });
+  }
+
   const cadeia = [
     estrategia.cadeia_estado_anterior,
     estrategia.cadeia_evento,
@@ -146,6 +190,17 @@ export async function compilarEstrategiaPericial(processoId: string, estrategiaI
       if (p.como_provar) blocos.push(paragrafo(`Como provar: ${p.como_provar}`));
     });
     secoes.push({ secaoId: "ep-7", codigo: "pontos_investigacao", titulo: "7 — PONTOS TÉCNICOS DE INVESTIGAÇÃO", ordem: 7, blocos });
+  }
+
+  if (responsabilidades.length > 0) {
+    const blocos: BlocoConteudo[] = [];
+    responsabilidades.forEach((r, i) => {
+      blocos.push(paragrafo(`${i + 1}. ${r.agente}`));
+      if (r.objeto_investigacao) blocos.push(paragrafo(`Objeto de investigação: ${r.objeto_investigacao}`));
+      if (r.conduta_documentada) blocos.push(paragrafo(`Conduta documentada: ${r.conduta_documentada}`));
+      if (r.ponto_controvertido) blocos.push(paragrafo(`Ponto controvertido: ${r.ponto_controvertido}`));
+    });
+    secoes.push({ secaoId: "ep-8", codigo: "responsabilidades", titulo: "8 — RESPONSABILIDADES / CONDUTAS DIFERENCIADAS", ordem: 8, blocos });
   }
 
   if (fragilidades.length > 0) {
@@ -182,12 +237,27 @@ export async function compilarEstrategiaPericial(processoId: string, estrategiaI
     secoes.push({ secaoId: "ep-12", codigo: "pontos_pericia", titulo: "12 — PONTOS ESSENCIAIS A SEREM LEVADOS À PERÍCIA", ordem: 12, blocos });
   }
 
+  if (planoAcao.length > 0) {
+    secoes.push({
+      secaoId: "ep-13",
+      codigo: "plano_acao",
+      titulo: "13 — PLANO DE AÇÃO PERICIAL",
+      ordem: 13,
+      blocos: [
+        tabela(
+          ["Ação", "Objetivo", "Responsável", "Prazo", "Status"],
+          planoAcao.map((a) => [a.acao, a.objetivo ?? "—", a.responsavel ?? "—", a.prazo ? dataCurta(a.prazo) : "—", a.status ?? "—"]),
+        ),
+      ],
+    });
+  }
+
   if (estrategia.conclusao_direcao_estrategica) {
     secoes.push({
       secaoId: "ep-14",
       codigo: "conclusao_direcao",
-      titulo: "13 — CONCLUSÃO E DIREÇÃO ESTRATÉGICA",
-      ordem: 13,
+      titulo: "14 — CONCLUSÃO E DIREÇÃO ESTRATÉGICA",
+      ordem: 14,
       blocos: [paragrafo(estrategia.conclusao_direcao_estrategica)],
     });
   }
@@ -197,7 +267,7 @@ export async function compilarEstrategiaPericial(processoId: string, estrategiaI
     secaoId: "ep-encerramento",
     codigo: "encerramento",
     titulo: "ENCERRAMENTO",
-    ordem: 14,
+    ordem: 15,
     blocos: [
       paragrafo(RODAPE_ESTRATEGIA_PERICIAL),
       {
@@ -225,7 +295,7 @@ export async function compilarEstrategiaPericial(processoId: string, estrategiaI
   const snapshot: SnapshotEstrategiaPericial = {
     tipo: "estrategia_pericial",
     gerado_em: modelo.geradoEm,
-    dados: { estrategia, eixos, pontos, fragilidades, teses, documentos },
+    dados: { estrategia, eixos, pontos, fragilidades, teses, documentos, planoAcao, responsabilidades, linhaTempo },
   };
 
   return { status: "ok", modelo, snapshot };

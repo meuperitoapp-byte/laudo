@@ -63,6 +63,10 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   viabilidade_proxima_acao: "Executar a próxima ação registrada na análise.",
   viabilidade_pos_entrega_reuniao: "Agendar a reunião de apresentação do resultado.",
   viabilidade_orcamento_sem_retorno: "Contatar o cliente pra saber o motivo e manter a comunicação.",
+  contestacao_solicitar_documento: "Solicitar o documento complementar identificado na Análise da Contestação.",
+  contestacao_proxima_acao: "Executar a próxima ação registrada na Análise da Contestação.",
+  estrategia_documento_prova: "Solicitar/obter o documento ou prova identificado na Estratégia Pericial.",
+  estrategia_proxima_acao: "Executar a próxima ação registrada na Estratégia Pericial.",
 };
 
 /**
@@ -101,4 +105,8 @@ export const GRUPO_AGENDA_POR_CATEGORIA: Record<ItemPainel["categoria"], GrupoAg
   viabilidade_proxima_acao: "prazos",
   viabilidade_pos_entrega_reuniao: "prazos",
   viabilidade_orcamento_sem_retorno: "prazos",
+  contestacao_solicitar_documento: "prazos",
+  contestacao_proxima_acao: "prazos",
+  estrategia_documento_prova: "prazos",
+  estrategia_proxima_acao: "prazos",
 };

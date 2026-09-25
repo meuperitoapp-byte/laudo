@@ -62,7 +62,7 @@ function DocumentoProvaItem({ item, numero, processoId }: { item: EstrategiaDocu
     return (
       <li className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-nevoa-25 dark:bg-nevoa-950/40 px-4 py-3 space-y-1.5">
         <div className="flex items-start justify-between gap-3">
-          <p className="text-sm font-medium text-nevoa-800 dark:text-nevoa-200">{numero}. {item.documento}</p>
+          <p className={`text-sm font-medium ${item.resolvido_em ? "text-nevoa-400 dark:text-nevoa-600 line-through" : "text-nevoa-800 dark:text-nevoa-200"}`}>{numero}. {item.documento}</p>
           <div className="flex items-center gap-1.5 shrink-0">
             <button type="button" onClick={() => setEditando(true)} className="rounded-md border border-nevoa-300 dark:border-nevoa-700 text-nevoa-600 dark:text-nevoa-400 hover:bg-nevoa-100 dark:hover:bg-nevoa-800 px-2 py-1 text-xs">Editar</button>
             <button type="button" onClick={excluir} disabled={isPending} className="rounded-md border border-nevoa-300 dark:border-nevoa-700 px-2 py-1 text-xs text-vinho-600 dark:text-vinho-400 hover:bg-vinho-100 dark:hover:bg-vinho-950 disabled:opacity-30">Excluir</button>
@@ -72,6 +72,7 @@ function DocumentoProvaItem({ item, numero, processoId }: { item: EstrategiaDocu
         <div className="flex flex-wrap gap-1.5">
           {item.prioridade && <Selo variante="atencao">{PRIORIDADE_DOCUMENTO_ROTULOS[item.prioridade]}</Selo>}
           {item.acao && <Selo variante="neutro">{ACAO_DOCUMENTO_ROTULOS[item.acao]}</Selo>}
+          {item.resolvido_em && <Selo variante="sucesso">Obtido</Selo>}
         </div>
         {erro && <p className="text-xs text-vinho-600 dark:text-vinho-400">{erro}</p>}
       </li>
@@ -83,6 +84,7 @@ function DocumentoProvaItem({ item, numero, processoId }: { item: EstrategiaDocu
       <form action={salvar} className="space-y-3">
         <input type="hidden" name="id" value={item.id} />
         <input type="hidden" name="processo_id" value={processoId} />
+        <input type="hidden" name="resolvido_em_atual" value={item.resolvido_em ?? ""} />
         <div>
           <label className={labelClass}>Documento/prova</label>
           <input name="documento" defaultValue={item.documento} className={inputClass} required />
@@ -111,6 +113,10 @@ function DocumentoProvaItem({ item, numero, processoId }: { item: EstrategiaDocu
             </select>
           </div>
         </div>
+        <label className="flex items-center gap-2 text-sm text-nevoa-700 dark:text-nevoa-300">
+          <input type="checkbox" name="resolvido" defaultChecked={Boolean(item.resolvido_em)} />
+          Obtido (some da Central de Prazos)
+        </label>
         <div className="flex items-center gap-3">
           <Botao type="submit" carregando={isPending} textoCarregando="Salvando…">Salvar</Botao>
           <button type="button" onClick={() => setEditando(false)} className="text-sm text-nevoa-500 hover:text-nevoa-800 dark:text-nevoa-400 dark:hover:text-nevoa-100">Cancelar</button>

@@ -889,14 +889,50 @@ export type EstrategiaDocumentosProvasRow = {
   motivo: string | null
   prioridade: EstrategiaDocumentoPrioridade | null
   acao: EstrategiaDocumentoAcao | null
+  resolvido_em: string | null
   created_at: string
   updated_at: string
 }
 export type EstrategiaDocumentosProvasInsert = ComDefaults<
   EstrategiaDocumentosProvasRow,
-  'id' | 'ordem' | 'motivo' | 'prioridade' | 'acao' | 'created_at' | 'updated_at'
+  'id' | 'ordem' | 'motivo' | 'prioridade' | 'acao' | 'resolvido_em' | 'created_at' | 'updated_at'
 >
 export type EstrategiaDocumentosProvasUpdate = Partial<EstrategiaDocumentosProvasRow>
+
+export type EstrategiaPlanoAcaoRow = {
+  id: string
+  estrategia_id: string
+  ordem: number
+  acao: string
+  objetivo: string | null
+  responsavel: string | null
+  prazo: string | null
+  status: string | null
+  created_at: string
+  updated_at: string
+}
+export type EstrategiaPlanoAcaoInsert = ComDefaults<
+  EstrategiaPlanoAcaoRow,
+  'id' | 'ordem' | 'objetivo' | 'responsavel' | 'prazo' | 'status' | 'created_at' | 'updated_at'
+>
+export type EstrategiaPlanoAcaoUpdate = Partial<EstrategiaPlanoAcaoRow>
+
+export type EstrategiaResponsabilidadesRow = {
+  id: string
+  estrategia_id: string
+  ordem: number
+  agente: string
+  objeto_investigacao: string | null
+  conduta_documentada: string | null
+  ponto_controvertido: string | null
+  created_at: string
+  updated_at: string
+}
+export type EstrategiaResponsabilidadesInsert = ComDefaults<
+  EstrategiaResponsabilidadesRow,
+  'id' | 'ordem' | 'objeto_investigacao' | 'conduta_documentada' | 'ponto_controvertido' | 'created_at' | 'updated_at'
+>
+export type EstrategiaResponsabilidadesUpdate = Partial<EstrategiaResponsabilidadesRow>
 
 // ============================================================================
 // atualizacoes_sistema (sino de notificações, 24/09/2026)
@@ -2129,6 +2165,7 @@ export type ContestacaoArgumentosRow = {
   decisoes: ContestacaoDecisao[]
   decisao_outra: string | null
   incluir_na_replica: boolean
+  resolvido_em: string | null
   created_at: string
   updated_at: string
 }
@@ -2143,6 +2180,7 @@ export type ContestacaoArgumentosInsert = ComDefaults<
   | 'decisoes'
   | 'decisao_outra'
   | 'incluir_na_replica'
+  | 'resolvido_em'
   | 'created_at'
   | 'updated_at'
 >
@@ -2539,6 +2577,18 @@ export interface Database {
         Row: AtualizacoesSistemaRow
         Insert: AtualizacoesSistemaInsert
         Update: AtualizacoesSistemaUpdate
+        Relationships: []
+      }
+      estrategia_plano_acao: {
+        Row: EstrategiaPlanoAcaoRow
+        Insert: EstrategiaPlanoAcaoInsert
+        Update: EstrategiaPlanoAcaoUpdate
+        Relationships: []
+      }
+      estrategia_responsabilidades: {
+        Row: EstrategiaResponsabilidadesRow
+        Insert: EstrategiaResponsabilidadesInsert
+        Update: EstrategiaResponsabilidadesUpdate
         Relationships: []
       }
     }

@@ -2,7 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { criarArgumentoContestacao, salvarArgumentoContestacao, excluirArgumentoContestacao } from "./actions";
+import {
+  criarArgumentoContestacao,
+  salvarArgumentoContestacao,
+  excluirArgumentoContestacao,
+  enviarArgumentoParaQuesitos,
+} from "./actions";
 import { REPERCUSSAO_ROTULOS, REPERCUSSAO_ORDENADAS, DECISAO_ROTULOS, DECISOES_ORDENADAS } from "./catalogos";
 import { Botao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
@@ -94,11 +99,23 @@ function ArgumentoItem({
     });
   }
 
+  function enviarParaQuesitos() {
+    setErro(null);
+    startTransition(async () => {
+      const resultado = await enviarArgumentoParaQuesitos(item.id, processoId);
+      if ("error" in resultado) {
+        setErro(resultado.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   if (!editando) {
     return (
       <li className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-nevoa-25 dark:bg-nevoa-950/40 px-4 py-3 space-y-2">
         <div className="flex items-start justify-between gap-3">
-          <p className="text-sm text-nevoa-800 dark:text-nevoa-200 font-medium">
+          <p className={`text-sm font-medium ${item.resolvido_em ? "text-nevoa-400 dark:text-nevoa-600 line-through" : "text-nevoa-800 dark:text-nevoa-200"}`}>
             {numero}. {item.argumento}
           </p>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -130,7 +147,18 @@ function ArgumentoItem({
             </Selo>
           ))}
           {item.incluir_na_replica && <Selo variante="sucesso">Incluir na réplica</Selo>}
+          {item.resolvido_em && <Selo variante="sucesso">Resolvido</Selo>}
         </div>
+        {item.decisoes.includes("transformar_quesito") && (
+          <button
+            type="button"
+            onClick={enviarParaQuesitos}
+            disabled={isPending}
+            className="text-xs text-petroleo-600 hover:underline dark:text-petroleo-400 disabled:opacity-30"
+          >
+            + Enviar para Quesitos
+          </button>
+        )}
         {erro && <p className="text-xs text-vinho-600 dark:text-vinho-400">{erro}</p>}
       </li>
     );
@@ -141,6 +169,7 @@ function ArgumentoItem({
       <form action={salvar} className="space-y-3">
         <input type="hidden" name="id" value={item.id} />
         <input type="hidden" name="processo_id" value={processoId} />
+        <input type="hidden" name="resolvido_em_atual" value={item.resolvido_em ?? ""} />
         <div>
           <label className={labelClass}>O que a defesa sustenta</label>
           <textarea name="argumento" rows={2} defaultValue={item.argumento} className={inputClass} required />
@@ -191,6 +220,10 @@ function ArgumentoItem({
         <label className="flex items-center gap-2 text-sm text-nevoa-700 dark:text-nevoa-300">
           <input type="checkbox" name="incluir_na_replica" defaultChecked={item.incluir_na_replica} />
           Incluir na Orientação para Réplica
+        </label>
+        <label className="flex items-center gap-2 text-sm text-nevoa-700 dark:text-nevoa-300">
+          <input type="checkbox" name="resolvido" defaultChecked={Boolean(item.resolvido_em)} />
+          Resolvido (some da Central de Prazos)
         </label>
         <div className="flex items-center gap-3">
           <Botao type="submit" carregando={isPending} textoCarregando="Salvando…">

@@ -15,6 +15,10 @@ import type {
   EstrategiaTesesAdversasUpdate,
   EstrategiaDocumentosProvasInsert,
   EstrategiaDocumentosProvasUpdate,
+  EstrategiaPlanoAcaoInsert,
+  EstrategiaPlanoAcaoUpdate,
+  EstrategiaResponsabilidadesInsert,
+  EstrategiaResponsabilidadesUpdate,
 } from "@/types/database";
 import type {
   EstrategiaProximaAcao,
@@ -290,11 +294,14 @@ export async function salvarDocumentoProva(formData: FormData): Promise<ActionRe
   if (!id || !processoId) return { error: "Registro inválido." };
   if (!documento) return { error: "O documento não pode ficar vazio." };
   const supabase = await createClient();
+  const resolvidoAtual = textoOuNull(formData.get("resolvido_em_atual"));
+  const marcarResolvido = formData.get("resolvido") === "on";
   const update: EstrategiaDocumentosProvasUpdate = {
     documento,
     motivo: textoOuNull(formData.get("motivo")),
     prioridade: (formData.get("prioridade") as EstrategiaDocumentoPrioridade | "") || null,
     acao: (formData.get("acao") as EstrategiaDocumentoAcao | "") || null,
+    resolvido_em: marcarResolvido ? (resolvidoAtual ?? new Date().toISOString()) : null,
   };
   const { error } = await supabase.from("estrategia_documentos_provas").update(update).eq("id", id);
   if (error) return { error: error.message };
@@ -304,6 +311,93 @@ export async function salvarDocumentoProva(formData: FormData): Promise<ActionRe
 export async function excluirDocumentoProva(id: string, processoId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.from("estrategia_documentos_provas").delete().eq("id", id);
+  if (error) return { error: error.message };
+  REVALIDAR(processoId);
+  return { success: true };
+}
+
+// ---- Plano de ação pericial (§13) ------------------------------------------
+export async function criarAcaoPlano(estrategiaId: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: ultimo, error: erroUltimo } = await supabase
+    .from("estrategia_plano_acao")
+    .select("ordem")
+    .eq("estrategia_id", estrategiaId)
+    .order("ordem", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroUltimo) return { error: erroUltimo.message };
+  const insert: EstrategiaPlanoAcaoInsert = { estrategia_id: estrategiaId, ordem: (ultimo?.ordem ?? 0) + 1, acao: "Nova ação — edite abaixo" };
+  const { error } = await supabase.from("estrategia_plano_acao").insert(insert);
+  if (error) return { error: error.message };
+  REVALIDAR(processoId);
+  return { success: true };
+}
+export async function salvarAcaoPlano(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const acao = textoOuNull(formData.get("acao"));
+  if (!id || !processoId) return { error: "Registro inválido." };
+  if (!acao) return { error: "A ação não pode ficar vazia." };
+  const supabase = await createClient();
+  const update: EstrategiaPlanoAcaoUpdate = {
+    acao,
+    objetivo: textoOuNull(formData.get("objetivo")),
+    responsavel: textoOuNull(formData.get("responsavel")),
+    prazo: textoOuNull(formData.get("prazo")),
+    status: textoOuNull(formData.get("status")),
+  };
+  const { error } = await supabase.from("estrategia_plano_acao").update(update).eq("id", id);
+  if (error) return { error: error.message };
+  REVALIDAR(processoId);
+  return { success: true };
+}
+export async function excluirAcaoPlano(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("estrategia_plano_acao").delete().eq("id", id);
+  if (error) return { error: error.message };
+  REVALIDAR(processoId);
+  return { success: true };
+}
+
+// ---- Responsabilidades diferenciadas por agente (§8) ------------------------
+export async function criarResponsabilidade(estrategiaId: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: ultimo, error: erroUltimo } = await supabase
+    .from("estrategia_responsabilidades")
+    .select("ordem")
+    .eq("estrategia_id", estrategiaId)
+    .order("ordem", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroUltimo) return { error: erroUltimo.message };
+  const insert: EstrategiaResponsabilidadesInsert = { estrategia_id: estrategiaId, ordem: (ultimo?.ordem ?? 0) + 1, agente: "Novo agente — edite abaixo" };
+  const { error } = await supabase.from("estrategia_responsabilidades").insert(insert);
+  if (error) return { error: error.message };
+  REVALIDAR(processoId);
+  return { success: true };
+}
+export async function salvarResponsabilidade(formData: FormData): Promise<ActionResult> {
+  const id = textoOuNull(formData.get("id"));
+  const processoId = textoOuNull(formData.get("processo_id"));
+  const agente = textoOuNull(formData.get("agente"));
+  if (!id || !processoId) return { error: "Registro inválido." };
+  if (!agente) return { error: "O agente não pode ficar vazio." };
+  const supabase = await createClient();
+  const update: EstrategiaResponsabilidadesUpdate = {
+    agente,
+    objeto_investigacao: textoOuNull(formData.get("objeto_investigacao")),
+    conduta_documentada: textoOuNull(formData.get("conduta_documentada")),
+    ponto_controvertido: textoOuNull(formData.get("ponto_controvertido")),
+  };
+  const { error } = await supabase.from("estrategia_responsabilidades").update(update).eq("id", id);
+  if (error) return { error: error.message };
+  REVALIDAR(processoId);
+  return { success: true };
+}
+export async function excluirResponsabilidade(id: string, processoId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("estrategia_responsabilidades").delete().eq("id", id);
   if (error) return { error: error.message };
   REVALIDAR(processoId);
   return { success: true };

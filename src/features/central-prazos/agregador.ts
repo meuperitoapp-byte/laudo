@@ -43,11 +43,23 @@
  * campo `responsavel` em `ItemPainel` (texto livre, só nas fontes que têm
  * esse dado - nunca inventado) pra separar a Agenda visualmente por quem
  * deve executar.
+ *
+ * 2ª rodada do lote PERICONS (25/09/2026) plugou mais 4 fontes, mesmo
+ * princípio das 12-17 (leem a tabela direto, nunca gravam em
+ * central_tarefas): 18ª (`contestacao_argumentos` com decisão "solicitar
+ * documento complementar", ainda não resolvida — sem prazo real, como
+ * documento_ilegivel), 19ª (`analises_contestacao.prazo`, campo único do
+ * hub — mesmo padrão de viabilidade_proxima_acao), 20ª
+ * (`estrategia_documentos_provas` ainda não obtidos — sem prazo real) e
+ * 21ª (`estrategias_periciais.prazo`, campo único do hub — mesmo padrão de
+ * viabilidade_proxima_acao).
  */
 
 import type { createClient } from "@/lib/supabase/server";
 import { hojeIsoBrasil, nivelPorPrazo, ordenarPainel, paraDiasUtc, somarDiasIso } from "./regras";
 import { PROVIDENCIA_POR_CATEGORIA } from "./rotulos";
+import { PROXIMA_ACAO_ROTULOS as CONTESTACAO_PROXIMA_ACAO_ROTULOS } from "@/features/contestacao/catalogos";
+import { PROXIMA_ACAO_ESTRATEGIA_ROTULOS } from "@/features/estrategia-pericial/catalogos";
 import type { ItemPainel } from "./tipos";
 
 type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
@@ -82,6 +94,10 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     { data: proximaAcaoViabilidadeDb },
     { data: posEntregaViabilidadeDb },
     { data: orcamentoSemRetornoDb },
+    { data: analisesContestacaoDb },
+    { data: contestacaoDocumentosDb },
+    { data: estrategiasPericiaisDb },
+    { data: estrategiaDocumentosProvasDb },
   ] = await Promise.all([
     // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
     // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
@@ -165,6 +181,27 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       .select("id, processo_id, pos_entrega_orcamento_enviado_em")
       .eq("pos_entrega_orcamento_enviado", "sim")
       .not("pos_entrega_orcamento_enviado_em", "is", null),
+    // Fonte 19 — hub da Análise da Contestação. Também serve de mapa
+    // analise_id -> processo_id pra fonte 18 (contestacao_argumentos não
+    // tem processo_id direto).
+    supabase.from("analises_contestacao").select("id, processo_id, proxima_acao, proxima_acao_outra, responsavel, prazo"),
+    // Fonte 18 — argumentos da Contestação com decisão "solicitar documento
+    // complementar", ainda não resolvidos. Sem prazo real (mesmo princípio
+    // de documento_ilegivel/documentos_pendentes).
+    supabase
+      .from("contestacao_argumentos")
+      .select("id, analise_id, argumento, created_at")
+      .contains("decisoes", ["solicitar_documento"])
+      .is("resolvido_em", null),
+    // Fonte 21 — hub da Estratégia Pericial. Também serve de mapa
+    // estrategia_id -> processo_id pra fonte 20.
+    supabase.from("estrategias_periciais").select("id, processo_id, proxima_acao, proxima_acao_outra, responsavel, prazo"),
+    // Fonte 20 — documentos/provas da Estratégia Pericial ainda não obtidos.
+    // Sem prazo real, mesmo princípio da fonte 18.
+    supabase
+      .from("estrategia_documentos_provas")
+      .select("id, estrategia_id, documento, created_at")
+      .is("resolvido_em", null),
   ]);
   const processos = processosDb ?? [];
   const processoPorId = new Map(processos.map((p) => [p.id, p]));
@@ -642,6 +679,97 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       ordenacao: prazo,
       responsavel: "Secretária",
       href: `/processos/${processo.id}/viabilidade`,
+    });
+  }
+
+  // ---- 18. Argumentos da Contestação com "solicitar documento complementar" pendente ----
+  // Sem prazo real (mesmo princípio de documento_ilegivel) — a decisão foi
+  // tomada na tela, mas não existe data de vencimento nesse nível de
+  // granularidade. `analise_id` -> `processo_id` resolvido via o mapa da
+  // fonte 19 (analisesContestacaoDb), que traz TODAS as análises, com ou sem prazo.
+  const processoIdPorAnaliseContestacao = new Map((analisesContestacaoDb ?? []).map((a) => [a.id, a.processo_id]));
+  for (const c of contestacaoDocumentosDb ?? []) {
+    const processoId = processoIdPorAnaliseContestacao.get(c.analise_id);
+    const processo = processoId ? processoPorId.get(processoId) : undefined;
+    if (!processo) continue; // processo não ativo, ou análise órfã — fora da Central
+    itens.push({
+      id: `contestacao_solicitar_documento-${c.id}`,
+      categoria: "contestacao_solicitar_documento",
+      titulo: `Documento a solicitar (Contestação): ${c.argumento.slice(0, 60)}${c.argumento.length > 60 ? "…" : ""} — ${identificarProcesso(processo)}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.contestacao_solicitar_documento,
+      nivel: "sem_prazo",
+      prazo: null,
+      dataContexto: { rotulo: "Cadastrado em", valor: c.created_at },
+      ordenacao: c.created_at,
+      responsavel: null,
+      href: `/processos/${processo.id}/analise-contestacao`,
+    });
+  }
+
+  // ---- 19. Próxima ação da Análise da Contestação ----
+  // Prazo REAL quando preenchido — campo único do hub, mesmo padrão de
+  // viabilidade_proxima_acao (some sozinho quando ela muda/limpa o campo).
+  for (const a of analisesContestacaoDb ?? []) {
+    const processo = processoPorId.get(a.processo_id);
+    if (!processo || !a.prazo) continue;
+    const rotuloAcao = a.proxima_acao === "outro" ? a.proxima_acao_outra || "Outro" : a.proxima_acao ? CONTESTACAO_PROXIMA_ACAO_ROTULOS[a.proxima_acao] : "Próxima ação";
+    itens.push({
+      id: `contestacao_proxima_acao-${a.id}`,
+      categoria: "contestacao_proxima_acao",
+      titulo: `${rotuloAcao} (Contestação) — ${identificarProcesso(processo)}`,
+      subtitulo: a.responsavel ? `Responsável: ${a.responsavel}` : null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.contestacao_proxima_acao,
+      nivel: nivelPorPrazo(a.prazo, hoje),
+      prazo: a.prazo,
+      dataContexto: null,
+      ordenacao: a.prazo,
+      responsavel: a.responsavel,
+      href: `/processos/${processo.id}/analise-contestacao`,
+    });
+  }
+
+  // ---- 20. Documentos/provas da Estratégia Pericial ainda não obtidos ----
+  // Mesmo princípio da fonte 18: sem prazo real, `estrategia_id` -> `processo_id`
+  // resolvido via o mapa da fonte 21.
+  const processoIdPorEstrategia = new Map((estrategiasPericiaisDb ?? []).map((e) => [e.id, e.processo_id]));
+  for (const d of estrategiaDocumentosProvasDb ?? []) {
+    const processoId = processoIdPorEstrategia.get(d.estrategia_id);
+    const processo = processoId ? processoPorId.get(processoId) : undefined;
+    if (!processo) continue;
+    itens.push({
+      id: `estrategia_documento_prova-${d.id}`,
+      categoria: "estrategia_documento_prova",
+      titulo: `Documento/prova pendente (Estratégia Pericial): ${d.documento} — ${identificarProcesso(processo)}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.estrategia_documento_prova,
+      nivel: "sem_prazo",
+      prazo: null,
+      dataContexto: { rotulo: "Cadastrado em", valor: d.created_at },
+      ordenacao: d.created_at,
+      responsavel: null,
+      href: `/processos/${processo.id}/estrategia-pericial`,
+    });
+  }
+
+  // ---- 21. Próxima ação da Estratégia Pericial ----
+  // Mesmo padrão da fonte 19/viabilidade_proxima_acao.
+  for (const e of estrategiasPericiaisDb ?? []) {
+    const processo = processoPorId.get(e.processo_id);
+    if (!processo || !e.prazo) continue;
+    const rotuloAcao = e.proxima_acao === "outro" ? e.proxima_acao_outra || "Outro" : e.proxima_acao ? PROXIMA_ACAO_ESTRATEGIA_ROTULOS[e.proxima_acao] : "Próxima ação";
+    itens.push({
+      id: `estrategia_proxima_acao-${e.id}`,
+      categoria: "estrategia_proxima_acao",
+      titulo: `${rotuloAcao} (Estratégia Pericial) — ${identificarProcesso(processo)}`,
+      subtitulo: e.responsavel ? `Responsável: ${e.responsavel}` : null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.estrategia_proxima_acao,
+      nivel: nivelPorPrazo(e.prazo, hoje),
+      prazo: e.prazo,
+      dataContexto: null,
+      ordenacao: e.prazo,
+      responsavel: e.responsavel,
+      href: `/processos/${processo.id}/estrategia-pericial`,
     });
   }
 
