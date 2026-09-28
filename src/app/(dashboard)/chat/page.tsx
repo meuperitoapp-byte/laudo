@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ChatPanel } from "@/features/chat/chat-panel";
+import { listarNomesResponsaveis, nomeExibicaoDoEmail } from "@/lib/supabase/responsaveis";
 import { ErroConsultaPagina } from "@/components/ui/erro-consulta";
 
 const LIMITE_MENSAGENS_INICIAIS = 200;
@@ -7,7 +8,10 @@ const LIMITE_MENSAGENS_INICIAIS = 200;
 /**
  * Chat interno — sala única, geral (pedido da Dra. Fernanda, 24/09/2026).
  * Server Component só busca o histórico inicial; a partir daí o ChatPanel
- * (Client Component) assume via Supabase Realtime.
+ * (Client Component) assume via Supabase Realtime. "Direcionar para" e o
+ * filtro "só minhas menções" (30/09/2026, pedido dela: "minha conversa com
+ * a secretária é muito mais intensa que com o financeiro") precisam de
+ * `meuNome` pra comparar com `mencionado_nome`.
  */
 export default async function ChatPage() {
   const supabase = await createClient();
@@ -15,11 +19,11 @@ export default async function ChatPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: mensagens, error } = await supabase
-    .from("chat_mensagens")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(LIMITE_MENSAGENS_INICIAIS);
+  const [{ data: mensagens, error }, nomesResponsaveis, meuNome] = await Promise.all([
+    supabase.from("chat_mensagens").select("*").order("created_at", { ascending: false }).limit(LIMITE_MENSAGENS_INICIAIS),
+    listarNomesResponsaveis(),
+    nomeExibicaoDoEmail(user?.email),
+  ]);
   if (error) {
     console.error("Chat: falha ao buscar histórico:", error.message);
     return <ErroConsultaPagina titulo="Não foi possível carregar o chat agora" />;
@@ -31,7 +35,12 @@ export default async function ChatPage() {
         <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Chat</h1>
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">Conversa interna da equipe — todo mundo vê tudo.</p>
       </div>
-      <ChatPanel mensagensIniciais={(mensagens ?? []).slice().reverse()} meuEmail={user?.email ?? ""} />
+      <ChatPanel
+        mensagensIniciais={(mensagens ?? []).slice().reverse()}
+        meuEmail={user?.email ?? ""}
+        meuNome={meuNome}
+        nomesResponsaveis={nomesResponsaveis}
+      />
     </main>
   );
 }
