@@ -1004,6 +1004,9 @@ export type RelacionamentosRow = {
   cs_data_falecimento: string | null
   cs_data_conhecimento: string | null
   cs_familiar_responsavel_id: string | null
+  /** §12 — só tipo = profissional (migration 20260930370000). */
+  prof_produto_futuro_potencial: MeuPeritoPotencial | null
+  prof_produto_futuro_observacao: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -1039,6 +1042,8 @@ export type RelacionamentosInsert = ComDefaults<
   | 'cs_data_falecimento'
   | 'cs_data_conhecimento'
   | 'cs_familiar_responsavel_id'
+  | 'prof_produto_futuro_potencial'
+  | 'prof_produto_futuro_observacao'
   | 'created_by'
   | 'created_at'
   | 'updated_at'
