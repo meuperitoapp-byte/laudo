@@ -2427,13 +2427,30 @@ export type ChatMensagensRow = {
   id: string
   autor_email: string
   autor_nome: string
-  texto: string
+  /** Pode ser null quando a mensagem é só um arquivo anexado (migration 20260930390000). */
+  texto: string | null
   /** Nome de exibição de quem a mensagem é dirigida (opcional, migration 20260930380000) — sala continua única, só marca/filtra visualmente. */
   mencionado_nome: string | null
+  /** Anexo opcional (migration 20260930390000) — bucket privado `chat-arquivos`, URL assinada gerada no cliente na hora de exibir. */
+  arquivo_path: string | null
+  arquivo_nome: string | null
+  arquivo_tipo: string | null
+  arquivo_tamanho_bytes: number | null
   created_at: string
 }
-export type ChatMensagensInsert = ComDefaults<ChatMensagensRow, 'id' | 'mencionado_nome' | 'created_at'>
+export type ChatMensagensInsert = ComDefaults<
+  ChatMensagensRow,
+  'id' | 'texto' | 'mencionado_nome' | 'arquivo_path' | 'arquivo_nome' | 'arquivo_tipo' | 'arquivo_tamanho_bytes' | 'created_at'
+>
 export type ChatMensagensUpdate = Partial<ChatMensagensRow>
+
+export type PerfilAvataresRow = {
+  email: string
+  storage_path: string
+  updated_at: string
+}
+export type PerfilAvataresInsert = ComDefaults<PerfilAvataresRow, 'updated_at'>
+export type PerfilAvataresUpdate = Partial<PerfilAvataresRow>
 
 export type AtestadosRow = {
   id: string
@@ -2877,6 +2894,12 @@ export interface Database {
         Row: ChatMensagensRow
         Insert: ChatMensagensInsert
         Update: ChatMensagensUpdate
+        Relationships: []
+      }
+      perfil_avatares: {
+        Row: PerfilAvataresRow
+        Insert: PerfilAvataresInsert
+        Update: PerfilAvataresUpdate
         Relationships: []
       }
       atestados: {

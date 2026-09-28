@@ -96,6 +96,22 @@
      de alerta, por isso o gráfico sempre rotula "Faturamento"/"Saídas" por
      extenso, nunca só a cor). */
   --chart-vinho: #8c3a3a;
+
+  /*
+   * Identidade por pessoa no Chat interno (30/09/2026, pedido dela: "cores
+   * diferentes quando a pessoa responder") — categórica, ordem fixa, nunca
+   * reciclada por sentido (distinta de petroleo/musgo/âmbar/vinho, que são
+   * marca/status reservados). Primeiros 5 tons da paleta de referência da
+   * skill de dataviz (azul/laranja/água/amarelo/magenta) — os 3 primeiros já
+   * validados all-pairs nos dois modos; do 4º em diante a garantia é só
+   * adjacente, por isso o nome de quem escreveu SEMPRE aparece por extenso
+   * ao lado da cor (rótulo direto, nunca cor sozinha).
+   */
+  --pessoa-1: #2a78d6;
+  --pessoa-2: #eb6834;
+  --pessoa-3: #1baf7a;
+  --pessoa-4: #eda100;
+  --pessoa-5: #e87ba4;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -105,6 +121,11 @@
     --chart-teal: #2ba89f;
     --chart-amber: #bd8630;
     --chart-vinho: #cf6a6a;
+    --pessoa-1: #3987e5;
+    --pessoa-2: #d95926;
+    --pessoa-3: #199e70;
+    --pessoa-4: #c98500;
+    --pessoa-5: #d55181;
   }
 }
 
