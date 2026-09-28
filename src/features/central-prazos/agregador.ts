@@ -73,6 +73,13 @@ type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 
 const TIPOS_SAIDA_AT = ["parecer_at", "manifestacao_at", "impugnacao_at", "parecer_divergente_at", "quesitos_at"] as const;
 
+/** Soma meses a uma data ISO ('YYYY-MM-DD') — só usado pela fonte 23 (prazo de atualização do Cliente Saúde, configurável em meses, não em dias). */
+function somarMesesIso(dataIso: string, meses: number): string {
+  const d = new Date(`${dataIso}T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + meses);
+  return d.toISOString().slice(0, 10);
+}
+
 /** "Nº do processo, ou nome do periciando, ou parte autora" — mesmo critério já usado no índice de ciclos e no índice de processos. */
 export function identificarProcesso(p: { numero_processo: string | null; periciando_nome: string | null; parte_autora: string | null }): string {
   return p.numero_processo || p.periciando_nome || p.parte_autora || "Processo sem identificação";
@@ -107,6 +114,8 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     { data: estrategiaDocumentosProvasDb },
     { data: continuidadeOportunidadesDb },
     { data: processosIdentificacaoDb },
+    { data: clientesSaudeDb },
+    { data: relacionamentoConfigDb },
   ] = await Promise.all([
     // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
     // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
@@ -222,6 +231,18 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       .eq("status", "aberta"),
     // Identificação de processos SEM o filtro de ativo — só pra fonte 22.
     supabase.from("processos").select("id, numero_processo, periciando_nome, parte_autora"),
+    // Fonte 23 — Cliente Saúde sem atualização de situação há mais do que o
+    // prazo configurado (§22.5). Nunca inclui 'falecido' (não faz sentido
+    // pedir atualização de quem já morreu) nem quem nunca teve situação
+    // preenchida (não é "desatualizado", é só não preenchido ainda).
+    supabase
+      .from("relacionamentos")
+      .select("id, nome, cs_situacao_atualizada_em")
+      .eq("tipo", "cliente_saude")
+      .not("cs_situacao_atual", "is", null)
+      .neq("cs_situacao_atual", "falecido")
+      .not("cs_situacao_atualizada_em", "is", null),
+    supabase.from("relacionamento_configuracoes").select("prazo_meses_atualizacao_cliente_saude").eq("id", true).maybeSingle(),
   ]);
   const processos = processosDb ?? [];
   const processoPorId = new Map(processos.map((p) => [p.id, p]));
@@ -812,6 +833,27 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       ordenacao: o.data_limite,
       responsavel: null,
       href: `/processos/${processo.id}/continuidade`,
+    });
+  }
+
+  // ---- 23. Cliente Saúde sem atualização de situação há mais do que o prazo configurado ----
+  const prazoMeses = relacionamentoConfigDb?.prazo_meses_atualizacao_cliente_saude ?? 6;
+  for (const c of clientesSaudeDb ?? []) {
+    if (!c.cs_situacao_atualizada_em) continue;
+    const prazo = somarMesesIso(c.cs_situacao_atualizada_em, prazoMeses);
+    if (prazo > hoje) continue; // ainda dentro do prazo — nem entra na lista
+    itens.push({
+      id: `cliente_saude_desatualizado-${c.id}`,
+      categoria: "cliente_saude_desatualizado",
+      titulo: `Situação sem atualização — ${c.nome}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.cliente_saude_desatualizado,
+      nivel: nivelPorPrazo(prazo, hoje),
+      prazo,
+      dataContexto: { rotulo: "Última atualização em", valor: c.cs_situacao_atualizada_em },
+      ordenacao: prazo,
+      responsavel: "Patrícia",
+      href: `/relacionamento/${c.id}`,
     });
   }
 
