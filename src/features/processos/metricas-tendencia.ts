@@ -42,6 +42,26 @@ export function evolucaoAcumulada(datasCriacao: string[], meses: number): { rotu
 }
 
 /**
+ * Quantos processos foram CRIADOS em cada um dos últimos N meses (não
+ * acumulado — distinto de `evolucaoAcumulada`, usado em "Demandas por mês",
+ * modelo de tela da Dra. Fernanda 25/09/2026, pra não duplicar o mesmo
+ * gráfico que já existe no Dashboard).
+ */
+export function novosPorMes(datasCriacao: string[], meses: number): { rotulo: string; valor: number }[] {
+  const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const agora = new Date();
+  const pontos: { rotulo: string; valor: number }[] = [];
+
+  for (let i = meses - 1; i >= 0; i--) {
+    const referencia = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+    const anoMes = `${referencia.getFullYear()}-${String(referencia.getMonth() + 1).padStart(2, "0")}`;
+    const valor = datasCriacao.filter((d) => d.slice(0, 7) === anoMes).length;
+    pontos.push({ rotulo: MESES_ABREV[referencia.getMonth()], valor });
+  }
+  return pontos;
+}
+
+/**
  * Sparkline de um KPI "quase monotônico" (Processos, Em andamento, Perícias
  * agendadas) — mesma lógica de `evolucaoAcumulada`, mas aplicada a uma
  * condição qualquer (ex.: "está em andamento"), sempre contando só quem já
