@@ -794,3 +794,26 @@ export type ClienteSaudeSituacaoAtual =
 
 /** relacionamento_interacoes.resultado — resultado de campanha (§22.6). */
 export type ResultadoInteracao = 'enviado' | 'respondido' | 'contato_realizado' | 'nao_realizado'
+
+// ----------------------------------------------------------------------------
+// Módulo de Relacionamento (CRM) — Fase 3 (última): Desfecho Judicial e
+// Biblioteca de Decisões PERICONS (migration 20260930360000). Modelo, §24-25.
+// ----------------------------------------------------------------------------
+
+/** desfechos_judiciais.area — §24.1. */
+export type DesfechoArea = 'saude' | 'medico' | 'trabalhista' | 'previdenciario' | 'criminal' | 'outra'
+
+/** desfechos_judiciais.parte_assistida — §24.1. */
+export type DesfechoParteAssistida = 'autor' | 'reu' | 'reclamante' | 'reclamada' | 'outra'
+
+/** desfechos_judiciais.tipo_decisao — §24.1. */
+export type DesfechoTipoDecisao = 'tutela' | 'liminar' | 'sentenca' | 'acordao' | 'decisao_interlocutoria' | 'outra'
+
+/** desfechos_judiciais.resultado_parte_assistida — §24.1. Sempre sob a perspectiva da parte assistida pela PERICONS. */
+export type DesfechoResultadoParteAssistida = 'favoravel' | 'parcialmente_favoravel' | 'desfavoravel' | 'sem_julgamento_merito' | 'outro'
+
+/** desfechos_judiciais.status_decisao — §24.1. */
+export type DesfechoStatusDecisao = 'provisoria' | 'recurso_pendente' | 'definitiva' | 'transito_julgado' | 'outro'
+
+/** desfechos_judiciais.resultado_pericia — §24.1. */
+export type DesfechoResultadoPericia = 'favoravel' | 'parcialmente_favoravel' | 'desfavoravel' | 'inconclusivo' | 'nao_se_aplica'

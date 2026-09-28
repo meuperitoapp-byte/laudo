@@ -122,6 +122,12 @@ import type {
   ContinuidadeResultadoFollowup,
   ClienteSaudeSituacaoAtual,
   ResultadoInteracao,
+  DesfechoArea,
+  DesfechoParteAssistida,
+  DesfechoTipoDecisao,
+  DesfechoResultadoParteAssistida,
+  DesfechoStatusDecisao,
+  DesfechoResultadoPericia,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -1079,6 +1085,7 @@ export type RelacionamentoConfiguracoesRow = {
   valor_credito_indicacao_padrao: number
   prazo_meses_atualizacao_cliente_saude: number
   dias_antecedencia_aniversarios: number
+  prazo_dias_desfecho_judicial_pendente: number
   updated_at: string
 }
 /** Linha única (seed da migration) — a aplicação só faz update, nunca insert; alias mantido pra satisfazer o generic Tables. */
@@ -1237,6 +1244,65 @@ export type CampanhasTematicasSaudeInsert = ComDefaults<
   'id' | 'area_clinica' | 'situacoes_permitidas' | 'situacoes_excluidas' | 'canal' | 'mensagem_modelo' | 'ativo' | 'created_at' | 'updated_at'
 >
 export type CampanhasTematicasSaudeUpdate = Partial<CampanhasTematicasSaudeRow>
+
+// ============================================================================
+// Módulo de Relacionamento (CRM) — Fase 3 (última): Desfecho Judicial e
+// Biblioteca de Decisões PERICONS (migration 20260930360000). Modelo, §24-25.
+// ============================================================================
+export type DesfechosJudiciaisRow = {
+  id: string
+  processo_id: string
+  area: DesfechoArea
+  subarea_demanda: string | null
+  parte_assistida: DesfechoParteAssistida | null
+  tipo_decisao: DesfechoTipoDecisao | null
+  data_decisao: string
+  resultado_parte_assistida: DesfechoResultadoParteAssistida | null
+  status_decisao: DesfechoStatusDecisao | null
+  servicos_pericons_no_caso: string[]
+  houve_prova_pericial: boolean | null
+  resultado_pericia: DesfechoResultadoPericia | null
+  observacao_tecnica: string | null
+  decisao_documento_id: string | null
+  tribunal: string | null
+  uf: string | null
+  desfecho_atual: boolean
+  desfecho_definitivo: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+export type DesfechosJudiciaisInsert = ComDefaults<
+  DesfechosJudiciaisRow,
+  | 'id'
+  | 'subarea_demanda'
+  | 'parte_assistida'
+  | 'tipo_decisao'
+  | 'resultado_parte_assistida'
+  | 'status_decisao'
+  | 'servicos_pericons_no_caso'
+  | 'houve_prova_pericial'
+  | 'resultado_pericia'
+  | 'observacao_tecnica'
+  | 'decisao_documento_id'
+  | 'tribunal'
+  | 'uf'
+  | 'desfecho_atual'
+  | 'desfecho_definitivo'
+  | 'created_by'
+  | 'created_at'
+  | 'updated_at'
+>
+export type DesfechosJudiciaisUpdate = Partial<DesfechosJudiciaisRow>
+
+export type DesfechoDocumentosRelacionadosRow = {
+  id: string
+  desfecho_id: string
+  documento_id: string
+  created_at: string
+}
+export type DesfechoDocumentosRelacionadosInsert = ComDefaults<DesfechoDocumentosRelacionadosRow, 'id' | 'created_at'>
+export type DesfechoDocumentosRelacionadosUpdate = Partial<DesfechoDocumentosRelacionadosRow>
 
 // ============================================================================
 // atualizacoes_sistema (sino de notificações, 24/09/2026)
@@ -2959,6 +3025,18 @@ export interface Database {
         Row: CampanhasTematicasSaudeRow
         Insert: CampanhasTematicasSaudeInsert
         Update: CampanhasTematicasSaudeUpdate
+        Relationships: []
+      }
+      desfechos_judiciais: {
+        Row: DesfechosJudiciaisRow
+        Insert: DesfechosJudiciaisInsert
+        Update: DesfechosJudiciaisUpdate
+        Relationships: []
+      }
+      desfecho_documentos_relacionados: {
+        Row: DesfechoDocumentosRelacionadosRow
+        Insert: DesfechoDocumentosRelacionadosInsert
+        Update: DesfechoDocumentosRelacionadosUpdate
         Relationships: []
       }
     }
