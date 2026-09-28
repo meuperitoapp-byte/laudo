@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ChatPanel } from "@/features/chat/chat-panel";
 import { listarNomesResponsaveis, nomeExibicaoDoEmail } from "@/lib/supabase/responsaveis";
+import { buscarTodosAvatares } from "@/features/perfil/avatares";
 import { ErroConsultaPagina } from "@/components/ui/erro-consulta";
 
 const LIMITE_MENSAGENS_INICIAIS = 200;
@@ -19,10 +20,11 @@ export default async function ChatPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: mensagens, error }, nomesResponsaveis, meuNome] = await Promise.all([
+  const [{ data: mensagens, error }, nomesResponsaveis, meuNome, avataresMap] = await Promise.all([
     supabase.from("chat_mensagens").select("*").order("created_at", { ascending: false }).limit(LIMITE_MENSAGENS_INICIAIS),
     listarNomesResponsaveis(),
     nomeExibicaoDoEmail(user?.email),
+    buscarTodosAvatares(),
   ]);
   if (error) {
     console.error("Chat: falha ao buscar histórico:", error.message);
@@ -30,7 +32,7 @@ export default async function ChatPage() {
   }
 
   return (
-    <main className="p-8 max-w-3xl mx-auto space-y-4">
+    <main className="p-8 max-w-5xl mx-auto space-y-4">
       <div>
         <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Chat</h1>
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">Conversa interna da equipe — todo mundo vê tudo.</p>
@@ -40,6 +42,7 @@ export default async function ChatPage() {
         meuEmail={user?.email ?? ""}
         meuNome={meuNome}
         nomesResponsaveis={nomesResponsaveis}
+        avatares={Object.fromEntries(avataresMap)}
       />
     </main>
   );
