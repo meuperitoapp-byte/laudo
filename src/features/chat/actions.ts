@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { obterContextoAcesso } from "@/features/acessos/contexto";
+import { nomeExibicaoDoEmail } from "@/lib/supabase/responsaveis";
 import { BUCKET_CHAT_ARQUIVOS, TAMANHO_MAXIMO_ARQUIVO_BYTES } from "./constants";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, ChatMensagensRow, ChatMensagensInsert } from "@/types/database";
@@ -16,15 +17,16 @@ function sanitizarNomeArquivo(nome: string): string {
 
 /**
  * Nome de exibição no chat — reaproveita o `nome_exibicao` de quem já tem
- * perfil restrito (ex.: "Secretária", "CEO"); quem é admin (sem perfil,
- * inclusive a Dra. Fernanda) não tem esse campo, então usa o que vem antes
- * do @ no e-mail como aproximação razoável, sem pedir cadastro de nome à
- * parte só pra isso.
+ * perfil restrito (ex.: "Secretária", "CEO"). Bug corrigido (30/09/2026,
+ * print dela mostrando "analisedeviabilidade.pericons" no lugar do nome):
+ * quem é admin sem perfil caía no prefixo cru do e-mail — agora usa a MESMA
+ * função de fallback ("Dra. Fernanda", grandfather rule) já usada em todo
+ * campo Responsável do sistema, em vez de inventar um fallback próprio aqui.
  */
 async function nomeDoAutor(supabase: SupabaseClient<Database>, email: string): Promise<string> {
   const contexto = await obterContextoAcesso(supabase, email);
   if (contexto.tipo === "restrito") return contexto.nomeExibicao;
-  return email.split("@")[0];
+  return nomeExibicaoDoEmail(email);
 }
 
 /**

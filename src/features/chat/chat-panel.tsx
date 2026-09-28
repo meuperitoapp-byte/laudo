@@ -30,6 +30,22 @@ function corDoAutor(email: string): string {
   return `var(--pessoa-${(hash % 5) + 1})`;
 }
 
+interface GrupoMensagens {
+  autorEmail: string;
+  itens: ChatMensagensRow[];
+}
+
+/** Agrupa mensagens seguidas da MESMA pessoa (referência: WhatsApp/Telegram) — avatar e nome aparecem uma vez só por grupo, não por mensagem. */
+function agruparMensagens(mensagens: ChatMensagensRow[]): GrupoMensagens[] {
+  const grupos: GrupoMensagens[] = [];
+  for (const m of mensagens) {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.autorEmail === m.autor_email) ultimo.itens.push(m);
+    else grupos.push({ autorEmail: m.autor_email, itens: [m] });
+  }
+  return grupos;
+}
+
 /**
  * Chat interno — sala única, geral, sem canais nem DM (pedido da Dra.
  * Fernanda, 24/09/2026). Tempo real de verdade via Supabase Realtime.
@@ -147,8 +163,10 @@ export function ChatPanel({
     });
   }
 
+  const grupos = useMemo(() => agruparMensagens(mensagensVisiveis), [mensagensVisiveis]);
+
   return (
-    <div className="flex flex-col rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 h-[calc(100vh-175px)]">
+    <div className="flex flex-col rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 h-[calc(100vh-150px)]">
       <div className="flex items-center justify-end gap-2 border-b border-nevoa-200 dark:border-nevoa-800 px-4 py-2.5">
         <label className="flex items-center gap-1.5 text-xs text-nevoa-600 dark:text-nevoa-400">
           <input type="checkbox" checked={soMinhasMencoes} onChange={(e) => setSoMinhasMencoes(e.target.checked)} />
@@ -156,59 +174,81 @@ export function ChatPanel({
         </label>
       </div>
 
-      <ul className="flex-1 overflow-y-auto p-4 space-y-4">
-        {mensagensVisiveis.length === 0 && (
+      <ul className="flex-1 overflow-y-auto p-4 space-y-3">
+        {grupos.length === 0 && (
           <p className="text-sm text-nevoa-500 dark:text-nevoa-400 text-center py-8">
             {soMinhasMencoes ? "Nenhuma mensagem te mencionou ainda." : "Nenhuma mensagem ainda — escreva a primeira."}
           </p>
         )}
-        {mensagensVisiveis.map((m) => {
-          const minha = m.autor_email === meuEmail;
-          const cor = corDoAutor(m.autor_email);
-          const urlAvatar = avatares[m.autor_email] ?? null;
-          const urlAnexo = m.arquivo_path ? urlsAnexos[m.arquivo_path] : null;
-          const anexoEhImagem = m.arquivo_tipo?.startsWith("image/") ?? false;
+        {grupos.map((grupo) => {
+          const minha = grupo.autorEmail === meuEmail;
+          const cor = corDoAutor(grupo.autorEmail);
+          const urlAvatar = avatares[grupo.autorEmail] ?? null;
+          const nomeAutor = grupo.itens[0].autor_nome;
 
           return (
-            <li key={m.id} className={`flex items-end gap-2 ${minha ? "flex-row-reverse" : "flex-row"}`}>
-              <AvatarCirculo url={urlAvatar} nome={m.autor_nome} tamanho={32} />
-              <div className={`max-w-[70%] flex flex-col ${minha ? "items-end" : "items-start"}`}>
-                <p className="text-xs font-medium mb-0.5 px-1" style={{ color: cor }}>
-                  {m.autor_nome}
+            <li key={grupo.itens[0].id} className={`flex items-end gap-2 ${minha ? "flex-row-reverse" : "flex-row"}`}>
+              <AvatarCirculo url={urlAvatar} nome={nomeAutor} tamanho={32} />
+              <div className={`max-w-[65%] flex flex-col gap-0.5 ${minha ? "items-end" : "items-start"}`}>
+                <p className="text-xs font-medium px-1" style={{ color: cor }}>
+                  {nomeAutor}
                 </p>
-                <div
-                  className={`rounded-xl px-3.5 py-2 text-sm ${minha ? "text-white dark:text-nevoa-950" : "bg-nevoa-100 dark:bg-nevoa-800 text-nevoa-900 dark:text-nevoa-100"}`}
-                  style={minha ? { backgroundColor: cor } : undefined}
-                >
-                  {m.mencionado_nome && (
-                    <p className={`text-[11px] font-medium mb-0.5 ${minha ? "opacity-90" : ""}`} style={minha ? undefined : { color: cor }}>
-                      @{m.mencionado_nome}
-                    </p>
-                  )}
-                  {m.texto && <p className="whitespace-pre-wrap break-words">{m.texto}</p>}
-                  {m.arquivo_path && (
-                    <div className={m.texto ? "mt-2 pt-2 border-t border-white/20" : ""}>
-                      {anexoEhImagem && urlAnexo ? (
-                        <a href={urlAnexo} target="_blank" rel="noopener noreferrer">
-                          {/* eslint-disable-next-line @next/next/no-img-element -- anexo enviado por upload, URL assinada dinâmica (não cabe no next/image) */}
-                          <img src={urlAnexo} alt={m.arquivo_nome ?? "imagem anexada"} className="max-w-full max-h-64 rounded-lg" />
-                        </a>
-                      ) : (
-                        <a
-                          href={urlAnexo ?? "#"}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`flex items-center gap-2 text-xs underline ${minha ? "text-white" : "text-petroleo-600 dark:text-petroleo-400"}`}
-                        >
-                          <Download className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{m.arquivo_nome}</span>
-                          {m.arquivo_tamanho_bytes != null && <span className="shrink-0 opacity-75">({tamanhoLegivel(m.arquivo_tamanho_bytes)})</span>}
-                        </a>
+                {grupo.itens.map((m, indice) => {
+                  const primeira = indice === 0;
+                  const ultima = indice === grupo.itens.length - 1;
+                  const urlAnexo = m.arquivo_path ? urlsAnexos[m.arquivo_path] : null;
+                  const anexoEhImagem = m.arquivo_tipo?.startsWith("image/") ?? false;
+                  // Cantos "internos" (do lado do avatar) ficam menos arredondados
+                  // no meio de um grupo, pra ler como uma sequência só — mesma
+                  // referência do WhatsApp/Telegram: só o topo do 1º e a base do
+                  // último bloco ficam com o canto cheio.
+                  const ladoInterno = minha ? "r" : "l";
+                  const arredondamento = [
+                    "rounded-2xl",
+                    !primeira ? `rounded-t${ladoInterno}-md` : "",
+                    !ultima ? `rounded-b${ladoInterno}-md` : "",
+                  ].filter(Boolean).join(" ");
+
+                  return (
+                    <div
+                      key={m.id}
+                      className={`${arredondamento} px-3.5 py-2 text-sm text-nevoa-900 dark:text-nevoa-100 ${minha ? "border-r-2" : "border-l-2"}`}
+                      style={{
+                        backgroundColor: `color-mix(in srgb, ${cor} 20%, transparent)`,
+                        borderColor: cor,
+                      }}
+                    >
+                      {m.mencionado_nome && (
+                        <p className="text-[11px] font-medium mb-0.5" style={{ color: cor }}>
+                          @{m.mencionado_nome}
+                        </p>
                       )}
+                      {m.texto && <p className="whitespace-pre-wrap break-words">{m.texto}</p>}
+                      {m.arquivo_path && (
+                        <div className={m.texto ? "mt-2 pt-2 border-t border-nevoa-300/40 dark:border-nevoa-600/40" : ""}>
+                          {anexoEhImagem && urlAnexo ? (
+                            <a href={urlAnexo} target="_blank" rel="noopener noreferrer">
+                              {/* eslint-disable-next-line @next/next/no-img-element -- anexo enviado por upload, URL assinada dinâmica (não cabe no next/image) */}
+                              <img src={urlAnexo} alt={m.arquivo_nome ?? "imagem anexada"} className="max-w-full max-h-64 rounded-lg" />
+                            </a>
+                          ) : (
+                            <a
+                              href={urlAnexo ?? "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-xs underline text-petroleo-700 dark:text-petroleo-400"
+                            >
+                              <Download className="h-3.5 w-3.5 shrink-0" />
+                              <span className="truncate">{m.arquivo_nome}</span>
+                              {m.arquivo_tamanho_bytes != null && <span className="shrink-0 opacity-75">({tamanhoLegivel(m.arquivo_tamanho_bytes)})</span>}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-[11px] mt-1 text-right opacity-60">{dataHoraCurta(m.created_at)}</p>
                     </div>
-                  )}
-                  <p className={`text-[11px] mt-1 text-right ${minha ? "opacity-80" : "opacity-60"}`}>{dataHoraCurta(m.created_at)}</p>
-                </div>
+                  );
+                })}
               </div>
             </li>
           );
