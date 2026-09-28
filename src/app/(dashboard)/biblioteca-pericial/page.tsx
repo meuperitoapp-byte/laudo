@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { BibliotecaPericialPanel } from "@/features/biblioteca-pericial/biblioteca-pericial-panel";
 import { AREA_PERICIAL_SEED } from "@/features/biblioteca-pericial/catalogos";
@@ -23,12 +24,17 @@ export default async function BibliotecaPericialPage() {
 
   return (
     <main className="p-8 max-w-[1600px] mx-auto space-y-6">
-      <div>
-        <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Biblioteca Pericial</h1>
-        <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">
-          Acervo de referência técnica, organizado por área pericial — quesitos já formulados, teses, literatura,
-          legislação/normas, CONITEC/NATJUS/PCDT, protocolos/diretrizes e jurisprudência técnica.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Biblioteca Pericial</h1>
+          <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">
+            Acervo de referência técnica, organizado por área pericial — quesitos já formulados, teses, literatura,
+            legislação/normas, CONITEC/NATJUS/PCDT, protocolos/diretrizes e jurisprudência técnica.
+          </p>
+        </div>
+        <Link href="/biblioteca-pericial/decisoes" className="text-sm text-petroleo-600 dark:text-petroleo-400 hover:underline shrink-0">
+          Biblioteca de Decisões PERICONS →
+        </Link>
       </div>
 
       {error && <BannerErroConsulta mensagem="Não consegui carregar tudo agora — a lista abaixo pode estar incompleta." />}
