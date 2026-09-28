@@ -5,8 +5,10 @@ import { montarPainel } from "@/features/central-prazos/agregador";
 import { hojeIsoBrasil } from "@/features/central-prazos/regras";
 import { RankedBarList, ranquear } from "@/components/ui/ranked-bar-list";
 import { DonutChart } from "@/components/ui/donut-chart";
-import { StatTile } from "@/components/ui/stat-tile";
 import { DashboardCard } from "@/components/ui/dashboard-card";
+import { KpiTendenciaCard } from "@/components/ui/kpi-tendencia-card";
+import { EvolucaoMensalChart } from "@/components/ui/evolucao-mensal-chart";
+import { evolucaoAcumulada, sparklineAproximada, percentualVariacao, isoHaDias } from "@/features/processos/metricas-tendencia";
 
 /**
  * Dashboard — porta de entrada analítica do sistema (pedido da Dra.
@@ -45,7 +47,7 @@ export default async function DashboardPage() {
     supabase
       .from("processos")
       .select(
-        "id, tipo_trabalho, status, situacao_processo, situacao_financeira, aceitou_nomeacao, agendamento_data, honorarios_forma_pagamento",
+        "id, tipo_trabalho, status, situacao_processo, situacao_financeira, aceitou_nomeacao, agendamento_data, honorarios_forma_pagamento, created_at",
       ),
     montarPainel(supabase),
     supabase.from("processos").select("escritorio_indicacao"),
@@ -66,6 +68,31 @@ export default async function DashboardPage() {
   const emAndamento = ativos.length;
   const periciasProximas = ativos.filter((p) => p.agendamento_data && p.agendamento_data >= hoje).length;
   const pendenciasAbertas = itensPainel.length;
+
+  // Tendências dos KPIs (modelo de tela enviado pela Dra. Fernanda,
+  // 25/09/2026) — sempre a partir de `created_at` (único dado histórico
+  // real), nunca fabricado. "Pendências abertas" fica sem tendência: os
+  // itens da Central de Prazos não têm uma data de origem uniforme entre as
+  // 21 fontes, então não tem como saber "quantas havia há 30 dias" sem
+  // inventar (ver metricas-tendencia.ts).
+  const haUmMes = isoHaDias(30);
+  const trendProcessos = percentualVariacao(totalProcessos, processos.filter((p) => p.created_at.slice(0, 10) <= haUmMes).length);
+  const trendEmAndamento = percentualVariacao(
+    emAndamento,
+    ativos.filter((p) => p.created_at.slice(0, 10) <= haUmMes).length,
+  );
+  const trendPericias = percentualVariacao(
+    periciasProximas,
+    ativos.filter((p) => p.agendamento_data && p.agendamento_data >= hoje && p.created_at.slice(0, 10) <= haUmMes).length,
+  );
+
+  const evolucaoProcessos = evolucaoAcumulada(
+    processos.map((p) => p.created_at),
+    12,
+  );
+  const sparkProcessos = evolucaoProcessos.slice(-6).map((p) => p.valor);
+  const sparkEmAndamento = sparklineAproximada(ativos, () => true);
+  const sparkPericias = sparklineAproximada(ativos, (p) => Boolean(p.agendamento_data && p.agendamento_data >= hoje));
 
   const porSituacaoProcesso = ranquear(ativos.map((p) => p.situacao_processo));
   const ativosPericiaJudicial = ativos.filter((p) => p.tipo_trabalho === "pericia_judicial");
@@ -111,16 +138,41 @@ export default async function DashboardPage() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatTile rotulo="Processos" valor={totalProcessos} icone={<FolderKanban className="h-5 w-5" />} href="/processos" />
-        <StatTile rotulo="Em andamento" valor={emAndamento} icone={<Scale className="h-5 w-5" />} href="/processos" />
-        <StatTile
+        <KpiTendenciaCard
+          rotulo="Processos"
+          valor={totalProcessos}
+          icone={<FolderKanban className="h-5 w-5" />}
+          href="/processos"
+          tendencia={{ percentual: trendProcessos, cor: trendProcessos >= 0 ? "sucesso" : "erro" }}
+          sparkline={sparkProcessos}
+        />
+        <KpiTendenciaCard
+          rotulo="Em andamento"
+          valor={emAndamento}
+          icone={<Scale className="h-5 w-5" />}
+          href="/processos"
+          tendencia={{ percentual: trendEmAndamento, cor: trendEmAndamento >= 0 ? "sucesso" : "erro" }}
+          sparkline={sparkEmAndamento}
+        />
+        <KpiTendenciaCard
           rotulo="Perícias agendadas"
           valor={periciasProximas}
           icone={<CalendarClock className="h-5 w-5" />}
           href="/hoje"
+          tendencia={{ percentual: trendPericias, cor: trendPericias >= 0 ? "sucesso" : "erro" }}
+          sparkline={sparkPericias}
         />
-        <StatTile rotulo="Pendências abertas" valor={pendenciasAbertas} icone={<ListChecks className="h-5 w-5" />} href="/hoje" />
+        <KpiTendenciaCard
+          rotulo="Pendências abertas"
+          valor={pendenciasAbertas}
+          icone={<ListChecks className="h-5 w-5" />}
+          href="/hoje"
+        />
       </div>
+
+      <DashboardCard titulo="Evolução de processos" subtitulo="Total acumulado de processos, mês a mês">
+        <EvolucaoMensalChart dados={evolucaoProcessos} />
+      </DashboardCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DashboardCard titulo="Situação do processo" subtitulo={`${emAndamento} processos em andamento`} total={emAndamento}>
