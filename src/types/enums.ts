@@ -817,3 +817,20 @@ export type DesfechoStatusDecisao = 'provisoria' | 'recurso_pendente' | 'definit
 
 /** desfechos_judiciais.resultado_pericia — §24.1. */
 export type DesfechoResultadoPericia = 'favoravel' | 'parcialmente_favoravel' | 'desfavoravel' | 'inconclusivo' | 'nao_se_aplica'
+
+// ----------------------------------------------------------------------------
+// Lote de melhorias 30/09/2026 (prints dela) — "Próxima ação" da Viabilidade
+// vira catálogo fechado, mesmo padrão de ContestacaoProximaAcao/
+// EstrategiaProximaAcao (migration 20260930380000).
+// ----------------------------------------------------------------------------
+
+/** analises_viabilidade.proxima_acao — §31 do modelo. */
+export type ViabilidadeProximaAcao =
+  | 'agendar_reuniao_apresentacao'
+  | 'solicitar_documentos'
+  | 'aguardar_retorno_cliente'
+  | 'elaborar_enviar_orcamento'
+  | 'revisar_analise'
+  | 'consultar_especialista'
+  | 'finalizar_registrar_conclusao'
+  | 'outro'

@@ -128,6 +128,7 @@ import type {
   DesfechoResultadoParteAssistida,
   DesfechoStatusDecisao,
   DesfechoResultadoPericia,
+  ViabilidadeProximaAcao,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -1876,10 +1877,10 @@ export type AnalisesViabilidadeRow = {
   conclusao_fragilidades: string | null
   conclusao_condicionantes: string | null
   recomendacao_justificativa: string | null
-  proxima_acao: string | null
+  proxima_acao: ViabilidadeProximaAcao | null
   proxima_acao_responsavel: string | null
   proxima_acao_prazo: string | null
-  proxima_acao_prioridade: string | null
+  proxima_acao_prioridade: PrioridadeTarefa | null
   pos_entrega_reuniao: ViabilidadePosEntregaReuniao | null
   pos_entrega_retorno_d7_em: string | null
   pos_entrega_satisfacao: ViabilidadeSatisfacao | null
@@ -2427,9 +2428,11 @@ export type ChatMensagensRow = {
   autor_email: string
   autor_nome: string
   texto: string
+  /** Nome de exibição de quem a mensagem é dirigida (opcional, migration 20260930380000) — sala continua única, só marca/filtra visualmente. */
+  mencionado_nome: string | null
   created_at: string
 }
-export type ChatMensagensInsert = ComDefaults<ChatMensagensRow, 'id' | 'created_at'>
+export type ChatMensagensInsert = ComDefaults<ChatMensagensRow, 'id' | 'mencionado_nome' | 'created_at'>
 export type ChatMensagensUpdate = Partial<ChatMensagensRow>
 
 export type AtestadosRow = {
