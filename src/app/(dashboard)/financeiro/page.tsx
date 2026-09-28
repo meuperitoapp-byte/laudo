@@ -32,6 +32,7 @@ type ProcessoFinanceiro = {
   nota_fiscal_emitida: "sim" | "nao" | null;
   nota_fiscal_numero: string | null;
   valor_processo: number | null;
+  data_pagamento_at: string | null;
 };
 
 /** Duplicado de propósito (mesmo helper existe em processos/[id]/page.tsx) — é pouca coisa pra justificar um util compartilhado por 2 telas. */
@@ -134,7 +135,7 @@ export default async function FinanceiroPage({
       supabase
         .from("processos")
         .select(
-          "id, tipo_trabalho, situacao_processo, situacao_financeira, numero_processo, periciando_nome, parte_autora, honorario_apresentado, honorario_arbitrado, liberacao_solicitada_em, honorarios_recebidos_em, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, nota_fiscal_emitida, nota_fiscal_numero, valor_processo",
+          "id, tipo_trabalho, situacao_processo, situacao_financeira, numero_processo, periciando_nome, parte_autora, honorario_apresentado, honorario_arbitrado, liberacao_solicitada_em, honorarios_recebidos_em, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, nota_fiscal_emitida, nota_fiscal_numero, valor_processo, data_pagamento_at",
         ),
       montarPainel(supabase),
       supabase.from("movimentacoes_financeiras").select("*").order("data", { ascending: false }),
@@ -186,12 +187,12 @@ export default async function FinanceiroPage({
   // pré-computa TODOS os anos com lançamento pra trocar sem recarregar a
   // página. Ano inicial = o mais recente com movimentação (nunca o ano
   // corrente se ela ainda não lançou nada nele).
-  const anosDisponiveis = anosComMovimentacao(movimentacoes);
+  const anosDisponiveis = anosComMovimentacao(processos, movimentacoes);
   const anoAtual = new Date().getFullYear();
   const anosParaMostrar = anosDisponiveis.includes(anoAtual) ? anosDisponiveis : [anoAtual, ...anosDisponiveis];
   const anoInicialGrafico = anosDisponiveis[0] ?? anoAtual;
   const faturamentoPorAno: Record<number, MesFaturamento[]> = Object.fromEntries(
-    anosParaMostrar.map((a) => [a, agregarPorMes(movimentacoes, a)]),
+    anosParaMostrar.map((a) => [a, agregarPorMes(processos, movimentacoes, a)]),
   );
 
   const categoriasSugestoes = mesclarSugestoes(

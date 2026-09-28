@@ -97,7 +97,6 @@ export function FaturamentoMensalChart({
                 <th className="py-1.5 pr-3 font-medium">Faturamento</th>
                 <th className="py-1.5 pr-3 font-medium">— Perícia Judicial</th>
                 <th className="py-1.5 pr-3 font-medium">— Assistência Técnica</th>
-                <th className="py-1.5 pr-3 font-medium">— Outros</th>
                 <th className="py-1.5 font-medium">Saídas</th>
               </tr>
             </thead>
@@ -108,7 +107,6 @@ export function FaturamentoMensalChart({
                   <td className="py-1.5 pr-3 tabular-nums text-nevoa-900 dark:text-nevoa-100 font-medium">{moedaBRLCompleta(d.faturamento)}</td>
                   <td className="py-1.5 pr-3 tabular-nums text-nevoa-600 dark:text-nevoa-400">{moedaBRLCompleta(d.porCategoria.judicial)}</td>
                   <td className="py-1.5 pr-3 tabular-nums text-nevoa-600 dark:text-nevoa-400">{moedaBRLCompleta(d.porCategoria.at)}</td>
-                  <td className="py-1.5 pr-3 tabular-nums text-nevoa-600 dark:text-nevoa-400">{moedaBRLCompleta(d.porCategoria.outros)}</td>
                   <td className="py-1.5 tabular-nums text-nevoa-900 dark:text-nevoa-100 font-medium">{moedaBRLCompleta(d.saidas)}</td>
                 </tr>
               ))}
@@ -170,9 +168,6 @@ export function FaturamentoMensalChart({
               <p className="text-nevoa-700 dark:text-nevoa-300">Faturamento: <span className="font-medium tabular-nums">{moedaBRLCompleta(dados[mesAtivo].faturamento)}</span></p>
               <p className="text-nevoa-500 dark:text-nevoa-400 pl-2">· Perícia Judicial: {moedaBRLCompleta(dados[mesAtivo].porCategoria.judicial)}</p>
               <p className="text-nevoa-500 dark:text-nevoa-400 pl-2">· Assistência Técnica: {moedaBRLCompleta(dados[mesAtivo].porCategoria.at)}</p>
-              {dados[mesAtivo].porCategoria.outros > 0 && (
-                <p className="text-nevoa-500 dark:text-nevoa-400 pl-2">· Outros: {moedaBRLCompleta(dados[mesAtivo].porCategoria.outros)}</p>
-              )}
               <p className="text-nevoa-700 dark:text-nevoa-300 mt-1">Saídas: <span className="font-medium tabular-nums">{moedaBRLCompleta(dados[mesAtivo].saidas)}</span></p>
             </div>
           )}

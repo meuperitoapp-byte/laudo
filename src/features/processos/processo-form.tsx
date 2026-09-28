@@ -640,6 +640,24 @@ export function ProcessoForm({
             )}
           </div>
 
+          {!mostraJudicial && (
+            <div>
+              <label htmlFor="data_pagamento_at" className={labelClass}>
+                Data do pagamento
+              </label>
+              <input
+                id="data_pagamento_at"
+                name="data_pagamento_at"
+                type="date"
+                defaultValue={processo?.data_pagamento_at ?? ""}
+                className={inputClass}
+              />
+              <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+                Preencha ao marcar como Pago — alimenta o Gráfico de Faturamento mensal (Financeiro).
+              </p>
+            </div>
+          )}
+
           {/* Valor: judicial detalha processo + honorários; Assistência Técnica só o valor do serviço contratado. */}
           {mostraJudicial ? (
             <div className="grid grid-cols-3 gap-4">

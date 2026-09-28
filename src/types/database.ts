@@ -236,6 +236,8 @@ export type ProcessosRow = {
   situacao_processo: string | null
   /** Situação financeira (texto livre + catálogo). */
   situacao_financeira: string | null
+  /** Quando o pagamento de AT foi confirmado — alimenta o Gráfico de Faturamento mensal. */
+  data_pagamento_at: string | null
   /** numeric(14,2) do Postgres — chega como number pelo supabase-js. */
   valor_processo: number | null
   honorario_apresentado: number | null
@@ -338,6 +340,7 @@ export type ProcessosInsert = ComDefaults<
   | 'prazo_contratual_entrega'
   | 'situacao_processo'
   | 'situacao_financeira'
+  | 'data_pagamento_at'
   | 'valor_processo'
   | 'honorario_apresentado'
   | 'honorario_arbitrado'

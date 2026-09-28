@@ -51,6 +51,7 @@ function camposGenericos(formData: FormData) {
   return {
     situacao_processo: optionalText(formData, "situacao_processo"),
     situacao_financeira: optionalText(formData, "situacao_financeira"),
+    data_pagamento_at: optionalText(formData, "data_pagamento_at"),
     valor_processo: optionalNumber(formData, "valor_processo"),
     honorario_apresentado: optionalNumber(formData, "honorario_apresentado"),
     honorario_arbitrado: optionalNumber(formData, "honorario_arbitrado"),
