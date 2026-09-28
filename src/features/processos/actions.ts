@@ -60,6 +60,7 @@ function camposGenericos(formData: FormData) {
     url_processo: optionalText(formData, "url_processo"),
     acao_objeto: optionalText(formData, "acao_objeto"),
     escritorio_indicacao: optionalText(formData, "escritorio_indicacao"),
+    relacionamento_id: optionalText(formData, "relacionamento_id"),
   };
 }
 

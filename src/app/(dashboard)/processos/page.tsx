@@ -20,6 +20,7 @@ import {
   ETAPAS_CONTRATADAS_ORDENADAS,
 } from "@/features/processos/catalogos";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
+import { valorDoProcesso } from "@/features/processos/valor";
 import type { TipoTrabalhoProcesso } from "@/types/enums";
 
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
@@ -37,9 +38,6 @@ function param(v: string | string[] | undefined): string {
 function moedaBRL(valor: number | null): string {
   if (valor == null) return "—";
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-function valorDoProcesso(p: { tipo_trabalho: string; honorario_arbitrado: number | null; honorario_apresentado: number | null; valor_processo: number | null }): number | null {
-  return p.tipo_trabalho === "assistencia_tecnica" ? p.valor_processo : (p.honorario_arbitrado ?? p.honorario_apresentado);
 }
 function dataCurta(iso: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);

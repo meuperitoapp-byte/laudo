@@ -27,6 +27,7 @@ export default async function EditarProcessoPage({
     { data: acoesDb, error: erroAcoes },
     { data: escritoriosDb, error: erroEscritorios },
     { data: orgaosClasseDb, error: erroOrgaosClasse },
+    { data: relacionamentosDb, error: erroRelacionamentos },
   ] = await Promise.all([
     supabase.from("processos").select("*").eq("id", id).single(),
     supabase.from("tipos_laudo").select("*").eq("ativo", true).order("ordem", { ascending: true }),
@@ -36,6 +37,7 @@ export default async function EditarProcessoPage({
     supabase.from("processos").select("valor:acao_objeto").not("acao_objeto", "is", null),
     supabase.from("processos").select("valor:escritorio_indicacao").not("escritorio_indicacao", "is", null),
     supabase.from("processos").select("valor:orgao_classe").not("orgao_classe", "is", null),
+    supabase.from("relacionamentos").select("id, nome, tipo").order("nome", { ascending: true }),
   ]);
 
   // Mesmo critério do restante da auditoria: erro real na consulta do
@@ -57,6 +59,7 @@ export default async function EditarProcessoPage({
     ["ações/objetos", erroAcoes],
     ["escritórios de indicação", erroEscritorios],
     ["órgãos de classe", erroOrgaosClasse],
+    ["relacionamentos (CRM)", erroRelacionamentos],
   ] as const) {
     if (erro) console.error(`Editar processo ${id}: falha ao buscar sugestões de ${rotulo}:`, erro.message);
   }
@@ -87,6 +90,7 @@ export default async function EditarProcessoPage({
         sugestoesAcaoObjeto={mesclarSugestoes([], acoesDb)}
         sugestoesEscritorioIndicacao={mesclarSugestoes([], escritoriosDb)}
         sugestoesOrgaoClasse={mesclarSugestoes(ORGAO_CLASSE_SEED, orgaosClasseDb)}
+        relacionamentos={relacionamentosDb ?? []}
       />
     </main>
   );

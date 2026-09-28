@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { createProcesso, updateProcesso } from "@/features/processos/actions";
 import { Botao } from "@/components/ui/button";
 import { ComboboxCatalogo } from "@/components/ui/combobox-catalogo";
+import { TIPO_ROTULOS } from "@/features/relacionamento/catalogos";
 import {
   SITUACOES_FINANCEIRAS_AT,
   SITUACOES_PROCESSO_ORDENADA,
@@ -182,6 +184,7 @@ export function ProcessoForm({
   sugestoesAcaoObjeto,
   sugestoesEscritorioIndicacao,
   sugestoesOrgaoClasse,
+  relacionamentos,
 }: {
   modo: "criar" | "editar";
   processo?: ProcessosRow | null;
@@ -196,6 +199,8 @@ export function ProcessoForm({
   sugestoesEscritorioIndicacao: string[];
   /** Assistência Técnica apenas — catálogo editável (CRM/CRO/CRP/CREFITO/COREN). */
   sugestoesOrgaoClasse: string[];
+  /** Módulo de Relacionamento (CRM) — pra vincular o processo a um cadastro já existente. */
+  relacionamentos: { id: string; nome: string; tipo: "advogado_escritorio" | "cliente_saude" | "profissional" }[];
 }) {
   const editando = modo === "editar" && processo != null;
 
@@ -603,6 +608,31 @@ export function ProcessoForm({
             <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
               Opcional. Alimenta o dashboard de indicações — não é o mesmo advogado que contratou (esse fica em
               &ldquo;Advogado&rdquo;, na Assistência Técnica).
+            </p>
+          </div>
+          <div className="pt-2">
+            <label htmlFor="relacionamento_id" className={labelClass}>
+              Vínculo com o Relacionamento (CRM)
+            </label>
+            <select
+              id="relacionamento_id"
+              name="relacionamento_id"
+              defaultValue={processo?.relacionamento_id ?? ""}
+              className="w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-3 py-2 text-sm text-nevoa-900 dark:text-nevoa-100"
+            >
+              <option value="">Nenhum</option>
+              {relacionamentos.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {TIPO_ROTULOS[r.tipo]} — {r.nome}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+              Opcional. Se o advogado/escritório/cliente já está cadastrado no{" "}
+              <Link href="/relacionamento" className="text-petroleo-600 dark:text-petroleo-400 hover:underline">
+                Relacionamento
+              </Link>
+              , vincular aqui alimenta o histórico comercial/financeiro dele automaticamente.
             </p>
           </div>
         </Cartao>
