@@ -18,6 +18,7 @@ import {
   CATEGORIA_ROTULOS,
   MEU_PERITO_STATUS_ROTULOS,
   CS_STATUS_ROTULOS,
+  CS_SITUACAO_ATUAL_ROTULOS,
   PROF_PROFISSAO_ROTULOS,
 } from "@/features/relacionamento/catalogos";
 import { faixaContato, categoriaPorReceita, ultimoContato, calcularHistoricoComercial, calcularHistoricoFinanceiro } from "@/features/relacionamento/ranking";
@@ -59,6 +60,7 @@ export default async function FichaRelacionamentoPage({ params }: { params: Prom
     { data: processosDb },
     { data: configDb },
     indicadorNome,
+    familiarNome,
     nomesResponsaveis,
   ] = await Promise.all([
     supabase.from("relacionamento_interacoes").select("*").eq("relacionamento_id", id),
@@ -74,6 +76,9 @@ export default async function FichaRelacionamentoPage({ params }: { params: Prom
     supabase.from("relacionamento_configuracoes").select("*").eq("id", true).maybeSingle(),
     relacionamento.indicado_por_id
       ? supabase.from("relacionamentos").select("nome").eq("id", relacionamento.indicado_por_id).maybeSingle().then((r) => r.data?.nome ?? null)
+      : Promise.resolve(null),
+    relacionamento.cs_familiar_responsavel_id
+      ? supabase.from("relacionamentos").select("nome").eq("id", relacionamento.cs_familiar_responsavel_id).maybeSingle().then((r) => r.data?.nome ?? null)
       : Promise.resolve(null),
     listarNomesResponsaveis(),
   ]);
@@ -117,6 +122,7 @@ export default async function FichaRelacionamentoPage({ params }: { params: Prom
             <Selo variante={FAIXA_SELO_VARIANTE[faixa]}>{FAIXA_ROTULOS[faixa]}</Selo>
             {categoria && categoria !== "sem_categoria" && <Selo variante="neutro">{CATEGORIA_ROTULOS[categoria]}</Selo>}
             {relacionamento.meu_perito && <Selo variante="sucesso">MEU PERITO{relacionamento.meu_perito_status ? ` — ${MEU_PERITO_STATUS_ROTULOS[relacionamento.meu_perito_status]}` : ""}</Selo>}
+            {relacionamento.cs_situacao_atual === "falecido" && <Selo variante="erro">Falecido</Selo>}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -169,8 +175,27 @@ export default async function FichaRelacionamentoPage({ params }: { params: Prom
       )}
 
       {relacionamento.tipo === "cliente_saude" && (
-        <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6">
+        <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6 space-y-2">
           <p className="text-sm text-nevoa-700 dark:text-nevoa-300">Jornada: <span className="font-medium">{CS_STATUS_ROTULOS[relacionamento.cs_status ?? "entrada"]}</span></p>
+          {(relacionamento.cs_condicao_principal || relacionamento.cs_area_clinica || relacionamento.cs_situacao_atual) && (
+            <div className="text-sm text-nevoa-700 dark:text-nevoa-300 space-y-1 pt-1 border-t border-nevoa-100 dark:border-nevoa-900">
+              {relacionamento.cs_condicao_principal && <p>Condição: <span className="font-medium">{relacionamento.cs_condicao_principal}</span>{relacionamento.cs_area_clinica ? ` (${relacionamento.cs_area_clinica})` : ""}</p>}
+              {relacionamento.cs_situacao_atual && (
+                <p>
+                  Situação: <span className="font-medium">{CS_SITUACAO_ATUAL_ROTULOS[relacionamento.cs_situacao_atual]}</span>
+                  {relacionamento.cs_situacao_atualizada_em && <span className="text-xs text-nevoa-500 dark:text-nevoa-400"> — atualizada em {dataCurta(relacionamento.cs_situacao_atualizada_em)}</span>}
+                </p>
+              )}
+              {relacionamento.cs_situacao_atual === "falecido" && relacionamento.cs_data_falecimento && (
+                <p className="text-xs text-nevoa-500 dark:text-nevoa-400">Falecimento em {dataCurta(relacionamento.cs_data_falecimento)}</p>
+              )}
+              {familiarNome && (
+                <p className="text-xs text-nevoa-500 dark:text-nevoa-400">
+                  Familiar/responsável: <Link href={`/relacionamento/${relacionamento.cs_familiar_responsavel_id}`} className="text-petroleo-600 dark:text-petroleo-400 hover:underline">{familiarNome}</Link>
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
       {relacionamento.tipo === "profissional" && relacionamento.prof_profissao && (

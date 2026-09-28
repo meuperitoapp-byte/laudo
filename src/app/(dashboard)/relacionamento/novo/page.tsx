@@ -5,12 +5,12 @@ import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 export default async function NovoRelacionamentoPage() {
   const supabase = await createClient();
-  const { data: indicadoresDb, error } = await supabase
-    .from("relacionamentos")
-    .select("id, nome")
-    .eq("tipo", "advogado_escritorio")
-    .order("nome", { ascending: true });
+  const [{ data: indicadoresDb, error }, { data: familiaresDb, error: erroFamiliares }] = await Promise.all([
+    supabase.from("relacionamentos").select("id, nome").eq("tipo", "advogado_escritorio").order("nome", { ascending: true }),
+    supabase.from("relacionamentos").select("id, nome").eq("tipo", "cliente_saude").order("nome", { ascending: true }),
+  ]);
   if (error) console.error("Novo relacionamento: falha ao buscar possíveis indicadores:", error.message);
+  if (erroFamiliares) console.error("Novo relacionamento: falha ao buscar possíveis familiares:", erroFamiliares.message);
 
   return (
     <main className="p-8 max-w-2xl mx-auto space-y-6">
@@ -21,7 +21,7 @@ export default async function NovoRelacionamentoPage() {
         <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mt-2">Novo cadastro — Relacionamento</h1>
       </div>
       {error && <BannerErroConsulta mensagem="Não consegui carregar a lista de possíveis indicadores agora — recarregue a página se for cadastrar uma indicação." />}
-      <RelacionamentoForm modo="criar" possiveisIndicadores={indicadoresDb ?? []} />
+      <RelacionamentoForm modo="criar" possiveisIndicadores={indicadoresDb ?? []} possiveisFamiliares={familiaresDb ?? []} />
     </main>
   );
 }

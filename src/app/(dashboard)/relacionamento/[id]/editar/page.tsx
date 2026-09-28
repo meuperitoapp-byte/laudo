@@ -8,9 +8,14 @@ export default async function EditarRelacionamentoPage({ params }: { params: Pro
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: relacionamento, error: erroRelacionamento }, { data: indicadoresDb, error: erroIndicadores }] = await Promise.all([
+  const [
+    { data: relacionamento, error: erroRelacionamento },
+    { data: indicadoresDb, error: erroIndicadores },
+    { data: familiaresDb, error: erroFamiliares },
+  ] = await Promise.all([
     supabase.from("relacionamentos").select("*").eq("id", id).maybeSingle(),
     supabase.from("relacionamentos").select("id, nome").eq("tipo", "advogado_escritorio").order("nome", { ascending: true }),
+    supabase.from("relacionamentos").select("id, nome").eq("tipo", "cliente_saude").order("nome", { ascending: true }),
   ]);
   if (erroRelacionamento) {
     console.error(`Editar relacionamento ${id}: falha ao buscar cadastro:`, erroRelacionamento.message);
@@ -18,6 +23,7 @@ export default async function EditarRelacionamentoPage({ params }: { params: Pro
   }
   if (!relacionamento) notFound();
   if (erroIndicadores) console.error(`Editar relacionamento ${id}: falha ao buscar possíveis indicadores:`, erroIndicadores.message);
+  if (erroFamiliares) console.error(`Editar relacionamento ${id}: falha ao buscar possíveis familiares:`, erroFamiliares.message);
 
   return (
     <main className="p-8 max-w-2xl mx-auto space-y-6">
@@ -28,7 +34,7 @@ export default async function EditarRelacionamentoPage({ params }: { params: Pro
         <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mt-2">Editar — {relacionamento.nome}</h1>
       </div>
       {erroIndicadores && <BannerErroConsulta mensagem="Não consegui carregar a lista de possíveis indicadores agora." />}
-      <RelacionamentoForm modo="editar" relacionamento={relacionamento} possiveisIndicadores={indicadoresDb ?? []} />
+      <RelacionamentoForm modo="editar" relacionamento={relacionamento} possiveisIndicadores={indicadoresDb ?? []} possiveisFamiliares={familiaresDb ?? []} />
     </main>
   );
 }

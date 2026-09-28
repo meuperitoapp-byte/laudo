@@ -13,6 +13,7 @@ import {
   CATEGORIA_ROTULOS,
 } from "@/features/relacionamento/catalogos";
 import { faixaContato, categoriaPorReceita, ultimoContato, calcularHistoricoFinanceiro, type ProcessoVinculado } from "@/features/relacionamento/ranking";
+import { montarCalendarioInteligente } from "@/features/relacionamento/calendario";
 import { hojeIsoBrasil, nivelPorPrazo } from "@/features/central-prazos/regras";
 import { NIVEL_SELO_VARIANTE, NIVEL_ROTULOS } from "@/features/central-prazos/rotulos";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
@@ -20,9 +21,6 @@ import type { RelacionamentoTipo, RelacionamentoOrigem, RelacionamentoFaixaConta
 
 function param(v: string | string[] | undefined): string {
   return (Array.isArray(v) ? v[0] : v)?.trim() ?? "";
-}
-function moedaBRL(v: number): string {
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 function dataCurta(iso: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -47,6 +45,11 @@ export default async function RelacionamentoPage({
     { data: processosDb, error: erroProcessos },
     { data: continuidadeDb, error: erroContinuidade },
     { data: processosIdentificacaoDb },
+    { data: advogadosDb, error: erroAdvogados },
+    { data: premiacoesDb, error: erroPremiacoes },
+    { data: campanhasSaudeDb, error: erroCampanhasSaude },
+    { data: datasComemorativasDb, error: erroDatasComemorativas },
+    { data: configDb },
   ] = await Promise.all([
     supabase.from("relacionamentos").select("*").order("nome", { ascending: true }),
     supabase.from("relacionamento_interacoes").select("relacionamento_id, data"),
@@ -60,6 +63,11 @@ export default async function RelacionamentoPage({
       .eq("status", "aberta")
       .order("data_limite", { ascending: true }),
     supabase.from("processos").select("id, numero_processo, periciando_nome, parte_autora"),
+    supabase.from("relacionamento_advogados").select("*"),
+    supabase.from("relacionamento_premiacoes").select("*"),
+    supabase.from("campanhas_tematicas_saude").select("*").eq("ativo", true),
+    supabase.from("datas_comemorativas_profissionais").select("*").eq("ativo", true),
+    supabase.from("relacionamento_configuracoes").select("*").eq("id", true).maybeSingle(),
   ]);
 
   for (const [rotulo, erro] of [
@@ -67,6 +75,10 @@ export default async function RelacionamentoPage({
     ["contatos", erroInteracoes],
     ["processos vinculados", erroProcessos],
     ["continuidade de serviços", erroContinuidade],
+    ["advogados vinculados", erroAdvogados],
+    ["premiações", erroPremiacoes],
+    ["campanhas de saúde", erroCampanhasSaude],
+    ["datas comemorativas", erroDatasComemorativas],
   ] as const) {
     if (erro) console.error(`Relacionamento: falha ao buscar ${rotulo}:`, erro.message);
   }
@@ -122,6 +134,16 @@ export default async function RelacionamentoPage({
   const processoIdentificacaoPorId = new Map((processosIdentificacaoDb ?? []).map((p) => [p.id, p]));
   const relacionamentoNomePorId = new Map(relacionamentos.map((r) => [r.id, r.nome]));
 
+  const calendario = montarCalendarioInteligente({
+    hojeIso: hoje,
+    janelaDias: configDb?.dias_antecedencia_aniversarios ?? 15,
+    relacionamentos,
+    advogados: advogadosDb ?? [],
+    premiacoes: premiacoesDb ?? [],
+    campanhasSaude: campanhasSaudeDb ?? [],
+    datasComemorativas: datasComemorativasDb ?? [],
+  });
+
   return (
     <main className="p-8 max-w-[1600px] mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -132,7 +154,7 @@ export default async function RelacionamentoPage({
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Link href="/relacionamento/continuidade" className={classesBotao("secundaria")}>Regras de continuidade</Link>
+          <Link href="/relacionamento/configuracoes" className={classesBotao("secundaria")}>Configurações</Link>
           <Link href="/relacionamento/novo" className={classesBotao("primaria")}>+ Novo cadastro</Link>
         </div>
       </div>
@@ -184,6 +206,24 @@ export default async function RelacionamentoPage({
                 </li>
               );
             })}
+          </ul>
+        </DashboardCard>
+      )}
+
+      {calendario.length > 0 && (
+        <DashboardCard titulo="Próximas oportunidades de relacionamento" subtitulo="Aniversários, datas profissionais, marcos de parceria, campanhas de saúde, premiações e MEU PERITO">
+          <ul className="space-y-2">
+            {calendario.slice(0, 12).map((o) => (
+              <li key={o.id} className="flex items-center justify-between text-sm">
+                <Link href={o.href} className="text-petroleo-600 dark:text-petroleo-400 hover:underline">
+                  {o.titulo}
+                </Link>
+                <span className="flex items-center gap-2 text-nevoa-500 dark:text-nevoa-400">
+                  {o.subtitulo && <span className="text-xs">{o.subtitulo}</span>}
+                  {o.diasRestantes === 0 ? "hoje" : o.diasRestantes > 0 ? `em ${o.diasRestantes}d` : dataCurta(o.data)}
+                </span>
+              </li>
+            ))}
           </ul>
         </DashboardCard>
       )}
