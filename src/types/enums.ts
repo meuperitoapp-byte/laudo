@@ -668,3 +668,112 @@ export type EstrategiaProximaAcao =
   | 'atualizar_estrategia'
   | 'aguardar_andamento'
   | 'outro'
+
+// ----------------------------------------------------------------------------
+// Módulo de Relacionamento (CRM) — Fase 1: Institucional + Continuidade de
+// Serviços (migration 20260930340000). Modelo:
+// PERICONS_MODULO_RELACIONAMENTO_DEFINITIVO_PARA_PROGRAMADOR.pdf.
+// ----------------------------------------------------------------------------
+
+/** relacionamentos.tipo — os 3 tipos de público do CRM (§1 do modelo). */
+export type RelacionamentoTipo = 'advogado_escritorio' | 'cliente_saude' | 'profissional'
+
+/** relacionamentos.origem — obrigatória no cadastro (§13). 'indicacao' exige indicado_por_id. */
+export type RelacionamentoOrigem =
+  | 'indicacao'
+  | 'redes_sociais'
+  | 'comercial_pericons'
+  | 'evento_palestra_curso'
+  | 'meu_perito'
+  | 'site_busca'
+  | 'cliente_antigo_retorno'
+  | 'parceria_institucional'
+  | 'acolher'
+  | 'outro'
+
+/** relacionamentos.ultimo_canal / relacionamento_interacoes.canal. */
+export type RelacionamentoCanal = 'whatsapp' | 'telefone' | 'email' | 'reuniao' | 'presencial' | 'outro'
+
+/**
+ * Faixa de tempo sem contato (§13) — CALCULADA em código a partir de
+ * relacionamento_interacoes, nunca armazenada. Verde 0-30d, Amarelo 31-60d,
+ * Laranja 61-90d, Vermelho +90d.
+ */
+export type RelacionamentoFaixaContato = 'verde' | 'amarelo' | 'laranja' | 'vermelho'
+
+/**
+ * Categoria por faturamento histórico acumulado (§13), consolidada no
+ * escritório — CALCULADA, nunca armazenada. Diamante >100k, Ouro 50-100k,
+ * Prata 30k-<50k, Sem categoria <30k.
+ */
+export type RelacionamentoCategoria = 'diamante' | 'ouro' | 'prata' | 'sem_categoria'
+
+/** relacionamentos.meu_perito_status — §12. */
+export type MeuPeritoStatus = 'nao_abordado' | 'abordado' | 'em_avaliacao' | 'assinante' | 'inativo'
+
+/** relacionamentos.meu_perito_potencial — §12. */
+export type MeuPeritoPotencial = 'baixo' | 'medio' | 'alto'
+
+/** relacionamentos.cs_tipo_demanda — só tipo = cliente_saude (§11). */
+export type ClienteSaudeTipoDemanda =
+  | 'medicamento'
+  | 'cirurgia'
+  | 'plano_saude'
+  | 'home_care'
+  | 'internacao_leito'
+  | 'erro_medico'
+  | 'tratamento'
+  | 'beneficio_direito_doenca'
+  | 'indenizacao'
+  | 'outra'
+
+/** relacionamentos.cs_necessidade — só tipo = cliente_saude (§11). */
+export type ClienteSaudeNecessidade = 'juridica' | 'medico_pericial' | 'extrajudicial' | 'ambas' | 'em_avaliacao'
+
+/** relacionamentos.cs_status — jornada do Cliente Saúde (§11). */
+export type ClienteSaudeStatus = 'entrada' | 'triagem' | 'qualificada' | 'direcionada' | 'em_acompanhamento' | 'encerrada'
+
+/** relacionamentos.prof_profissao — só tipo = profissional (§12). */
+export type ProfissionalProfissao = 'medico' | 'dentista' | 'psicologo' | 'outro'
+
+/** relacionamentos.prof_necessidade — só tipo = profissional (§12). */
+export type ProfissionalNecessidade =
+  | 'juridica'
+  | 'etico_profissional'
+  | 'consultoria'
+  | 'pericial'
+  | 'gestao_regularizacao'
+  | 'formacao'
+  | 'outro'
+
+/** relacionamento_creditos_indicacao.tipo — extrato de crédito de indicação (§13). */
+export type CreditoIndicacaoTipo = 'gerado' | 'utilizado'
+
+/** relacionamento_premiacoes.status — §12. */
+export type PremiacaoStatus = 'a_enviar' | 'enviado' | 'entregue'
+
+/** relacionamento_encaminhamentos.status — Rede Parceira (§14-15). */
+export type EncaminhamentoStatus = 'encaminhado' | 'aceito' | 'recusado' | 'em_contato' | 'encerrado'
+
+/** relacionamento_encaminhamentos.contratacao_realizada. */
+export type EncaminhamentoContratacaoRealizada = 'sim' | 'nao' | 'nao_informado'
+
+/** continuidade_oportunidades.fluxo — identificação obrigatória antes de qualquer follow-up (§20.1). */
+export type ContinuidadeFluxo = 'avulso' | 'meu_perito' | 'cliente_saude_direto'
+
+/** continuidade_oportunidades.status. */
+export type ContinuidadeStatus = 'aberta' | 'contratou_principal' | 'contratou_avulso' | 'encerrada_sem_continuidade' | 'aguardando_marco'
+
+/** continuidade_oportunidades.resultado_followup — os 10 valores padronizados (§20.5). */
+export type ContinuidadeResultadoFollowup =
+  | 'contratou_principal'
+  | 'contratou_avulso'
+  | 'ainda_avaliando'
+  | 'sem_interesse'
+  | 'valor_elevado'
+  | 'fara_internamente'
+  | 'caso_nao_prosseguiu'
+  | 'sem_necessidade_agora'
+  | 'aguardando_marco_processual'
+  | 'sem_resposta'
+  | 'outro'

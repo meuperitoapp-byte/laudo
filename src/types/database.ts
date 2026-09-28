@@ -103,6 +103,23 @@ import type {
   EstrategiaDocumentoPrioridade,
   EstrategiaDocumentoAcao,
   EstrategiaProximaAcao,
+  RelacionamentoTipo,
+  RelacionamentoOrigem,
+  RelacionamentoCanal,
+  MeuPeritoStatus,
+  MeuPeritoPotencial,
+  ClienteSaudeTipoDemanda,
+  ClienteSaudeNecessidade,
+  ClienteSaudeStatus,
+  ProfissionalProfissao,
+  ProfissionalNecessidade,
+  CreditoIndicacaoTipo,
+  PremiacaoStatus,
+  EncaminhamentoStatus,
+  EncaminhamentoContratacaoRealizada,
+  ContinuidadeFluxo,
+  ContinuidadeStatus,
+  ContinuidadeResultadoFollowup,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -313,6 +330,8 @@ export type ProcessosRow = {
   orgao_classe: string | null
   /** Observações/anotações livres do caso — pedido da secretária (migration 20260930190000). */
   anotacoes: string | null
+  /** Vínculo opcional com o Módulo de Relacionamento (migration 20260930340000) — nulo em processos anteriores a 30/09/2026. */
+  relacionamento_id: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -393,6 +412,7 @@ export type ProcessosInsert = ComDefaults<
   | 'analise_contestacao_observacoes'
   | 'orgao_classe'
   | 'anotacoes'
+  | 'relacionamento_id'
   | 'created_by'
   | 'created_at'
   | 'updated_at'
@@ -936,6 +956,226 @@ export type EstrategiaResponsabilidadesInsert = ComDefaults<
   'id' | 'ordem' | 'objeto_investigacao' | 'conduta_documentada' | 'ponto_controvertido' | 'created_at' | 'updated_at'
 >
 export type EstrategiaResponsabilidadesUpdate = Partial<EstrategiaResponsabilidadesRow>
+
+// ============================================================================
+// Módulo de Relacionamento (CRM) — Fase 1 (migration 20260930340000).
+// Modelo: PERICONS_MODULO_RELACIONAMENTO_DEFINITIVO_PARA_PROGRAMADOR.pdf.
+// ============================================================================
+export type RelacionamentosRow = {
+  id: string
+  tipo: RelacionamentoTipo
+  nome: string
+  observacoes: string | null
+  origem: RelacionamentoOrigem
+  indicado_por_id: string | null
+  ultimo_canal: RelacionamentoCanal | null
+  proxima_acao_texto: string | null
+  proxima_acao_motivo: string | null
+  proxima_acao_data: string | null
+  meu_perito: boolean
+  meu_perito_status: MeuPeritoStatus | null
+  meu_perito_potencial: MeuPeritoPotencial | null
+  meu_perito_observacao: string | null
+  cs_tipo_demanda: ClienteSaudeTipoDemanda | null
+  cs_necessidade: ClienteSaudeNecessidade | null
+  cs_status: ClienteSaudeStatus | null
+  prof_profissao: ProfissionalProfissao | null
+  prof_profissao_outra: string | null
+  prof_conselho_registro: string | null
+  prof_especialidade: string | null
+  prof_cidade: string | null
+  prof_uf: string | null
+  prof_necessidade: ProfissionalNecessidade | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+export type RelacionamentosInsert = ComDefaults<
+  RelacionamentosRow,
+  | 'id'
+  | 'observacoes'
+  | 'indicado_por_id'
+  | 'ultimo_canal'
+  | 'proxima_acao_texto'
+  | 'proxima_acao_motivo'
+  | 'proxima_acao_data'
+  | 'meu_perito'
+  | 'meu_perito_status'
+  | 'meu_perito_potencial'
+  | 'meu_perito_observacao'
+  | 'cs_tipo_demanda'
+  | 'cs_necessidade'
+  | 'cs_status'
+  | 'prof_profissao'
+  | 'prof_profissao_outra'
+  | 'prof_conselho_registro'
+  | 'prof_especialidade'
+  | 'prof_cidade'
+  | 'prof_uf'
+  | 'prof_necessidade'
+  | 'created_by'
+  | 'created_at'
+  | 'updated_at'
+>
+export type RelacionamentosUpdate = Partial<RelacionamentosRow>
+
+export type RelacionamentoAdvogadosRow = {
+  id: string
+  relacionamento_id: string
+  nome: string
+  oab: string | null
+  email: string | null
+  telefone: string | null
+  data_nascimento: string | null
+  created_at: string
+  updated_at: string
+}
+export type RelacionamentoAdvogadosInsert = ComDefaults<
+  RelacionamentoAdvogadosRow,
+  'id' | 'oab' | 'email' | 'telefone' | 'data_nascimento' | 'created_at' | 'updated_at'
+>
+export type RelacionamentoAdvogadosUpdate = Partial<RelacionamentoAdvogadosRow>
+
+export type RelacionamentoInteracoesRow = {
+  id: string
+  relacionamento_id: string
+  data: string
+  canal: RelacionamentoCanal
+  observacao: string | null
+  campanha: string | null
+  responsavel: string | null
+  created_at: string
+}
+export type RelacionamentoInteracoesInsert = ComDefaults<
+  RelacionamentoInteracoesRow,
+  'id' | 'observacao' | 'campanha' | 'responsavel' | 'created_at'
+>
+export type RelacionamentoInteracoesUpdate = Partial<RelacionamentoInteracoesRow>
+
+export type RelacionamentoConfiguracoesRow = {
+  id: true
+  valor_credito_indicacao_padrao: number
+  updated_at: string
+}
+/** Linha única (seed da migration) — a aplicação só faz update, nunca insert; alias mantido pra satisfazer o generic Tables. */
+export type RelacionamentoConfiguracoesInsert = RelacionamentoConfiguracoesRow
+export type RelacionamentoConfiguracoesUpdate = Partial<RelacionamentoConfiguracoesRow>
+
+export type RelacionamentoCreditosIndicacaoRow = {
+  id: string
+  indicador_id: string
+  tipo: CreditoIndicacaoTipo
+  valor: number
+  data: string
+  servico_relacionado: string | null
+  processo_id: string | null
+  observacao: string | null
+  created_at: string
+}
+export type RelacionamentoCreditosIndicacaoInsert = ComDefaults<
+  RelacionamentoCreditosIndicacaoRow,
+  'id' | 'servico_relacionado' | 'processo_id' | 'observacao' | 'created_at'
+>
+export type RelacionamentoCreditosIndicacaoUpdate = Partial<RelacionamentoCreditosIndicacaoRow>
+
+export type RelacionamentoPremiacoesRow = {
+  id: string
+  relacionamento_id: string
+  campanha: string | null
+  premiacao: string
+  status: PremiacaoStatus
+  data_prevista: string | null
+  data_enviada: string | null
+  observacao: string | null
+  created_at: string
+  updated_at: string
+}
+export type RelacionamentoPremiacoesInsert = ComDefaults<
+  RelacionamentoPremiacoesRow,
+  'id' | 'campanha' | 'status' | 'data_prevista' | 'data_enviada' | 'observacao' | 'created_at' | 'updated_at'
+>
+export type RelacionamentoPremiacoesUpdate = Partial<RelacionamentoPremiacoesRow>
+
+export type RelacionamentoEncaminhamentosRow = {
+  id: string
+  origem_id: string
+  destino_id: string | null
+  destino_descricao: string | null
+  demanda: string | null
+  data: string
+  status: EncaminhamentoStatus
+  contratacao_realizada: EncaminhamentoContratacaoRealizada
+  retorno_cliente: string | null
+  retorno_escritorio: string | null
+  created_at: string
+  updated_at: string
+}
+export type RelacionamentoEncaminhamentosInsert = ComDefaults<
+  RelacionamentoEncaminhamentosRow,
+  | 'id'
+  | 'destino_id'
+  | 'destino_descricao'
+  | 'demanda'
+  | 'status'
+  | 'contratacao_realizada'
+  | 'retorno_cliente'
+  | 'retorno_escritorio'
+  | 'created_at'
+  | 'updated_at'
+>
+export type RelacionamentoEncaminhamentosUpdate = Partial<RelacionamentoEncaminhamentosRow>
+
+export type ContinuidadeRegrasRow = {
+  id: string
+  servico_origem: string
+  gatilho: string | null
+  servico_destino_principal: string | null
+  servicos_alternativos: string[]
+  prazo_dias_padrao: number
+  ativo: boolean
+  created_at: string
+  updated_at: string
+}
+export type ContinuidadeRegrasInsert = ComDefaults<
+  ContinuidadeRegrasRow,
+  'id' | 'gatilho' | 'servico_destino_principal' | 'servicos_alternativos' | 'prazo_dias_padrao' | 'ativo' | 'created_at' | 'updated_at'
+>
+export type ContinuidadeRegrasUpdate = Partial<ContinuidadeRegrasRow>
+
+export type ContinuidadeOportunidadesRow = {
+  id: string
+  processo_id: string
+  relacionamento_id: string | null
+  servico_origem: string
+  gatilho: string | null
+  data_gatilho: string
+  prazo_dias: number
+  data_limite: string
+  fluxo: ContinuidadeFluxo | null
+  status: ContinuidadeStatus
+  resultado_followup: ContinuidadeResultadoFollowup | null
+  resultado_followup_outro: string | null
+  proxima_tentativa_data: string | null
+  observacao: string | null
+  created_at: string
+  updated_at: string
+}
+export type ContinuidadeOportunidadesInsert = ComDefaults<
+  ContinuidadeOportunidadesRow,
+  | 'id'
+  | 'relacionamento_id'
+  | 'gatilho'
+  | 'prazo_dias'
+  | 'fluxo'
+  | 'status'
+  | 'resultado_followup'
+  | 'resultado_followup_outro'
+  | 'proxima_tentativa_data'
+  | 'observacao'
+  | 'created_at'
+  | 'updated_at'
+>
+export type ContinuidadeOportunidadesUpdate = Partial<ContinuidadeOportunidadesRow>
 
 // ============================================================================
 // atualizacoes_sistema (sino de notificações, 24/09/2026)
@@ -2592,6 +2832,60 @@ export interface Database {
         Row: EstrategiaResponsabilidadesRow
         Insert: EstrategiaResponsabilidadesInsert
         Update: EstrategiaResponsabilidadesUpdate
+        Relationships: []
+      }
+      relacionamentos: {
+        Row: RelacionamentosRow
+        Insert: RelacionamentosInsert
+        Update: RelacionamentosUpdate
+        Relationships: []
+      }
+      relacionamento_advogados: {
+        Row: RelacionamentoAdvogadosRow
+        Insert: RelacionamentoAdvogadosInsert
+        Update: RelacionamentoAdvogadosUpdate
+        Relationships: []
+      }
+      relacionamento_interacoes: {
+        Row: RelacionamentoInteracoesRow
+        Insert: RelacionamentoInteracoesInsert
+        Update: RelacionamentoInteracoesUpdate
+        Relationships: []
+      }
+      relacionamento_configuracoes: {
+        Row: RelacionamentoConfiguracoesRow
+        Insert: RelacionamentoConfiguracoesInsert
+        Update: RelacionamentoConfiguracoesUpdate
+        Relationships: []
+      }
+      relacionamento_creditos_indicacao: {
+        Row: RelacionamentoCreditosIndicacaoRow
+        Insert: RelacionamentoCreditosIndicacaoInsert
+        Update: RelacionamentoCreditosIndicacaoUpdate
+        Relationships: []
+      }
+      relacionamento_premiacoes: {
+        Row: RelacionamentoPremiacoesRow
+        Insert: RelacionamentoPremiacoesInsert
+        Update: RelacionamentoPremiacoesUpdate
+        Relationships: []
+      }
+      relacionamento_encaminhamentos: {
+        Row: RelacionamentoEncaminhamentosRow
+        Insert: RelacionamentoEncaminhamentosInsert
+        Update: RelacionamentoEncaminhamentosUpdate
+        Relationships: []
+      }
+      continuidade_regras: {
+        Row: ContinuidadeRegrasRow
+        Insert: ContinuidadeRegrasInsert
+        Update: ContinuidadeRegrasUpdate
+        Relationships: []
+      }
+      continuidade_oportunidades: {
+        Row: ContinuidadeOportunidadesRow
+        Insert: ContinuidadeOportunidadesInsert
+        Update: ContinuidadeOportunidadesUpdate
         Relationships: []
       }
     }
