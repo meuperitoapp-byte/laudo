@@ -44,7 +44,8 @@ export interface ItemPainel {
     | "estrategia_documento_prova"
     | "estrategia_proxima_acao"
     | "continuidade_oportunidade_aberta"
-    | "cliente_saude_desatualizado";
+    | "cliente_saude_desatualizado"
+    | "desfecho_judicial_pendente";
   titulo: string;
   subtitulo: string | null;
   /** Texto fixo por categoria (ver rotulos.ts) pras fontes automáticas; pra `tarefa_manual` é a descrição que ela mesma digitou (ou um fallback genérico quando em branco). Nunca vazio. */

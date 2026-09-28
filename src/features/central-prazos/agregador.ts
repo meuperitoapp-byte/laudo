@@ -116,6 +116,8 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     { data: processosIdentificacaoDb },
     { data: clientesSaudeDb },
     { data: relacionamentoConfigDb },
+    { data: todosLaudosGeradosDb },
+    { data: desfechosJudiciaisDb },
   ] = await Promise.all([
     // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
     // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
@@ -242,7 +244,12 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       .not("cs_situacao_atual", "is", null)
       .neq("cs_situacao_atual", "falecido")
       .not("cs_situacao_atualizada_em", "is", null),
-    supabase.from("relacionamento_configuracoes").select("prazo_meses_atualizacao_cliente_saude").eq("id", true).maybeSingle(),
+    supabase.from("relacionamento_configuracoes").select("prazo_meses_atualizacao_cliente_saude, prazo_dias_desfecho_judicial_pendente").eq("id", true).maybeSingle(),
+    // Fonte 24 — "recebeu serviço PERICONS" = tem ao menos um laudos_gerados
+    // (qualquer tipo, protocolado ou não). Sem filtro de processo ativo,
+    // mesmo princípio das fontes 22/23.
+    supabase.from("laudos_gerados").select("processo_id, created_at"),
+    supabase.from("desfechos_judiciais").select("processo_id, updated_at"),
   ]);
   const processos = processosDb ?? [];
   const processoPorId = new Map(processos.map((p) => [p.id, p]));
@@ -854,6 +861,43 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       ordenacao: prazo,
       responsavel: "Patrícia",
       href: `/relacionamento/${c.id}`,
+    });
+  }
+
+  // ---- 24. Desfecho judicial pendente (§24.5) ----
+  // "Recebeu serviço PERICONS" = tem ao menos um laudos_gerados. Última
+  // referência = último desfecho registrado, ou (se nunca registrou nenhum)
+  // o último laudo/saída gerado — sem isso não daria pra medir "há quanto
+  // tempo está pendente" num caso que nunca teve nem uma decisão anotada.
+  const prazoDesfecho = relacionamentoConfigDb?.prazo_dias_desfecho_judicial_pendente ?? 90;
+  const ultimoServicoPorProcesso = new Map<string, string>();
+  for (const l of todosLaudosGeradosDb ?? []) {
+    const atual = ultimoServicoPorProcesso.get(l.processo_id);
+    if (!atual || l.created_at > atual) ultimoServicoPorProcesso.set(l.processo_id, l.created_at);
+  }
+  const ultimoDesfechoPorProcesso = new Map<string, string>();
+  for (const d of desfechosJudiciaisDb ?? []) {
+    const atual = ultimoDesfechoPorProcesso.get(d.processo_id);
+    if (!atual || d.updated_at > atual) ultimoDesfechoPorProcesso.set(d.processo_id, d.updated_at);
+  }
+  for (const [processoId, ultimoServico] of ultimoServicoPorProcesso) {
+    const processo = processoIdentificacaoPorId.get(processoId);
+    if (!processo || !processo.numero_processo) continue; // só processos judiciais de verdade
+    const ultimaReferencia = ultimoDesfechoPorProcesso.get(processoId) ?? ultimoServico;
+    const prazo = somarDiasIso(ultimaReferencia.slice(0, 10), prazoDesfecho);
+    if (prazo > hoje) continue;
+    itens.push({
+      id: `desfecho_judicial_pendente-${processoId}`,
+      categoria: "desfecho_judicial_pendente",
+      titulo: `Desfecho judicial pendente — ${identificarProcesso(processo)}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.desfecho_judicial_pendente,
+      nivel: nivelPorPrazo(prazo, hoje),
+      prazo,
+      dataContexto: { rotulo: "Última atualização em", valor: ultimaReferencia },
+      ordenacao: prazo,
+      responsavel: null,
+      href: `/processos/${processoId}/desfecho-judicial`,
     });
   }
 

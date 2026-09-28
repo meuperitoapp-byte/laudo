@@ -69,6 +69,7 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   estrategia_proxima_acao: "Executar a próxima ação registrada na Estratégia Pericial.",
   continuidade_oportunidade_aberta: "Fazer o follow-up de continuidade e registrar o resultado.",
   cliente_saude_desatualizado: "Verificar e atualizar a situação do Cliente Saúde.",
+  desfecho_judicial_pendente: "Solicitar atualização do desfecho ao advogado e registrar a decisão.",
 };
 
 /**
@@ -113,4 +114,5 @@ export const GRUPO_AGENDA_POR_CATEGORIA: Record<ItemPainel["categoria"], GrupoAg
   estrategia_proxima_acao: "prazos",
   continuidade_oportunidade_aberta: "prazos",
   cliente_saude_desatualizado: "prazos",
+  desfecho_judicial_pendente: "prazos",
 };
