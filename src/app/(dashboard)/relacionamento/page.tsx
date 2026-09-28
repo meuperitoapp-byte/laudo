@@ -11,9 +11,13 @@ import {
   FAIXA_ROTULOS,
   FAIXA_SELO_VARIANTE,
   CATEGORIA_ROTULOS,
+  ORIGEM_ROTULOS,
 } from "@/features/relacionamento/catalogos";
 import { faixaContato, categoriaPorReceita, ultimoContato, calcularHistoricoFinanceiro, type ProcessoVinculado } from "@/features/relacionamento/ranking";
 import { montarCalendarioInteligente } from "@/features/relacionamento/calendario";
+import { montarCampanhasAutomaticas } from "@/features/relacionamento/campanhas";
+import { montarResumoIndicacoes, montarResumoConexoes } from "@/features/relacionamento/indicacoes-conexoes";
+import { calcularFunilClienteSaudePorOrigem } from "@/features/relacionamento/funil-cliente-saude";
 import { hojeIsoBrasil, nivelPorPrazo } from "@/features/central-prazos/regras";
 import { NIVEL_SELO_VARIANTE, NIVEL_ROTULOS } from "@/features/central-prazos/rotulos";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
@@ -25,6 +29,9 @@ function param(v: string | string[] | undefined): string {
 function dataCurta(iso: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+function moedaBRL(v: number): string {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 export default async function RelacionamentoPage({
@@ -50,6 +57,8 @@ export default async function RelacionamentoPage({
     { data: campanhasSaudeDb, error: erroCampanhasSaude },
     { data: datasComemorativasDb, error: erroDatasComemorativas },
     { data: configDb },
+    { data: creditosDb, error: erroCreditos },
+    { data: encaminhamentosGlobaisDb, error: erroEncaminhamentos },
   ] = await Promise.all([
     supabase.from("relacionamentos").select("*").order("nome", { ascending: true }),
     supabase.from("relacionamento_interacoes").select("relacionamento_id, data"),
@@ -68,6 +77,8 @@ export default async function RelacionamentoPage({
     supabase.from("campanhas_tematicas_saude").select("*").eq("ativo", true),
     supabase.from("datas_comemorativas_profissionais").select("*").eq("ativo", true),
     supabase.from("relacionamento_configuracoes").select("*").eq("id", true).maybeSingle(),
+    supabase.from("relacionamento_creditos_indicacao").select("*"),
+    supabase.from("relacionamento_encaminhamentos").select("*"),
   ]);
 
   for (const [rotulo, erro] of [
@@ -79,6 +90,8 @@ export default async function RelacionamentoPage({
     ["premiações", erroPremiacoes],
     ["campanhas de saúde", erroCampanhasSaude],
     ["datas comemorativas", erroDatasComemorativas],
+    ["créditos de indicação", erroCreditos],
+    ["encaminhamentos", erroEncaminhamentos],
   ] as const) {
     if (erro) console.error(`Relacionamento: falha ao buscar ${rotulo}:`, erro.message);
   }
@@ -143,6 +156,12 @@ export default async function RelacionamentoPage({
     campanhasSaude: campanhasSaudeDb ?? [],
     datasComemorativas: datasComemorativasDb ?? [],
   });
+
+  const campanhas = montarCampanhasAutomaticas(comCalculo, processosPorRelacionamento, hoje);
+  const idsComProcessoVinculado = new Set(processosPorRelacionamento.keys());
+  const resumoIndicacoes = montarResumoIndicacoes(relacionamentos, creditosDb ?? [], idsComProcessoVinculado);
+  const resumoConexoes = montarResumoConexoes(encaminhamentosGlobaisDb ?? [], relacionamentos);
+  const funilClienteSaude = calcularFunilClienteSaudePorOrigem(relacionamentos.filter((r) => r.tipo === "cliente_saude"), idsComProcessoVinculado);
 
   return (
     <main className="p-8 max-w-[1600px] mx-auto space-y-6">
@@ -225,6 +244,134 @@ export default async function RelacionamentoPage({
               </li>
             ))}
           </ul>
+        </DashboardCard>
+      )}
+
+      <DashboardCard titulo="Campanhas" subtitulo="§7.2 — público sempre calculado, nunca digitado">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <p className="text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1">Presentes de fim de ano ({campanhas.fimDeAno.length})</p>
+            <ul className="space-y-1">
+              {campanhas.fimDeAno.slice(0, 5).map((i) => (
+                <li key={i.id}><Link href={`/relacionamento/${i.id}`} className="text-sm text-petroleo-600 dark:text-petroleo-400 hover:underline">{i.nome}</Link> <span className="text-xs text-nevoa-500 dark:text-nevoa-400">{i.detalhe}</span></li>
+              ))}
+              {campanhas.fimDeAno.length === 0 && <li className="text-sm text-nevoa-400 dark:text-nevoa-600">Nenhum elegível.</li>}
+            </ul>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1">
+              Top Parceiros — {campanhas.topParceirosSemestre.semestre}º sem. {campanhas.topParceirosSemestre.ano}
+            </p>
+            <ul className="space-y-1">
+              {campanhas.topParceirosSemestre.itens.slice(0, 5).map((i) => (
+                <li key={i.id} className="flex items-center justify-between text-sm">
+                  <Link href={`/relacionamento/${i.id}`} className="text-petroleo-600 dark:text-petroleo-400 hover:underline">{i.posicao}º {i.nome}</Link>
+                  <span className="text-xs text-nevoa-500 dark:text-nevoa-400">{moedaBRL(i.receitaSemestre)}</span>
+                </li>
+              ))}
+              {campanhas.topParceirosSemestre.itens.length === 0 && <li className="text-sm text-nevoa-400 dark:text-nevoa-600">Sem faturamento no semestre.</li>}
+            </ul>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1">MEU PERITO — potencial ({campanhas.meuPeritoPotencial.length})</p>
+            <ul className="space-y-1">
+              {campanhas.meuPeritoPotencial.slice(0, 5).map((i) => (
+                <li key={i.id}><Link href={`/relacionamento/${i.id}`} className="text-sm text-petroleo-600 dark:text-petroleo-400 hover:underline">{i.nome}</Link> {i.detalhe && <span className="text-xs text-nevoa-500 dark:text-nevoa-400">{i.detalhe}</span>}</li>
+              ))}
+              {campanhas.meuPeritoPotencial.length === 0 && <li className="text-sm text-nevoa-400 dark:text-nevoa-600">Nenhum pendente.</li>}
+            </ul>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1">Atenção — 31-60d ({campanhas.atencao.length})</p>
+            <ul className="space-y-1">{campanhas.atencao.slice(0, 5).map((i) => <li key={i.id}><Link href={`/relacionamento/${i.id}`} className="text-sm text-petroleo-600 dark:text-petroleo-400 hover:underline">{i.nome}</Link></li>)}</ul>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1">Esfriando — 61-90d ({campanhas.esfriando.length})</p>
+            <ul className="space-y-1">{campanhas.esfriando.slice(0, 5).map((i) => <li key={i.id}><Link href={`/relacionamento/${i.id}`} className="text-sm text-petroleo-600 dark:text-petroleo-400 hover:underline">{i.nome}</Link></li>)}</ul>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1">Reativação — +90d ({campanhas.reativacao.length})</p>
+            <ul className="space-y-1">{campanhas.reativacao.slice(0, 5).map((i) => <li key={i.id}><Link href={`/relacionamento/${i.id}`} className="text-sm text-petroleo-600 dark:text-petroleo-400 hover:underline">{i.nome}</Link></li>)}</ul>
+          </div>
+        </div>
+      </DashboardCard>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DashboardCard titulo="Indicações" subtitulo="Novas indicações, conversão e créditos">
+          <p className="text-sm text-nevoa-700 dark:text-nevoa-300 mb-2">
+            {resumoIndicacoes.totalConvertidos} convertida(s) de {relacionamentos.filter((r) => r.origem === "indicacao").length} indicação(ões) · Saldo total de créditos: <strong>{moedaBRL(resumoIndicacoes.saldoTotalCreditos)}</strong>
+          </p>
+          <ul className="space-y-1.5">
+            {resumoIndicacoes.novasIndicacoes.map((i) => (
+              <li key={i.id} className="flex items-center justify-between text-sm">
+                <Link href={`/relacionamento/${i.id}`} className="text-petroleo-600 dark:text-petroleo-400 hover:underline">
+                  {i.indicadoNome}{i.indicadorNome ? ` (por ${i.indicadorNome})` : ""}
+                </Link>
+                {i.convertido ? <Selo variante="sucesso">Convertido</Selo> : <span className="text-xs text-nevoa-500 dark:text-nevoa-400">{dataCurta(i.createdAt)}</span>}
+              </li>
+            ))}
+            {resumoIndicacoes.novasIndicacoes.length === 0 && <li className="text-sm text-nevoa-400 dark:text-nevoa-600">Nenhuma indicação registrada ainda.</li>}
+          </ul>
+        </DashboardCard>
+
+        <DashboardCard titulo="Conexões" subtitulo="Encaminhamentos aguardando escritório ou em acompanhamento">
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1">Aguardando escritório ({resumoConexoes.aguardandoEscritorio.length})</p>
+              <ul className="space-y-1">
+                {resumoConexoes.aguardandoEscritorio.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between text-sm">
+                    <span className="text-nevoa-700 dark:text-nevoa-300">{c.origemNome} → {c.destinoNome ?? "—"}</span>
+                    <span className="text-xs text-nevoa-500 dark:text-nevoa-400">{dataCurta(c.data)}</span>
+                  </li>
+                ))}
+                {resumoConexoes.aguardandoEscritorio.length === 0 && <li className="text-sm text-nevoa-400 dark:text-nevoa-600">Nenhuma.</li>}
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1">Em acompanhamento ({resumoConexoes.emAcompanhamento.length})</p>
+              <ul className="space-y-1">
+                {resumoConexoes.emAcompanhamento.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between text-sm">
+                    <span className="text-nevoa-700 dark:text-nevoa-300">{c.origemNome} → {c.destinoNome ?? "—"}</span>
+                    <span className="text-xs text-nevoa-500 dark:text-nevoa-400">{dataCurta(c.data)}</span>
+                  </li>
+                ))}
+                {resumoConexoes.emAcompanhamento.length === 0 && <li className="text-sm text-nevoa-400 dark:text-nevoa-600">Nenhuma.</li>}
+              </ul>
+            </div>
+          </div>
+        </DashboardCard>
+      </div>
+
+      {funilClienteSaude.length > 0 && (
+        <DashboardCard titulo="Cliente Saúde — efetividade por origem" subtitulo="§11.2 — contatos gerados, triagens, demandas qualificadas, encaminhamentos e contratações">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-nevoa-500 dark:text-nevoa-400 border-b border-nevoa-200 dark:border-nevoa-800">
+                  <th className="py-2 pr-4 font-medium">Origem</th>
+                  <th className="py-2 pr-4 font-medium">Contatos gerados</th>
+                  <th className="py-2 pr-4 font-medium">Triagens</th>
+                  <th className="py-2 pr-4 font-medium">Demandas qualificadas</th>
+                  <th className="py-2 pr-4 font-medium">Encaminhamentos</th>
+                  <th className="py-2 font-medium">Contratações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {funilClienteSaude.map((f) => (
+                  <tr key={f.origem} className="border-b border-nevoa-100 dark:border-nevoa-900 last:border-0">
+                    <td className="py-2 pr-4 text-nevoa-800 dark:text-nevoa-200">{ORIGEM_ROTULOS[f.origem]}</td>
+                    <td className="py-2 pr-4 tabular-nums">{f.contatosGerados}</td>
+                    <td className="py-2 pr-4 tabular-nums">{f.triagens}</td>
+                    <td className="py-2 pr-4 tabular-nums">{f.demandasQualificadas}</td>
+                    <td className="py-2 pr-4 tabular-nums">{f.encaminhamentos}</td>
+                    <td className="py-2 tabular-nums">{f.contratacoes}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </DashboardCard>
       )}
 

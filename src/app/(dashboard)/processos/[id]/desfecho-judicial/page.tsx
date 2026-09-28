@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DesfechoTimelinePanel } from "@/features/desfecho-judicial/desfecho-timeline-panel";
+import { SolicitarAtualizacaoButton } from "@/features/desfecho-judicial/solicitar-atualizacao-button";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 export default async function DesfechoJudicialPage({ params }: { params: Promise<{ id: string }> }) {
@@ -10,7 +11,7 @@ export default async function DesfechoJudicialPage({ params }: { params: Promise
 
   const { data: processo, error: erroProcesso } = await supabase
     .from("processos")
-    .select("id, periciando_nome, numero_processo, parte_autora")
+    .select("id, periciando_nome, numero_processo, parte_autora, relacionamento_id")
     .eq("id", processoId)
     .maybeSingle();
   if (erroProcesso) {
@@ -23,10 +24,14 @@ export default async function DesfechoJudicialPage({ params }: { params: Promise
     { data: desfechosDb, error: erroDesfechos },
     { data: documentosDb, error: erroDocumentos },
     { data: relacionadosDb, error: erroRelacionados },
+    nomeEscritorio,
   ] = await Promise.all([
     supabase.from("desfechos_judiciais").select("*").eq("processo_id", processoId),
     supabase.from("documentos").select("*").eq("processo_id", processoId).order("ordem", { ascending: true }),
     supabase.from("desfecho_documentos_relacionados").select("id, desfecho_id, documento_id, created_at"),
+    processo.relacionamento_id
+      ? supabase.from("relacionamentos").select("nome").eq("id", processo.relacionamento_id).maybeSingle().then((r) => r.data?.nome ?? null)
+      : Promise.resolve(null),
   ]);
   if (erroDesfechos) console.error(`Desfecho judicial (${processoId}): falha ao buscar decisões:`, erroDesfechos.message);
   if (erroDocumentos) console.error(`Desfecho judicial (${processoId}): falha ao buscar documentos:`, erroDocumentos.message);
@@ -46,17 +51,23 @@ export default async function DesfechoJudicialPage({ params }: { params: Promise
   }));
 
   const nomeCaso = processo.numero_processo || processo.periciando_nome || processo.parte_autora || "Processo sem identificação";
+  const ultimaAtualizacao = desfechos.reduce<string | null>((max, d) => (!max || d.updated_at > max ? d.updated_at : max), null);
 
   return (
     <main className="p-8 max-w-3xl mx-auto space-y-6">
-      <div>
-        <Link href={`/processos/${processoId}`} className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400">
-          ← {nomeCaso}
-        </Link>
-        <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mt-2">Desfecho Judicial</h1>
-        <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-0.5">
-          Resultado do processo para a parte assistida — múltiplos registros em ordem cronológica, sempre sob a perspectiva de quem a PERICONS assiste.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <Link href={`/processos/${processoId}`} className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400">
+            ← {nomeCaso}
+          </Link>
+          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mt-2">Desfecho Judicial</h1>
+          <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-0.5">
+            Resultado do processo para a parte assistida — múltiplos registros em ordem cronológica, sempre sob a perspectiva de quem a PERICONS assiste.
+          </p>
+        </div>
+        <div className="shrink-0">
+          <SolicitarAtualizacaoButton nomeCaso={nomeCaso} nomeEscritorio={nomeEscritorio} ultimaAtualizacao={ultimaAtualizacao} />
+        </div>
       </div>
       {(erroDesfechos || erroDocumentos || erroRelacionados) && <BannerErroConsulta mensagem="Não foi possível carregar todos os dados agora." />}
       <DesfechoTimelinePanel processoId={processoId} desfechos={desfechos} documentos={documentos} />

@@ -10,6 +10,7 @@ import { AdvogadosPanel } from "@/features/relacionamento/advogados-panel";
 import { PremiacoesPanel } from "@/features/relacionamento/premiacoes-panel";
 import { IndicacaoPanel } from "@/features/relacionamento/indicacao-panel";
 import { EncaminhamentosPanel } from "@/features/relacionamento/encaminhamentos-panel";
+import { IndicadoresParceriaEscritorioPanel, IndicadoresParceriaProfissionalPanel } from "@/features/relacionamento/indicadores-parceria-panel";
 import {
   TIPO_ROTULOS,
   ORIGEM_ROTULOS,
@@ -17,11 +18,13 @@ import {
   FAIXA_SELO_VARIANTE,
   CATEGORIA_ROTULOS,
   MEU_PERITO_STATUS_ROTULOS,
+  MEU_PERITO_POTENCIAL_ROTULOS,
   CS_STATUS_ROTULOS,
   CS_SITUACAO_ATUAL_ROTULOS,
   PROF_PROFISSAO_ROTULOS,
 } from "@/features/relacionamento/catalogos";
-import { faixaContato, categoriaPorReceita, ultimoContato, calcularHistoricoComercial, calcularHistoricoFinanceiro } from "@/features/relacionamento/ranking";
+import { faixaContato, categoriaPorReceita, ultimoContato, calcularHistoricoComercial, calcularHistoricoFinanceiro, calcularPosicaoRanking, type ProcessoVinculado } from "@/features/relacionamento/ranking";
+import { calcularIndicadoresParceriaEscritorio, calcularIndicadoresParceriaProfissional } from "@/features/relacionamento/parceria";
 import { hojeIsoBrasil } from "@/features/central-prazos/regras";
 import { listarNomesResponsaveis } from "@/lib/supabase/responsaveis";
 import { valorDoProcesso } from "@/features/processos/valor";
@@ -109,6 +112,51 @@ export default async function FichaRelacionamentoPage({ params }: { params: Prom
     }
   }
 
+  // §5 — posição no ranking (só advogado_escritorio, calculada contra todos os demais).
+  let posicaoRanking: number | null = null;
+  let totalEscritoriosComReceita = 0;
+  if (relacionamento.tipo === "advogado_escritorio") {
+    const [{ data: todosEscritoriosDb }, { data: todosProcessosVinculadosDb }] = await Promise.all([
+      supabase.from("relacionamentos").select("id").eq("tipo", "advogado_escritorio"),
+      supabase
+        .from("processos")
+        .select("id, relacionamento_id, tipo_trabalho, status, honorario_arbitrado, honorario_apresentado, valor_processo, honorarios_recebidos_em, data_pagamento_at, etapas_contratadas, created_at")
+        .not("relacionamento_id", "is", null),
+    ]);
+    const processosPorEscritorio = new Map<string, ProcessoVinculado[]>();
+    for (const p of todosProcessosVinculadosDb ?? []) {
+      if (!p.relacionamento_id) continue;
+      const lista = processosPorEscritorio.get(p.relacionamento_id) ?? [];
+      lista.push(p);
+      processosPorEscritorio.set(p.relacionamento_id, lista);
+    }
+    const receitaPorId = new Map((todosEscritoriosDb ?? []).map((e) => [e.id, calcularHistoricoFinanceiro(processosPorEscritorio.get(e.id) ?? [], hojeIsoBrasil()).receitaTotal]));
+    const posicoes = calcularPosicaoRanking(receitaPorId);
+    posicaoRanking = posicoes.get(id) ?? null;
+    totalEscritoriosComReceita = [...receitaPorId.values()].filter((r) => r > 0).length;
+  }
+
+  // §13.3 — indicadores de parceria (escritório = sempre destino; profissional = sempre origem).
+  let indicadoresEscritorio = null as ReturnType<typeof calcularIndicadoresParceriaEscritorio> | null;
+  let indicadoresProfissional = null as ReturnType<typeof calcularIndicadoresParceriaProfissional> | null;
+  if (relacionamento.tipo === "advogado_escritorio") {
+    const { data: recebidosDb } = await supabase.from("relacionamento_encaminhamentos").select("*").eq("destino_id", id);
+    const idsOrigem = [...new Set((recebidosDb ?? []).map((e) => e.origem_id))];
+    const [{ data: origensDb }, { data: indicadosDb }] = await Promise.all([
+      idsOrigem.length > 0 ? supabase.from("relacionamentos").select("id, tipo").in("id", idsOrigem) : Promise.resolve({ data: [] }),
+      supabase.from("relacionamentos").select("*").eq("indicado_por_id", id),
+    ]);
+    const origemTipoPorId = new Map((origensDb ?? []).map((r) => [r.id, r.tipo]));
+    indicadoresEscritorio = calcularIndicadoresParceriaEscritorio(id, recebidosDb ?? [], origemTipoPorId, indicadosDb ?? []);
+  }
+  if (relacionamento.tipo === "profissional") {
+    const [{ data: realizadosDb }, { data: indicadosDb }] = await Promise.all([
+      supabase.from("relacionamento_encaminhamentos").select("*").eq("origem_id", id),
+      supabase.from("relacionamentos").select("*").eq("indicado_por_id", id),
+    ]);
+    indicadoresProfissional = calcularIndicadoresParceriaProfissional(id, realizadosDb ?? [], indicadosDb ?? []);
+  }
+
   return (
     <main className="p-8 max-w-4xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -171,6 +219,9 @@ export default async function FichaRelacionamentoPage({ params }: { params: Prom
           {historicoComercial.servicoMaisContratado && (
             <p className="text-xs text-nevoa-500 dark:text-nevoa-400">Serviço mais contratado: {historicoComercial.servicoMaisContratado}</p>
           )}
+          {posicaoRanking && (
+            <p className="text-xs text-nevoa-500 dark:text-nevoa-400">{posicaoRanking}º escritório da carteira PERICONS (de {totalEscritoriosComReceita} com faturamento).</p>
+          )}
         </div>
       )}
 
@@ -198,9 +249,17 @@ export default async function FichaRelacionamentoPage({ params }: { params: Prom
           )}
         </div>
       )}
-      {relacionamento.tipo === "profissional" && relacionamento.prof_profissao && (
-        <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6">
-          <p className="text-sm text-nevoa-700 dark:text-nevoa-300">{PROF_PROFISSAO_ROTULOS[relacionamento.prof_profissao]}{relacionamento.prof_especialidade ? ` — ${relacionamento.prof_especialidade}` : ""}</p>
+      {relacionamento.tipo === "profissional" && (relacionamento.prof_profissao || relacionamento.prof_produto_futuro_potencial) && (
+        <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6 space-y-1">
+          {relacionamento.prof_profissao && (
+            <p className="text-sm text-nevoa-700 dark:text-nevoa-300">{PROF_PROFISSAO_ROTULOS[relacionamento.prof_profissao]}{relacionamento.prof_especialidade ? ` — ${relacionamento.prof_especialidade}` : ""}</p>
+          )}
+          {relacionamento.prof_produto_futuro_potencial && (
+            <p className="text-xs text-nevoa-500 dark:text-nevoa-400">
+              Potencial pro futuro produto/ecossistema profissional: <span className="font-medium">{MEU_PERITO_POTENCIAL_ROTULOS[relacionamento.prof_produto_futuro_potencial]}</span>
+              {relacionamento.prof_produto_futuro_observacao ? ` — ${relacionamento.prof_produto_futuro_observacao}` : ""}
+            </p>
+          )}
         </div>
       )}
 
@@ -229,9 +288,11 @@ export default async function FichaRelacionamentoPage({ params }: { params: Prom
       {relacionamento.tipo === "advogado_escritorio" && (
         <IndicacaoPanel indicadorId={id} creditos={creditosDb ?? []} valorPadrao={configDb?.valor_credito_indicacao_padrao ?? 0} />
       )}
+      {indicadoresEscritorio && <IndicadoresParceriaEscritorioPanel indicadores={indicadoresEscritorio} />}
       {(relacionamento.tipo === "cliente_saude" || relacionamento.tipo === "profissional") && (
         <EncaminhamentosPanel origemId={id} encaminhamentos={encaminhamentos} escritorios={escritoriosDb ?? []} />
       )}
+      {indicadoresProfissional && <IndicadoresParceriaProfissionalPanel indicadores={indicadoresProfissional} />}
     </main>
   );
 }
