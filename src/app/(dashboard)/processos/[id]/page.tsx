@@ -525,6 +525,19 @@ export default async function ProcessoDetalhePage({
         <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
       </Link>
 
+      {processo.numero_processo && (
+        <Link
+          href={`/processos/${processo.id}/desfecho-judicial`}
+          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
+        >
+          <div>
+            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Desfecho Judicial</h3>
+            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Registrar decisões e acompanhar a linha do tempo do processo</p>
+          </div>
+          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
+        </Link>
+      )}
+
       {processo.tipo_trabalho === "pericia_judicial" && (
         <PoloPartesPanel processoId={processo.id} partes={partes} />
       )}

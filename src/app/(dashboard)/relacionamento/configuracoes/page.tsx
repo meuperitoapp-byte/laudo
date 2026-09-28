@@ -5,6 +5,7 @@ import { ConfiguracaoCreditoForm } from "@/features/relacionamento/configuracao-
 import { ConfiguracaoCalendarioForm } from "@/features/relacionamento/configuracao-calendario-form";
 import { DatasComemorativasPanel } from "@/features/relacionamento/datas-comemorativas-panel";
 import { CampanhasSaudePanel } from "@/features/relacionamento/campanhas-saude-panel";
+import { DesfechoPrazoForm } from "@/features/desfecho-judicial/desfecho-prazo-form";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 export default async function ConfiguracoesRelacionamentoPage() {
@@ -46,6 +47,7 @@ export default async function ConfiguracoesRelacionamentoPage() {
       />
       <DatasComemorativasPanel datas={datasDb ?? []} />
       <CampanhasSaudePanel campanhas={campanhasDb ?? []} />
+      <DesfechoPrazoForm prazoDias={configDb?.prazo_dias_desfecho_judicial_pendente ?? 90} />
     </main>
   );
 }
