@@ -2,7 +2,8 @@ import Link from "next/link";
 import { FolderKanban, CalendarClock, ListChecks, Scale } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { montarPainel } from "@/features/central-prazos/agregador";
-import { hojeIsoBrasil } from "@/features/central-prazos/regras";
+import { hojeIsoBrasil, horaAgoraBrasil } from "@/features/central-prazos/regras";
+import { nomeExibicaoDoEmail } from "@/lib/supabase/responsaveis";
 import { RankedBarList, ranquear } from "@/components/ui/ranked-bar-list";
 import { DonutChart } from "@/components/ui/donut-chart";
 import { DashboardCard } from "@/components/ui/dashboard-card";
@@ -28,9 +29,25 @@ import { evolucaoAcumulada, sparklineAproximada, percentualVariacao, isoHaDias }
  * (--chart-teal/--chart-amber, ver globals.css) — feedback dela em
  * 24/09/2026 ("muito feio, tudo igual"). Nunca uma cor nova inventada.
  */
+/** "Bom dia"/"Boa tarde"/"Boa noite" pelo horário de Brasília — saudação do Dashboard (25/09/2026, pedido dela). */
+function saudacaoPorHora(horaMinuto: string): string {
+  const hora = parseInt(horaMinuto.slice(0, 2), 10);
+  if (hora >= 5 && hora < 12) return "Bom dia";
+  if (hora >= 12 && hora < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const hoje = hojeIsoBrasil();
+  // getSession(), não getUser(): o middleware já validou o token pra esta
+  // requisição — repetir com getUser() pagaria um round-trip de rede à toa
+  // (mesmo princípio já aplicado no layout do dashboard).
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const nomeUsuario = await nomeExibicaoDoEmail(session?.user.email);
+  const saudacao = `${saudacaoPorHora(horaAgoraBrasil())}, ${nomeUsuario}!`;
 
   // As 3 consultas abaixo são independentes — nenhuma usa dado de outra —
   // então disparam juntas em vez de uma atrás da outra. `escritoriosDb`
@@ -126,7 +143,7 @@ export default async function DashboardPage() {
   return (
     <main className="p-8 max-w-[1600px] mx-auto space-y-6">
       <div>
-        <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Dashboard</h1>
+        <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">{saudacao}</h1>
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">Visão geral dos processos e da operação.</p>
       </div>
 
