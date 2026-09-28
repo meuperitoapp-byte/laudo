@@ -17,10 +17,8 @@ export const STATUS_TAREFA_SEED = [
   "Falar com advogado",
 ] as const;
 
-/**
- * Vocabulário editável de `central_tarefas.responsavel` — mesmo princípio
- * acima. "Secretária" e "CEO" adicionados em 30/09/2026 junto com a
- * separação visual da Agenda por responsável (ver rotulos.ts/agregador.ts) —
- * cresce sozinho a partir do que for digitado além disso.
- */
-export const RESPONSAVEL_TAREFA_SEED: readonly string[] = ["Dra. Fernanda", "Secretária", "CEO", "Financeiro"];
+// `central_tarefas.responsavel` deixou de usar catálogo de texto livre
+// (30/09/2026) — o campo agora é o SelectResponsavel fechado, alimentado por
+// listarNomesResponsaveis() (só logins reais), pra não dar margem de erro
+// com nomes de setor que não existem como login (CEO/Financeiro/Assessor/
+// Atendimento, catálogo antigo removido daqui).

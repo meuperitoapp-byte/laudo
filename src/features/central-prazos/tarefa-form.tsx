@@ -2,10 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { criarTarefaCentral, atualizarTarefaCentral } from "./actions";
 import { Botao } from "@/components/ui/button";
 import { Toast } from "@/components/ui/toast";
 import { ComboboxCatalogo } from "@/components/ui/combobox-catalogo";
+import { SelectResponsavel } from "@/components/ui/select-responsavel";
 import { NIVEL_ROTULOS } from "./rotulos";
 import type { CentralTarefasRow } from "@/types/database";
 import type { NivelUrgencia } from "@/types/enums";
@@ -37,18 +39,19 @@ export function TarefaForm({
   tarefa,
   processos,
   statusSugestoes,
-  responsavelSugestoes,
+  nomesResponsaveis,
 }: {
   /** null = criar; presente = editar. */
   tarefa: CentralTarefasRow | null;
   processos: ProcessoOpcao[];
   statusSugestoes: string[];
-  responsavelSugestoes: string[];
+  nomesResponsaveis: string[];
 }) {
   const router = useRouter();
   const editando = tarefa !== null;
 
   const [tipo, setTipo] = useState<"tarefa" | "evento">(tarefa?.tipo ?? "tarefa");
+  const [processoId, setProcessoId] = useState(tarefa?.processo_id ?? "");
   const [erro, setErro] = useState<string | null>(null);
   const [mensagemOk, setMensagemOk] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -179,27 +182,39 @@ export function TarefaForm({
         <label htmlFor="responsavel" className={labelClass}>
           Responsável (opcional — quem deve executar)
         </label>
-        <ComboboxCatalogo
-          id="responsavel"
-          name="responsavel"
-          sugestoes={responsavelSugestoes}
-          valorInicial={tarefa?.responsavel ?? ""}
-          rotuloNovo="Novo responsável"
-        />
+        <SelectResponsavel id="responsavel" name="responsavel" nomes={nomesResponsaveis} defaultValue={tarefa?.responsavel} className={inputClass} />
       </div>
 
       <div>
         <label htmlFor="processo_id" className={labelClass}>
           Processo (opcional — deixe em branco pra tarefa avulsa)
         </label>
-        <select id="processo_id" name="processo_id" defaultValue={tarefa?.processo_id ?? ""} className={inputClass}>
-          <option value="">— nenhum —</option>
-          {processos.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            id="processo_id"
+            name="processo_id"
+            value={processoId}
+            onChange={(e) => setProcessoId(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">— nenhum —</option>
+            {processos.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          {processoId && (
+            <Link
+              href={`/processos/${processoId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 text-sm text-petroleo-600 hover:underline dark:text-petroleo-400 whitespace-nowrap"
+            >
+              Abrir caso ↗
+            </Link>
+          )}
+        </div>
       </div>
 
       {editando && (

@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TarefaForm } from "@/features/central-prazos/tarefa-form";
 import { ExcluirTarefaBotao, ConcluirTarefaBotao } from "@/features/central-prazos/tarefa-acoes";
-import { STATUS_TAREFA_SEED, RESPONSAVEL_TAREFA_SEED } from "@/features/central-prazos/catalogos";
+import { STATUS_TAREFA_SEED } from "@/features/central-prazos/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { identificarProcesso } from "@/features/central-prazos/agregador";
+import { listarNomesResponsaveis } from "@/lib/supabase/responsaveis";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 export default async function TarefaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,7 +17,7 @@ export default async function TarefaPage({ params }: { params: Promise<{ id: str
     { data: tarefa, error: erroTarefa },
     { data: processosDb, error: erroProcessos },
     { data: statusDb, error: erroStatus },
-    { data: responsavelDb, error: erroResponsavel },
+    nomesResponsaveis,
   ] = await Promise.all([
     supabase.from("central_tarefas").select("*").eq("id", id).maybeSingle(),
     supabase
@@ -24,7 +25,7 @@ export default async function TarefaPage({ params }: { params: Promise<{ id: str
       .select("id, numero_processo, periciando_nome, parte_autora")
       .order("created_at", { ascending: false }),
     supabase.from("central_tarefas").select("valor:status"),
-    supabase.from("central_tarefas").select("valor:responsavel"),
+    listarNomesResponsaveis(),
   ]);
 
   // `.maybeSingle()` só devolve `data: null` sem erro quando de fato não há
@@ -36,7 +37,6 @@ export default async function TarefaPage({ params }: { params: Promise<{ id: str
   if (!tarefa) notFound();
   if (erroProcessos) console.error(`Tarefa ${id}: falha ao buscar processos:`, erroProcessos.message);
   if (erroStatus) console.error(`Tarefa ${id}: falha ao buscar sugestões de status:`, erroStatus.message);
-  if (erroResponsavel) console.error(`Tarefa ${id}: falha ao buscar sugestões de responsável:`, erroResponsavel.message);
 
   const processos = (processosDb ?? []).map((p) => ({ id: p.id, label: identificarProcesso(p) }));
 
@@ -65,7 +65,7 @@ export default async function TarefaPage({ params }: { params: Promise<{ id: str
         tarefa={tarefa}
         processos={processos}
         statusSugestoes={mesclarSugestoes(STATUS_TAREFA_SEED, statusDb)}
-        responsavelSugestoes={mesclarSugestoes(RESPONSAVEL_TAREFA_SEED, responsavelDb)}
+        nomesResponsaveis={nomesResponsaveis}
       />
 
       <ConcluirTarefaBotao id={tarefa.id} tipo={tarefa.tipo} concluida={tarefa.concluida_em !== null} />

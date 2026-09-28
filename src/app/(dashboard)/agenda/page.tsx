@@ -8,9 +8,9 @@ import {
   type GrupoAgenda,
 } from "@/features/central-prazos/rotulos";
 import type { ItemPainel } from "@/features/central-prazos/tipos";
-import { RESPONSAVEL_TAREFA_SEED } from "@/features/central-prazos/catalogos";
 import { ResponsavelFiltro } from "@/features/central-prazos/responsavel-filtro";
 import { obterContextoAcesso } from "@/features/acessos/contexto";
+import { listarNomesResponsaveis } from "@/lib/supabase/responsaveis";
 
 const DIAS_SEMANA_CURTO = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 const NOMES_MES = [
@@ -92,9 +92,10 @@ export default async function AgendaPage({
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  const [todosItens, contexto] = await Promise.all([
+  const [todosItens, contexto, nomesResponsaveis] = await Promise.all([
     montarPainel(supabase),
     session?.user.email ? obterContextoAcesso(supabase, session.user.email) : Promise.resolve({ tipo: "admin" as const }),
+    listarNomesResponsaveis(),
   ]);
   // Perfil restrito (Etapa 5, 30/09/2026): só vê os próprios itens, sem o
   // seletor de responsável — não faz sentido escolher "ver de outra pessoa"
@@ -107,10 +108,12 @@ export default async function AgendaPage({
   const porResponsavel = responsavelAtivo ? porGrupo.filter((i) => i.responsavel === responsavelAtivo) : porGrupo;
   const filtrados = q.trim() ? porResponsavel.filter((i) => i.titulo.toLowerCase().includes(q.trim().toLowerCase())) : porResponsavel;
 
-  // Opções do filtro: catálogo conhecido + qualquer responsável digitado nos
-  // itens que ainda não esteja nele (texto livre — pode crescer sozinho).
+  // Opções do filtro: só os logins reais (mesmo catálogo fechado usado nos
+  // campos "Responsável" de cadastro) + qualquer valor que apareça nos itens
+  // (central_tarefas.responsavel não tem CHECK, então um valor antigo digitado
+  // livre continua aparecendo aqui até ser corrigido).
   const opcoesResponsavel = Array.from(
-    new Set([...RESPONSAVEL_TAREFA_SEED, ...comData.map((i) => i.responsavel).filter((r): r is string => Boolean(r))]),
+    new Set([...nomesResponsaveis, ...comData.map((i) => i.responsavel).filter((r): r is string => Boolean(r))]),
   ).sort((a, b) => a.localeCompare(b));
 
   const itensPorData = new Map<string, ItemPainel[]>();

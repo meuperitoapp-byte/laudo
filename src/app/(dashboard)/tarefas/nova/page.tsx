@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TarefaForm } from "@/features/central-prazos/tarefa-form";
-import { STATUS_TAREFA_SEED, RESPONSAVEL_TAREFA_SEED } from "@/features/central-prazos/catalogos";
+import { STATUS_TAREFA_SEED } from "@/features/central-prazos/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
 import { identificarProcesso } from "@/features/central-prazos/agregador";
+import { listarNomesResponsaveis } from "@/lib/supabase/responsaveis";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 export default async function NovaTarefaPage() {
@@ -11,18 +12,17 @@ export default async function NovaTarefaPage() {
   const [
     { data: processosDb, error: erroProcessos },
     { data: statusDb, error: erroStatus },
-    { data: responsavelDb, error: erroResponsavel },
+    nomesResponsaveis,
   ] = await Promise.all([
     supabase
       .from("processos")
       .select("id, numero_processo, periciando_nome, parte_autora")
       .order("created_at", { ascending: false }),
     supabase.from("central_tarefas").select("valor:status"),
-    supabase.from("central_tarefas").select("valor:responsavel"),
+    listarNomesResponsaveis(),
   ]);
   if (erroProcessos) console.error("Nova tarefa: falha ao buscar processos:", erroProcessos.message);
   if (erroStatus) console.error("Nova tarefa: falha ao buscar sugestões de status:", erroStatus.message);
-  if (erroResponsavel) console.error("Nova tarefa: falha ao buscar sugestões de responsável:", erroResponsavel.message);
 
   const processos = (processosDb ?? []).map((p) => ({ id: p.id, label: identificarProcesso(p) }));
 
@@ -46,7 +46,7 @@ export default async function NovaTarefaPage() {
         tarefa={null}
         processos={processos}
         statusSugestoes={mesclarSugestoes(STATUS_TAREFA_SEED, statusDb)}
-        responsavelSugestoes={mesclarSugestoes(RESPONSAVEL_TAREFA_SEED, responsavelDb)}
+        nomesResponsaveis={nomesResponsaveis}
       />
     </main>
   );
