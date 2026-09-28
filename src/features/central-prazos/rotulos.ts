@@ -67,6 +67,7 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   contestacao_proxima_acao: "Executar a próxima ação registrada na Análise da Contestação.",
   estrategia_documento_prova: "Solicitar/obter o documento ou prova identificado na Estratégia Pericial.",
   estrategia_proxima_acao: "Executar a próxima ação registrada na Estratégia Pericial.",
+  continuidade_oportunidade_aberta: "Fazer o follow-up de continuidade e registrar o resultado.",
 };
 
 /**
@@ -109,4 +110,5 @@ export const GRUPO_AGENDA_POR_CATEGORIA: Record<ItemPainel["categoria"], GrupoAg
   contestacao_proxima_acao: "prazos",
   estrategia_documento_prova: "prazos",
   estrategia_proxima_acao: "prazos",
+  continuidade_oportunidade_aberta: "prazos",
 };

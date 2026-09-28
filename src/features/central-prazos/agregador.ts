@@ -53,6 +53,13 @@
  * (`estrategia_documentos_provas` ainda não obtidos — sem prazo real) e
  * 21ª (`estrategias_periciais.prazo`, campo único do hub — mesmo padrão de
  * viabilidade_proxima_acao).
+ *
+ * Módulo de Relacionamento — Continuidade de Serviços (30/09/2026) plugou a
+ * 22ª fonte: `continuidade_oportunidades` com status='aberta'. DIFERENTE de
+ * todas as anteriores — não filtra por processo ativo (uma oportunidade de
+ * continuidade pode existir mesmo com o processo já finalizado), e o prazo
+ * (`data_limite`) já vem calculado e congelado no momento do registro, nunca
+ * recalculado aqui.
  */
 
 import type { createClient } from "@/lib/supabase/server";
@@ -98,6 +105,8 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     { data: contestacaoDocumentosDb },
     { data: estrategiasPericiaisDb },
     { data: estrategiaDocumentosProvasDb },
+    { data: continuidadeOportunidadesDb },
+    { data: processosIdentificacaoDb },
   ] = await Promise.all([
     // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
     // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
@@ -202,9 +211,21 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       .from("estrategia_documentos_provas")
       .select("id, estrategia_id, documento, created_at")
       .is("resolvido_em", null),
+    // Fonte 22 — oportunidades de Continuidade de Serviços em aberto. Ao
+    // contrário de todas as fontes acima, NÃO se limita a processos com
+    // status='em_andamento' (o processo pode já estar finalizado e a
+    // continuidade continuar em aberto) — por isso usa `processosIdentificacaoDb`
+    // abaixo em vez de `processoPorId`.
+    supabase
+      .from("continuidade_oportunidades")
+      .select("id, processo_id, servico_origem, gatilho, data_limite, status")
+      .eq("status", "aberta"),
+    // Identificação de processos SEM o filtro de ativo — só pra fonte 22.
+    supabase.from("processos").select("id, numero_processo, periciando_nome, parte_autora"),
   ]);
   const processos = processosDb ?? [];
   const processoPorId = new Map(processos.map((p) => [p.id, p]));
+  const processoIdentificacaoPorId = new Map((processosIdentificacaoDb ?? []).map((p) => [p.id, p]));
   const tarefas = tarefasDb ?? [];
 
   // Segunda rodada, só pro que genuinamente depende do resultado da
@@ -770,6 +791,27 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       ordenacao: e.prazo,
       responsavel: e.responsavel,
       href: `/processos/${processo.id}/estrategia-pericial`,
+    });
+  }
+
+  // ---- 22. Continuidade de Serviços — oportunidades em aberto ----
+  // Prazo REAL (data_limite, calculada e congelada no registro). Some
+  // sozinha quando o resultado do follow-up é salvo (deixa de ser 'aberta').
+  for (const o of continuidadeOportunidadesDb ?? []) {
+    const processo = processoIdentificacaoPorId.get(o.processo_id);
+    if (!processo) continue;
+    itens.push({
+      id: `continuidade_oportunidade_aberta-${o.id}`,
+      categoria: "continuidade_oportunidade_aberta",
+      titulo: `Continuidade — ${o.servico_origem} — ${identificarProcesso(processo)}`,
+      subtitulo: o.gatilho,
+      providencia: PROVIDENCIA_POR_CATEGORIA.continuidade_oportunidade_aberta,
+      nivel: nivelPorPrazo(o.data_limite, hoje),
+      prazo: o.data_limite,
+      dataContexto: null,
+      ordenacao: o.data_limite,
+      responsavel: null,
+      href: `/processos/${processo.id}/continuidade`,
     });
   }
 
