@@ -26,6 +26,8 @@ import type {
   ViabilidadePosEntregaReuniao,
   ViabilidadeSatisfacao,
   ViabilidadeOrcamentoEnviado,
+  ViabilidadeProximaAcao,
+  PrioridadeTarefa,
 } from "@/types/enums";
 
 /**
@@ -390,11 +392,30 @@ export const CONCLUSAO_ORDENADA: ViabilidadeConclusao[] = [
 ];
 
 /**
- * Responsável pela próxima ação (§31) — catálogo editável, mesmo princípio
- * dos demais. "Secretária" e "CEO" adicionados em 30/09/2026 junto com a
- * separação visual da Agenda por responsável (ver central-prazos/rotulos.ts).
+ * Próxima ação (§31) — catálogo FECHADO desde 30/09/2026 (antes era
+ * textarea livre; o sistema não conseguia "entender" a ação registrada pra
+ * agir em cima dela — relato dela com print). Mesmo padrão de
+ * ContestacaoProximaAcao/EstrategiaProximaAcao.
  */
-export const PROXIMA_ACAO_RESPONSAVEL_SEED = ["Dra. Fernanda", "Secretária", "CEO", "Financeiro", "Assessor", "Atendimento"] as const;
+export const PROXIMA_ACAO_ROTULOS: Record<ViabilidadeProximaAcao, string> = {
+  agendar_reuniao_apresentacao: "Agendamento de reunião para apresentação do caso",
+  solicitar_documentos: "Solicitar documentos complementares",
+  aguardar_retorno_cliente: "Aguardar retorno do cliente/advogado",
+  elaborar_enviar_orcamento: "Elaborar/enviar orçamento",
+  revisar_analise: "Revisar a análise",
+  consultar_especialista: "Consultar especialista",
+  finalizar_registrar_conclusao: "Finalizar e registrar a conclusão",
+  outro: "Outro",
+};
+export const PROXIMA_ACAO_ORDENADAS = Object.keys(PROXIMA_ACAO_ROTULOS) as ViabilidadeProximaAcao[];
+
+/** Prioridade da próxima ação — mesmo catálogo fechado de Contestação/Estratégia Pericial (normal/alta/urgente), desde 30/09/2026 (antes era texto livre). */
+export const PRIORIDADE_ROTULOS: Record<PrioridadeTarefa, string> = {
+  normal: "Normal",
+  alta: "Alta",
+  urgente: "Urgente",
+};
+export const PRIORIDADES_ORDENADAS = Object.keys(PRIORIDADE_ROTULOS) as PrioridadeTarefa[];
 
 /** Houve reunião de apresentação pós-entrega (§39)? */
 export const POS_ENTREGA_REUNIAO_ROTULOS: Record<ViabilidadePosEntregaReuniao, string> = {

@@ -10,6 +10,7 @@ import {
 } from "./actions";
 import { IMPACTO_DOCUMENTO_FALTANTE_ROTULOS } from "./catalogos";
 import { Botao } from "@/components/ui/button";
+import { SelectResponsavel } from "@/components/ui/select-responsavel";
 import type { CasoDocumentosFaltantesRow } from "@/types/database";
 
 const inputClass =
@@ -30,7 +31,7 @@ function dataCurta(iso: string): string {
  * esconde o bloco, só não obriga preencher). Entra como fonte própria no
  * agregador da Central de Prazos (nunca em `central_tarefas`).
  */
-export function DocumentosFaltantesPanel({ processoId, itens }: { processoId: string; itens: CasoDocumentosFaltantesRow[] }) {
+export function DocumentosFaltantesPanel({ processoId, itens, nomesResponsaveis }: { processoId: string; itens: CasoDocumentosFaltantesRow[]; nomesResponsaveis: string[] }) {
   const pendentes = itens.filter((i) => !i.resolvido_em);
   const resolvidos = itens.filter((i) => i.resolvido_em);
 
@@ -48,7 +49,7 @@ export function DocumentosFaltantesPanel({ processoId, itens }: { processoId: st
       ) : (
         <ul className="space-y-2">
           {pendentes.map((item) => (
-            <DocumentoFaltanteItem key={item.id} item={item} processoId={processoId} />
+            <DocumentoFaltanteItem key={item.id} item={item} processoId={processoId} nomesResponsaveis={nomesResponsaveis} />
           ))}
         </ul>
       )}
@@ -69,12 +70,12 @@ export function DocumentosFaltantesPanel({ processoId, itens }: { processoId: st
         </details>
       )}
 
-      <NovoDocumentoFaltanteForm processoId={processoId} />
+      <NovoDocumentoFaltanteForm processoId={processoId} nomesResponsaveis={nomesResponsaveis} />
     </div>
   );
 }
 
-function DocumentoFaltanteItem({ item, processoId }: { item: CasoDocumentosFaltantesRow; processoId: string }) {
+function DocumentoFaltanteItem({ item, processoId, nomesResponsaveis }: { item: CasoDocumentosFaltantesRow; processoId: string; nomesResponsaveis: string[] }) {
   const router = useRouter();
   const [editando, setEditando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -203,7 +204,7 @@ function DocumentoFaltanteItem({ item, processoId }: { item: CasoDocumentosFalta
           </div>
           <div>
             <label className={labelClass}>Responsável</label>
-            <input name="responsavel" defaultValue={item.responsavel ?? ""} className={inputClass} />
+            <SelectResponsavel name="responsavel" nomes={nomesResponsaveis} defaultValue={item.responsavel} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Prazo</label>
@@ -232,7 +233,7 @@ function DocumentoFaltanteItem({ item, processoId }: { item: CasoDocumentosFalta
   );
 }
 
-function NovoDocumentoFaltanteForm({ processoId }: { processoId: string }) {
+function NovoDocumentoFaltanteForm({ processoId, nomesResponsaveis }: { processoId: string; nomesResponsaveis: string[] }) {
   const router = useRouter();
   const [erro, setErro] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -290,7 +291,7 @@ function NovoDocumentoFaltanteForm({ processoId }: { processoId: string }) {
         </div>
         <div>
           <label className={labelClass}>Responsável</label>
-          <input name="responsavel" className={inputClass} />
+          <SelectResponsavel name="responsavel" nomes={nomesResponsaveis} className={inputClass} />
         </div>
         <div>
           <label className={labelClass}>Prazo</label>

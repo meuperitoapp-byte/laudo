@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { atualizarFragilidade, criarFragilidade, excluirFragilidade } from "./actions";
 import { IMPACTO_FRAGILIDADE_ROTULOS } from "./catalogos";
 import { Botao } from "@/components/ui/button";
+import { SelectResponsavel } from "@/components/ui/select-responsavel";
 import type { CasoFragilidadesRow } from "@/types/database";
 
 const inputClass =
@@ -15,7 +16,7 @@ const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400
 type ActionResult = { error: string } | { success: true };
 
 /** Fragilidades (§21) — CRUD repetível. */
-export function FragilidadesPanel({ processoId, itens }: { processoId: string; itens: CasoFragilidadesRow[] }) {
+export function FragilidadesPanel({ processoId, itens, nomesResponsaveis }: { processoId: string; itens: CasoFragilidadesRow[]; nomesResponsaveis: string[] }) {
   const ordenados = [...itens].sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   return (
@@ -30,17 +31,17 @@ export function FragilidadesPanel({ processoId, itens }: { processoId: string; i
       ) : (
         <ul className="space-y-2">
           {ordenados.map((item) => (
-            <FragilidadeItem key={item.id} item={item} processoId={processoId} />
+            <FragilidadeItem key={item.id} item={item} processoId={processoId} nomesResponsaveis={nomesResponsaveis} />
           ))}
         </ul>
       )}
 
-      <NovaFragilidadeForm processoId={processoId} />
+      <NovaFragilidadeForm processoId={processoId} nomesResponsaveis={nomesResponsaveis} />
     </div>
   );
 }
 
-function FragilidadeItem({ item, processoId }: { item: CasoFragilidadesRow; processoId: string }) {
+function FragilidadeItem({ item, processoId, nomesResponsaveis }: { item: CasoFragilidadesRow; processoId: string; nomesResponsaveis: string[] }) {
   const router = useRouter();
   const [editando, setEditando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -154,7 +155,7 @@ function FragilidadeItem({ item, processoId }: { item: CasoFragilidadesRow; proc
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelClass}>Responsável</label>
-            <input type="text" name="responsavel" defaultValue={item.responsavel ?? ""} className={inputClass} />
+            <SelectResponsavel name="responsavel" nomes={nomesResponsaveis} defaultValue={item.responsavel} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Prazo</label>
@@ -179,7 +180,7 @@ function FragilidadeItem({ item, processoId }: { item: CasoFragilidadesRow; proc
   );
 }
 
-function NovaFragilidadeForm({ processoId }: { processoId: string }) {
+function NovaFragilidadeForm({ processoId, nomesResponsaveis }: { processoId: string; nomesResponsaveis: string[] }) {
   const router = useRouter();
   const [erro, setErro] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -243,7 +244,7 @@ function NovaFragilidadeForm({ processoId }: { processoId: string }) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelClass}>Responsável</label>
-          <input type="text" name="responsavel" className={inputClass} />
+          <SelectResponsavel name="responsavel" nomes={nomesResponsaveis} className={inputClass} />
         </div>
         <div>
           <label className={labelClass}>Prazo</label>

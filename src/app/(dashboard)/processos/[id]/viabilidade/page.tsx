@@ -35,6 +35,7 @@ import { PosEntregaPanel } from "@/features/viabilidade/pos-entrega-panel";
 import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
 import { ESPECIALIDADE_SEED, MATERIA_SEED } from "@/features/viabilidade/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
+import { listarNomesResponsaveis } from "@/lib/supabase/responsaveis";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 /**
@@ -99,11 +100,12 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
     );
   }
 
-  const [analiseResultado, nexoResultado, danoResultado, incapacidadeResultado] = await Promise.all([
+  const [analiseResultado, nexoResultado, danoResultado, incapacidadeResultado, nomesResponsaveis] = await Promise.all([
     garantirAnaliseViabilidade(id),
     garantirNexoCausal(id),
     garantirDano(id),
     garantirIncapacidade(id),
+    listarNomesResponsaveis(),
   ]);
   if ("error" in analiseResultado) {
     console.error("Viabilidade: falha ao garantir análise:", analiseResultado.error);
@@ -300,7 +302,7 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
 
       <AcervoDocumentalPanel analise={analise} documentos={documentosDb ?? []} avaliacoes={avaliacoesDb ?? []} />
 
-      <DocumentosFaltantesPanel processoId={id} itens={faltantesDb ?? []} />
+      <DocumentosFaltantesPanel processoId={id} itens={faltantesDb ?? []} nomesResponsaveis={nomesResponsaveis} />
 
       <LimitacoesDocumentaisPanel analise={analise} />
 
@@ -329,9 +331,9 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
         questoes={questoesDb ?? []}
       />
 
-      <FragilidadesPanel processoId={id} itens={fragilidadesDb ?? []} />
+      <FragilidadesPanel processoId={id} itens={fragilidadesDb ?? []} nomesResponsaveis={nomesResponsaveis} />
 
-      <OportunidadesProbatoriasPanel processoId={id} itens={oportunidadesProbatoriasDb ?? []} />
+      <OportunidadesProbatoriasPanel processoId={id} itens={oportunidadesProbatoriasDb ?? []} nomesResponsaveis={nomesResponsaveis} />
 
       <RiscoPericialPanel analise={analise} />
 
@@ -349,7 +351,7 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
 
       <RecomendacaoPanel analise={analise} />
 
-      <ProximaAcaoPanel analise={analise} />
+      <ProximaAcaoPanel analise={analise} nomesResponsaveis={nomesResponsaveis} />
 
       <BloqueiosPanel
         analise={analise}

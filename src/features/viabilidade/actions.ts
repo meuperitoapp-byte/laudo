@@ -65,6 +65,8 @@ import type {
   ViabilidadePosEntregaReuniao,
   ViabilidadeSatisfacao,
   ViabilidadeOrcamentoEnviado,
+  ViabilidadeProximaAcao,
+  PrioridadeTarefa,
 } from "@/types/enums";
 import { VIABILIDADE_STATUS_ORDENADOS } from "./catalogos";
 
@@ -74,6 +76,17 @@ function textoOuNull(valor: FormDataEntryValue | null): string | null {
   const texto = (valor as string | null)?.trim();
   return texto ? texto : null;
 }
+function enumOuNull<T extends string>(valor: FormDataEntryValue | null, permitidos: readonly T[]): T | null {
+  const texto = (valor as string | null)?.trim();
+  return texto && (permitidos as readonly string[]).includes(texto) ? (texto as T) : null;
+}
+
+const PROXIMA_ACAO_VALORES: readonly ViabilidadeProximaAcao[] = [
+  "agendar_reuniao_apresentacao", "solicitar_documentos", "aguardar_retorno_cliente",
+  "elaborar_enviar_orcamento", "revisar_analise", "consultar_especialista",
+  "finalizar_registrar_conclusao", "outro",
+];
+const PRIORIDADE_VALORES: readonly PrioridadeTarefa[] = ["normal", "alta", "urgente"];
 
 /**
  * Garante que existe uma linha em `analises_viabilidade` pro processo —
@@ -1585,10 +1598,10 @@ export async function salvarProximaAcao(formData: FormData): Promise<ActionResul
 
   const supabase = await createClient();
   const update: AnalisesViabilidadeUpdate = {
-    proxima_acao: textoOuNull(formData.get("proxima_acao")),
+    proxima_acao: enumOuNull(formData.get("proxima_acao"), PROXIMA_ACAO_VALORES),
     proxima_acao_responsavel: textoOuNull(formData.get("proxima_acao_responsavel")),
     proxima_acao_prazo: textoOuNull(formData.get("proxima_acao_prazo")),
-    proxima_acao_prioridade: textoOuNull(formData.get("proxima_acao_prioridade")),
+    proxima_acao_prioridade: enumOuNull(formData.get("proxima_acao_prioridade"), PRIORIDADE_VALORES),
   };
 
   const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);

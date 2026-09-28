@@ -10,6 +10,7 @@ import {
 } from "./actions";
 import { TIPO_PROVA_ROTULOS } from "./catalogos";
 import { Botao } from "@/components/ui/button";
+import { SelectResponsavel } from "@/components/ui/select-responsavel";
 import type { CasoOportunidadesProbatoriasRow } from "@/types/database";
 
 const inputClass =
@@ -32,9 +33,11 @@ function dataCurta(iso: string): string {
 export function OportunidadesProbatoriasPanel({
   processoId,
   itens,
+  nomesResponsaveis,
 }: {
   processoId: string;
   itens: CasoOportunidadesProbatoriasRow[];
+  nomesResponsaveis: string[];
 }) {
   const pendentes = itens.filter((i) => !i.resolvido_em);
   const resolvidas = itens.filter((i) => i.resolvido_em);
@@ -53,7 +56,7 @@ export function OportunidadesProbatoriasPanel({
       ) : (
         <ul className="space-y-2">
           {pendentes.map((item) => (
-            <OportunidadeProbatoriaItem key={item.id} item={item} processoId={processoId} />
+            <OportunidadeProbatoriaItem key={item.id} item={item} processoId={processoId} nomesResponsaveis={nomesResponsaveis} />
           ))}
         </ul>
       )}
@@ -74,7 +77,7 @@ export function OportunidadesProbatoriasPanel({
         </details>
       )}
 
-      <NovaOportunidadeProbatoriaForm processoId={processoId} />
+      <NovaOportunidadeProbatoriaForm processoId={processoId} nomesResponsaveis={nomesResponsaveis} />
     </div>
   );
 }
@@ -82,9 +85,11 @@ export function OportunidadesProbatoriasPanel({
 function OportunidadeProbatoriaItem({
   item,
   processoId,
+  nomesResponsaveis,
 }: {
   item: CasoOportunidadesProbatoriasRow;
   processoId: string;
+  nomesResponsaveis: string[];
 }) {
   const router = useRouter();
   const [editando, setEditando] = useState(false);
@@ -206,7 +211,7 @@ function OportunidadeProbatoriaItem({
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className={labelClass}>Responsável</label>
-            <input name="responsavel" defaultValue={item.responsavel ?? ""} className={inputClass} />
+            <SelectResponsavel name="responsavel" nomes={nomesResponsaveis} defaultValue={item.responsavel} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Prazo</label>
@@ -239,7 +244,7 @@ function OportunidadeProbatoriaItem({
   );
 }
 
-function NovaOportunidadeProbatoriaForm({ processoId }: { processoId: string }) {
+function NovaOportunidadeProbatoriaForm({ processoId, nomesResponsaveis }: { processoId: string; nomesResponsaveis: string[] }) {
   const router = useRouter();
   const [erro, setErro] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -289,7 +294,7 @@ function NovaOportunidadeProbatoriaForm({ processoId }: { processoId: string }) 
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label className={labelClass}>Responsável</label>
-          <input name="responsavel" className={inputClass} />
+          <SelectResponsavel name="responsavel" nomes={nomesResponsaveis} className={inputClass} />
         </div>
         <div>
           <label className={labelClass}>Prazo</label>

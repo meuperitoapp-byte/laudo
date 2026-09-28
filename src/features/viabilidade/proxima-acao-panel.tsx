@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { salvarProximaAcao } from "./actions";
-import { PROXIMA_ACAO_RESPONSAVEL_SEED } from "./catalogos";
+import { PROXIMA_ACAO_ROTULOS, PROXIMA_ACAO_ORDENADAS, PRIORIDADE_ROTULOS, PRIORIDADES_ORDENADAS } from "./catalogos";
 import { Botao } from "@/components/ui/button";
-import { ComboboxCatalogo } from "@/components/ui/combobox-catalogo";
+import { SelectResponsavel } from "@/components/ui/select-responsavel";
 import { Toast } from "@/components/ui/toast";
 import type { AnalisesViabilidadeRow } from "@/types/database";
 
@@ -21,7 +21,7 @@ const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400
  * concluída, ela mesma atualiza/limpa este campo (mesmo princípio de
  * honorarios_recebidos_em, nunca inferido).
  */
-export function ProximaAcaoPanel({ analise }: { analise: AnalisesViabilidadeRow }) {
+export function ProximaAcaoPanel({ analise, nomesResponsaveis }: { analise: AnalisesViabilidadeRow; nomesResponsaveis: string[] }) {
   const router = useRouter();
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -59,7 +59,12 @@ export function ProximaAcaoPanel({ analise }: { analise: AnalisesViabilidadeRow 
         <label htmlFor="proxima_acao" className={labelClass}>
           Próxima ação
         </label>
-        <textarea id="proxima_acao" name="proxima_acao" rows={2} defaultValue={analise.proxima_acao ?? ""} className={inputClass} />
+        <select id="proxima_acao" name="proxima_acao" defaultValue={analise.proxima_acao ?? ""} className={inputClass}>
+          <option value="">Selecione…</option>
+          {PROXIMA_ACAO_ORDENADAS.map((a) => (
+            <option key={a} value={a}>{PROXIMA_ACAO_ROTULOS[a]}</option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
@@ -67,12 +72,12 @@ export function ProximaAcaoPanel({ analise }: { analise: AnalisesViabilidadeRow 
           <label htmlFor="proxima_acao_responsavel" className={labelClass}>
             Responsável
           </label>
-          <ComboboxCatalogo
+          <SelectResponsavel
             id="proxima_acao_responsavel"
             name="proxima_acao_responsavel"
-            sugestoes={[...PROXIMA_ACAO_RESPONSAVEL_SEED]}
-            valorInicial={analise.proxima_acao_responsavel ?? ""}
-            rotuloNovo="Outro responsável"
+            nomes={nomesResponsaveis}
+            defaultValue={analise.proxima_acao_responsavel}
+            className={inputClass}
           />
         </div>
         <div>
@@ -91,12 +96,12 @@ export function ProximaAcaoPanel({ analise }: { analise: AnalisesViabilidadeRow 
           <label htmlFor="proxima_acao_prioridade" className={labelClass}>
             Prioridade
           </label>
-          <input
-            id="proxima_acao_prioridade"
-            name="proxima_acao_prioridade"
-            defaultValue={analise.proxima_acao_prioridade ?? ""}
-            className={inputClass}
-          />
+          <select id="proxima_acao_prioridade" name="proxima_acao_prioridade" defaultValue={analise.proxima_acao_prioridade ?? ""} className={inputClass}>
+            <option value="">Selecione…</option>
+            {PRIORIDADES_ORDENADAS.map((p) => (
+              <option key={p} value={p}>{PRIORIDADE_ROTULOS[p]}</option>
+            ))}
+          </select>
         </div>
       </div>
 
