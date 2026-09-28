@@ -139,3 +139,48 @@ export function calcularHistoricoFinanceiro(processos: ProcessoVinculado[], hoje
     valoresEmAberto,
   };
 }
+
+/** §5 — posição de cada escritório no ranking por faturamento histórico ("4º escritório da carteira PERICONS"). Empate = mesma posição (padrão "1224", sem pular número pra quem empata). */
+export function calcularPosicaoRanking(receitaPorId: Map<string, number>): Map<string, number> {
+  const ordenados = [...receitaPorId.entries()]
+    .filter(([, receita]) => receita > 0)
+    .sort((a, b) => b[1] - a[1]);
+  const posicoes = new Map<string, number>();
+  let posicaoAtual = 0;
+  let receitaAnterior: number | null = null;
+  ordenados.forEach(([id, receita], indice) => {
+    if (receita !== receitaAnterior) posicaoAtual = indice + 1;
+    posicoes.set(id, posicaoAtual);
+    receitaAnterior = receita;
+  });
+  return posicoes;
+}
+
+/** §5.1 — 1º ou 2º semestre de um ano a partir de uma data ISO. */
+export function semestreDe(dataIso: string): { ano: number; semestre: 1 | 2 } {
+  const ano = Number(dataIso.slice(0, 4));
+  const mes = Number(dataIso.slice(5, 7));
+  return { ano, semestre: mes <= 6 ? 1 : 2 };
+}
+
+export interface ResumoSemestre {
+  receitaSemestre: number;
+  quantidadeServicos: number;
+}
+
+/** §5.1 — Top Parceiros do Semestre: faturamento e qtd de serviços só do semestre informado (não altera a categoria histórica, que continua vindo de calcularHistoricoFinanceiro). */
+export function calcularResumoSemestre(processos: ProcessoVinculado[], ano: number, semestre: 1 | 2): ResumoSemestre {
+  let receitaSemestre = 0;
+  let quantidadeServicos = 0;
+  for (const p of processos) {
+    const valor = valorDoProcesso(p);
+    const dataRecebimento = dataRecebimentoProcesso(p);
+    if (valor == null || !dataRecebimento) continue;
+    const { ano: anoRecebimento, semestre: semestreRecebimento } = semestreDe(dataRecebimento);
+    if (anoRecebimento === ano && semestreRecebimento === semestre) {
+      receitaSemestre += valor;
+      quantidadeServicos++;
+    }
+  }
+  return { receitaSemestre, quantidadeServicos };
+}

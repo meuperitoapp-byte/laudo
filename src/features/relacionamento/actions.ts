@@ -102,6 +102,8 @@ function camposPorTipo(formData: FormData, tipo: RelacionamentoTipo) {
     prof_cidade: null as string | null,
     prof_uf: null as string | null,
     prof_necessidade: null as ProfissionalNecessidade | null,
+    prof_produto_futuro_potencial: null as MeuPeritoPotencial | null,
+    prof_produto_futuro_observacao: null as string | null,
   };
   if (tipo === "cliente_saude") {
     return {
@@ -128,6 +130,8 @@ function camposPorTipo(formData: FormData, tipo: RelacionamentoTipo) {
       prof_cidade: textoOuNull(formData.get("prof_cidade")),
       prof_uf: textoOuNull(formData.get("prof_uf")),
       prof_necessidade: enumOuNull(formData.get("prof_necessidade"), PROF_NECESSIDADE),
+      prof_produto_futuro_potencial: enumOuNull(formData.get("prof_produto_futuro_potencial"), MEU_PERITO_POTENCIAL),
+      prof_produto_futuro_observacao: textoOuNull(formData.get("prof_produto_futuro_observacao")),
     };
   }
   return base;

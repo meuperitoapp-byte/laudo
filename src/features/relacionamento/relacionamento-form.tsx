@@ -320,6 +320,19 @@ export function RelacionamentoForm({
                 ))}
               </select>
             </div>
+            <div>
+              <label htmlFor="prof_produto_futuro_potencial" className={labelClass}>Potencial — futuro produto/ecossistema profissional</label>
+              <select id="prof_produto_futuro_potencial" name="prof_produto_futuro_potencial" defaultValue={relacionamento?.prof_produto_futuro_potencial ?? ""} className={inputClass}>
+                <option value="">Selecione…</option>
+                {Object.entries(MEU_PERITO_POTENCIAL_ROTULOS).map(([v, r]) => (
+                  <option key={v} value={v}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="prof_produto_futuro_observacao" className={labelClass}>Observação</label>
+              <input id="prof_produto_futuro_observacao" name="prof_produto_futuro_observacao" type="text" defaultValue={relacionamento?.prof_produto_futuro_observacao ?? ""} className={inputClass} />
+            </div>
           </div>
         </Cartao>
       )}
