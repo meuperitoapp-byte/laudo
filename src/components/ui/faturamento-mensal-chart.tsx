@@ -10,8 +10,8 @@ function moedaBRLCompleta(valor: number): string {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-const ALTURA = 220;
-const META_METADE = ALTURA / 2 - 24; // espaço reservado pro rótulo do mês embaixo e a legenda em cima
+const ALTURA = 200;
+const META_METADE = ALTURA / 2 - 6; // pequena folga entre a maior barra e a borda do cartão
 
 /**
  * Gráfico de Faturamento mensal (Financeiro, 25/09/2026 — pedido dela: "ver
@@ -147,13 +147,30 @@ export function FaturamentoMensalChart({
                     fill="var(--chart-vinho)"
                     opacity={ativo || mesAtivo === null ? 1 : 0.45}
                   />
-                  <text x={x + larguraBarra / 2} y={ALTURA - 6} textAnchor="middle" fontSize="4.5" className="fill-nevoa-500 dark:fill-nevoa-400">
-                    {d.mes}
-                  </text>
                 </g>
               );
             })}
           </svg>
+
+          {/* Rótulos dos meses — HTML normal, fora do SVG. BUG corrigido
+              (25/09/2026, relato dela com print): `<text>` dentro de um
+              `<svg preserveAspectRatio="none">` sofre a mesma distorção
+              não-uniforme da geometria — letra esticada demais na horizontal
+              vira ilegível num cartão bem mais largo que alto. Aqui cada mês
+              ocupa uma fatia de largura igual (é gráfico de barra), então
+              `flex` com células do mesmo tamanho alinha certinho com cada
+              barra embaixo dela. */}
+          <div className="flex mt-1">
+            {dados.map((d) => (
+              <span
+                key={d.mes}
+                className="text-[11px] text-nevoa-500 dark:text-nevoa-400 text-center"
+                style={{ width: `${larguraBarra}%` }}
+              >
+                {d.mes}
+              </span>
+            ))}
+          </div>
 
           {mesAtivo !== null && dados[mesAtivo] && (
             <div
