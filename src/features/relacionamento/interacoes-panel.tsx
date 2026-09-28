@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { registrarInteracao } from "./actions";
-import { CANAL_ROTULOS } from "./catalogos";
+import { CANAL_ROTULOS, RESULTADO_INTERACAO_ROTULOS } from "./catalogos";
 import { Botao } from "@/components/ui/button";
 import { SelectResponsavel } from "@/components/ui/select-responsavel";
 import type { RelacionamentoInteracoesRow } from "@/types/database";
@@ -48,7 +48,11 @@ export function InteracoesPanel({
                 {i.responsavel && <span className="text-xs text-nevoa-500 dark:text-nevoa-400">{i.responsavel}</span>}
               </div>
               {i.observacao && <p className="text-xs text-nevoa-600 dark:text-nevoa-400 mt-1">{i.observacao}</p>}
-              {i.campanha && <p className="text-xs text-petroleo-600 dark:text-petroleo-400 mt-1">Campanha: {i.campanha}</p>}
+              {i.campanha && (
+                <p className="text-xs text-petroleo-600 dark:text-petroleo-400 mt-1">
+                  Campanha: {i.campanha}{i.resultado ? ` — ${RESULTADO_INTERACAO_ROTULOS[i.resultado]}` : ""}
+                </p>
+              )}
             </li>
           ))}
         </ul>
@@ -95,6 +99,21 @@ function NovaInteracaoForm({ relacionamentoId, nomesResponsaveis }: { relacionam
         <div>
           <label className={labelClass}>Responsável</label>
           <SelectResponsavel name="responsavel" nomes={nomesResponsaveis} className={inputClass} />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>Campanha (se aplicável)</label>
+          <input name="campanha" placeholder="Ex.: Presente de fim de ano 2026" className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Resultado (se for campanha)</label>
+          <select name="resultado" defaultValue="" className={inputClass}>
+            <option value="">Selecione…</option>
+            {Object.entries(RESULTADO_INTERACAO_ROTULOS).map(([v, r]) => (
+              <option key={v} value={v}>{r}</option>
+            ))}
+          </select>
         </div>
       </div>
       <div>

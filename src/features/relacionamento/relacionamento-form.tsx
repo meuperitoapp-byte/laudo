@@ -11,11 +11,12 @@ import {
   CS_TIPO_DEMANDA_ROTULOS,
   CS_NECESSIDADE_ROTULOS,
   CS_STATUS_ROTULOS,
+  CS_SITUACAO_ATUAL_ROTULOS,
   PROF_PROFISSAO_ROTULOS,
   PROF_NECESSIDADE_ROTULOS,
 } from "@/features/relacionamento/catalogos";
 import type { RelacionamentosRow } from "@/types/database";
-import type { RelacionamentoTipo, RelacionamentoOrigem } from "@/types/enums";
+import type { RelacionamentoTipo, RelacionamentoOrigem, ClienteSaudeSituacaoAtual } from "@/types/enums";
 
 const inputClass =
   "w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-3 py-2 text-sm text-nevoa-900 dark:text-nevoa-100 " +
@@ -41,16 +42,20 @@ export function RelacionamentoForm({
   modo,
   relacionamento,
   possiveisIndicadores,
+  possiveisFamiliares,
 }: {
   modo: "criar" | "editar";
   relacionamento?: RelacionamentosRow | null;
   /** Escritórios/advogados já cadastrados — únicos que fazem sentido como "quem indicou". */
   possiveisIndicadores: { id: string; nome: string }[];
+  /** Outros Cliente Saúde já cadastrados — únicos que fazem sentido como "familiar/responsável". */
+  possiveisFamiliares: { id: string; nome: string }[];
 }) {
   const editando = modo === "editar" && relacionamento != null;
   const [tipo, setTipo] = useState<RelacionamentoTipo>(relacionamento?.tipo ?? "advogado_escritorio");
   const [origem, setOrigem] = useState<RelacionamentoOrigem>(relacionamento?.origem ?? "outro");
   const [meuPerito, setMeuPerito] = useState(relacionamento?.meu_perito ?? false);
+  const [csSituacao, setCsSituacao] = useState<ClienteSaudeSituacaoAtual | "">(relacionamento?.cs_situacao_atual ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -90,6 +95,15 @@ export function RelacionamentoForm({
             {tipo === "advogado_escritorio" ? "Nome do escritório / advogado" : tipo === "cliente_saude" ? "Nome do cliente" : "Nome do profissional"}
           </label>
           <input id="nome" name="nome" type="text" required defaultValue={relacionamento?.nome ?? ""} className={inputClass} />
+        </div>
+        <div>
+          <label htmlFor="data_nascimento" className={labelClass}>Data de nascimento</label>
+          <input id="data_nascimento" name="data_nascimento" type="date" defaultValue={relacionamento?.data_nascimento ?? ""} className={inputClass} />
+          <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+            {tipo === "advogado_escritorio"
+              ? "Só faz sentido pra um advogado solo (sem advogados vinculados) — se houver vários, cadastre o aniversário de cada um na lista de advogados vinculados."
+              : "Opcional — alimenta o alerta de aniversário no Calendário Inteligente."}
+          </p>
         </div>
         <div>
           <label htmlFor="observacoes" className={labelClass}>Observações</label>
@@ -199,6 +213,69 @@ export function RelacionamentoForm({
               </select>
             </div>
           </div>
+        </Cartao>
+      )}
+
+      {tipo === "cliente_saude" && (
+        <Cartao titulo="5. Condição e acompanhamento">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="cs_condicao_principal" className={labelClass}>Condição / doença principal</label>
+              <input id="cs_condicao_principal" name="cs_condicao_principal" type="text" defaultValue={relacionamento?.cs_condicao_principal ?? ""} className={inputClass} />
+            </div>
+            <div>
+              <label htmlFor="cs_area_clinica" className={labelClass}>Área clínica relacionada</label>
+              <input id="cs_area_clinica" name="cs_area_clinica" type="text" placeholder="Ex.: Oncologia, Cardiologia…" defaultValue={relacionamento?.cs_area_clinica ?? ""} className={inputClass} />
+            </div>
+            <div>
+              <label htmlFor="cs_situacao_atual" className={labelClass}>Situação atual</label>
+              <select
+                id="cs_situacao_atual"
+                name="cs_situacao_atual"
+                value={csSituacao}
+                onChange={(e) => setCsSituacao(e.target.value as ClienteSaudeSituacaoAtual | "")}
+                className={inputClass}
+              >
+                <option value="">Selecione…</option>
+                {Object.entries(CS_SITUACAO_ATUAL_ROTULOS).map(([v, r]) => (
+                  <option key={v} value={v}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="cs_situacao_atualizada_em" className={labelClass}>Situação atualizada em</label>
+              <input id="cs_situacao_atualizada_em" name="cs_situacao_atualizada_em" type="date" defaultValue={relacionamento?.cs_situacao_atualizada_em ?? ""} className={inputClass} />
+            </div>
+            {csSituacao === "falecido" && (
+              <>
+                <div>
+                  <label htmlFor="cs_data_falecimento" className={labelClass}>Data do falecimento</label>
+                  <input id="cs_data_falecimento" name="cs_data_falecimento" type="date" defaultValue={relacionamento?.cs_data_falecimento ?? ""} className={inputClass} />
+                </div>
+                <div>
+                  <label htmlFor="cs_data_conhecimento" className={labelClass}>Data em que a PERICONS tomou conhecimento</label>
+                  <input id="cs_data_conhecimento" name="cs_data_conhecimento" type="date" defaultValue={relacionamento?.cs_data_conhecimento ?? ""} className={inputClass} />
+                </div>
+              </>
+            )}
+            <div className="sm:col-span-2">
+              <label htmlFor="cs_familiar_responsavel_id" className={labelClass}>Familiar / responsável vinculado</label>
+              <select id="cs_familiar_responsavel_id" name="cs_familiar_responsavel_id" defaultValue={relacionamento?.cs_familiar_responsavel_id ?? ""} className={inputClass}>
+                <option value="">Nenhum</option>
+                {possiveisFamiliares.filter((f) => f.id !== relacionamento?.id).map((f) => (
+                  <option key={f.id} value={f.id}>{f.nome}</option>
+                ))}
+              </select>
+              <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+                Só outro cadastro já existente — o sistema nunca cria um cliente novo automaticamente a partir daqui.
+              </p>
+            </div>
+          </div>
+          {csSituacao === "falecido" && (
+            <p className="text-xs text-vinho-600 dark:text-vinho-400">
+              Ao salvar como &ldquo;Falecido&rdquo;, este cadastro sai automaticamente das listas de aniversário e campanhas temáticas de saúde — o histórico continua preservado.
+            </p>
+          )}
         </Cartao>
       )}
 

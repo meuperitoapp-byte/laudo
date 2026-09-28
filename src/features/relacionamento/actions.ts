@@ -30,6 +30,8 @@ import type {
   EncaminhamentoStatus,
   EncaminhamentoContratacaoRealizada,
   CreditoIndicacaoTipo,
+  ClienteSaudeSituacaoAtual,
+  ResultadoInteracao,
 } from "@/types/enums";
 
 type ActionResult = { error: string } | { success: true };
@@ -70,10 +72,15 @@ const PREMIACAO_STATUS: readonly PremiacaoStatus[] = ["a_enviar", "enviado", "en
 const ENCAMINHAMENTO_STATUS: readonly EncaminhamentoStatus[] = ["encaminhado", "aceito", "recusado", "em_contato", "encerrado"];
 const ENCAMINHAMENTO_CONTRATACAO: readonly EncaminhamentoContratacaoRealizada[] = ["sim", "nao", "nao_informado"];
 const CREDITO_TIPOS: readonly CreditoIndicacaoTipo[] = ["gerado", "utilizado"];
+const CS_SITUACAO_ATUAL: readonly ClienteSaudeSituacaoAtual[] = [
+  "em_tratamento", "em_acompanhamento", "tratamento_concluido", "condicao_controlada", "situacao_desconhecida", "falecido",
+];
+const RESULTADOS_INTERACAO: readonly ResultadoInteracao[] = ["enviado", "respondido", "contato_realizado", "nao_realizado"];
 
 /** Campos comuns aos 3 tipos + os condicionais do tipo escolhido — só grava o que é do tipo. */
 function camposPorTipo(formData: FormData, tipo: RelacionamentoTipo) {
   const base = {
+    data_nascimento: textoOuNull(formData.get("data_nascimento")),
     meu_perito: formData.get("meu_perito") === "on",
     meu_perito_status: enumOuNull(formData.get("meu_perito_status"), MEU_PERITO_STATUS),
     meu_perito_potencial: enumOuNull(formData.get("meu_perito_potencial"), MEU_PERITO_POTENCIAL),
@@ -81,6 +88,13 @@ function camposPorTipo(formData: FormData, tipo: RelacionamentoTipo) {
     cs_tipo_demanda: null as ClienteSaudeTipoDemanda | null,
     cs_necessidade: null as ClienteSaudeNecessidade | null,
     cs_status: null as ClienteSaudeStatus | null,
+    cs_condicao_principal: null as string | null,
+    cs_area_clinica: null as string | null,
+    cs_situacao_atual: null as ClienteSaudeSituacaoAtual | null,
+    cs_situacao_atualizada_em: null as string | null,
+    cs_data_falecimento: null as string | null,
+    cs_data_conhecimento: null as string | null,
+    cs_familiar_responsavel_id: null as string | null,
     prof_profissao: null as ProfissionalProfissao | null,
     prof_profissao_outra: null as string | null,
     prof_conselho_registro: null as string | null,
@@ -95,6 +109,13 @@ function camposPorTipo(formData: FormData, tipo: RelacionamentoTipo) {
       cs_tipo_demanda: enumOuNull(formData.get("cs_tipo_demanda"), CS_TIPO_DEMANDA),
       cs_necessidade: enumOuNull(formData.get("cs_necessidade"), CS_NECESSIDADE),
       cs_status: enumOuNull(formData.get("cs_status"), CS_STATUS) ?? "entrada",
+      cs_condicao_principal: textoOuNull(formData.get("cs_condicao_principal")),
+      cs_area_clinica: textoOuNull(formData.get("cs_area_clinica")),
+      cs_situacao_atual: enumOuNull(formData.get("cs_situacao_atual"), CS_SITUACAO_ATUAL),
+      cs_situacao_atualizada_em: textoOuNull(formData.get("cs_situacao_atualizada_em")),
+      cs_data_falecimento: textoOuNull(formData.get("cs_data_falecimento")),
+      cs_data_conhecimento: textoOuNull(formData.get("cs_data_conhecimento")),
+      cs_familiar_responsavel_id: textoOuNull(formData.get("cs_familiar_responsavel_id")),
     };
   }
   if (tipo === "profissional") {
@@ -216,6 +237,7 @@ export async function registrarInteracao(relacionamentoId: string, formData: For
     observacao: textoOuNull(formData.get("observacao")),
     campanha: textoOuNull(formData.get("campanha")),
     responsavel: textoOuNull(formData.get("responsavel")),
+    resultado: enumOuNull(formData.get("resultado"), RESULTADOS_INTERACAO),
   };
   const { error: erroInteracao } = await supabase.from("relacionamento_interacoes").insert(payload);
   if (erroInteracao) return { error: erroInteracao.message };

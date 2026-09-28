@@ -18,6 +18,8 @@ import type {
   PremiacaoStatus,
   EncaminhamentoStatus,
   EncaminhamentoContratacaoRealizada,
+  ClienteSaudeSituacaoAtual,
+  ResultadoInteracao,
 } from "@/types/enums";
 
 export const TIPO_ROTULOS: Record<RelacionamentoTipo, string> = {
@@ -149,4 +151,20 @@ export const ENCAMINHAMENTO_CONTRATACAO_ROTULOS: Record<EncaminhamentoContrataca
   sim: "Sim",
   nao: "Não",
   nao_informado: "Não informado",
+};
+
+export const CS_SITUACAO_ATUAL_ROTULOS: Record<ClienteSaudeSituacaoAtual, string> = {
+  em_tratamento: "Em tratamento",
+  em_acompanhamento: "Em acompanhamento",
+  tratamento_concluido: "Tratamento concluído",
+  condicao_controlada: "Condição controlada",
+  situacao_desconhecida: "Situação desconhecida ou desatualizada",
+  falecido: "Falecido",
+};
+
+export const RESULTADO_INTERACAO_ROTULOS: Record<ResultadoInteracao, string> = {
+  enviado: "Enviado",
+  respondido: "Respondido",
+  contato_realizado: "Contato realizado",
+  nao_realizado: "Não realizado",
 };

@@ -112,7 +112,7 @@ export async function criarRegra(formData: FormData): Promise<ActionResult> {
   };
   const { error } = await supabase.from("continuidade_regras").insert(payload);
   if (error) return { error: error.message };
-  revalidatePath("/relacionamento/continuidade");
+  revalidatePath("/relacionamento/configuracoes");
   return { success: true };
 }
 
@@ -131,6 +131,6 @@ export async function salvarRegra(id: string, formData: FormData): Promise<Actio
   };
   const { error } = await supabase.from("continuidade_regras").update(payload).eq("id", id);
   if (error) return { error: error.message };
-  revalidatePath("/relacionamento/continuidade");
+  revalidatePath("/relacionamento/configuracoes");
   return { success: true };
 }
