@@ -777,3 +777,20 @@ export type ContinuidadeResultadoFollowup =
   | 'aguardando_marco_processual'
   | 'sem_resposta'
   | 'outro'
+
+// ----------------------------------------------------------------------------
+// Módulo de Relacionamento (CRM) — Fase 2: Calendário Inteligente
+// (migration 20260930350000). Modelo, §22-23.
+// ----------------------------------------------------------------------------
+
+/** relacionamentos.cs_situacao_atual — só tipo = cliente_saude (§22.3). 'falecido' bloqueia campanhas/aniversários pessoais automaticamente. */
+export type ClienteSaudeSituacaoAtual =
+  | 'em_tratamento'
+  | 'em_acompanhamento'
+  | 'tratamento_concluido'
+  | 'condicao_controlada'
+  | 'situacao_desconhecida'
+  | 'falecido'
+
+/** relacionamento_interacoes.resultado — resultado de campanha (§22.6). */
+export type ResultadoInteracao = 'enviado' | 'respondido' | 'contato_realizado' | 'nao_realizado'

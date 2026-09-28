@@ -120,6 +120,8 @@ import type {
   ContinuidadeFluxo,
   ContinuidadeStatus,
   ContinuidadeResultadoFollowup,
+  ClienteSaudeSituacaoAtual,
+  ResultadoInteracao,
 } from './enums'
 import type {
   CondicaoVisibilidade,
@@ -986,6 +988,16 @@ export type RelacionamentosRow = {
   prof_cidade: string | null
   prof_uf: string | null
   prof_necessidade: ProfissionalNecessidade | null
+  /** Cliente Saúde/Profissional/advogado solo (§22.1) — aniversário de advogado vinculado vem de relacionamento_advogados. */
+  data_nascimento: string | null
+  /** §22.3 — só tipo = cliente_saude. */
+  cs_condicao_principal: string | null
+  cs_area_clinica: string | null
+  cs_situacao_atual: ClienteSaudeSituacaoAtual | null
+  cs_situacao_atualizada_em: string | null
+  cs_data_falecimento: string | null
+  cs_data_conhecimento: string | null
+  cs_familiar_responsavel_id: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -1013,6 +1025,14 @@ export type RelacionamentosInsert = ComDefaults<
   | 'prof_cidade'
   | 'prof_uf'
   | 'prof_necessidade'
+  | 'data_nascimento'
+  | 'cs_condicao_principal'
+  | 'cs_area_clinica'
+  | 'cs_situacao_atual'
+  | 'cs_situacao_atualizada_em'
+  | 'cs_data_falecimento'
+  | 'cs_data_conhecimento'
+  | 'cs_familiar_responsavel_id'
   | 'created_by'
   | 'created_at'
   | 'updated_at'
@@ -1044,17 +1064,21 @@ export type RelacionamentoInteracoesRow = {
   observacao: string | null
   campanha: string | null
   responsavel: string | null
+  /** §22.6 — resultado de campanha (institucional ou temática de saúde). */
+  resultado: ResultadoInteracao | null
   created_at: string
 }
 export type RelacionamentoInteracoesInsert = ComDefaults<
   RelacionamentoInteracoesRow,
-  'id' | 'observacao' | 'campanha' | 'responsavel' | 'created_at'
+  'id' | 'observacao' | 'campanha' | 'responsavel' | 'resultado' | 'created_at'
 >
 export type RelacionamentoInteracoesUpdate = Partial<RelacionamentoInteracoesRow>
 
 export type RelacionamentoConfiguracoesRow = {
   id: true
   valor_credito_indicacao_padrao: number
+  prazo_meses_atualizacao_cliente_saude: number
+  dias_antecedencia_aniversarios: number
   updated_at: string
 }
 /** Linha única (seed da migration) — a aplicação só faz update, nunca insert; alias mantido pra satisfazer o generic Tables. */
@@ -1176,6 +1200,43 @@ export type ContinuidadeOportunidadesInsert = ComDefaults<
   | 'updated_at'
 >
 export type ContinuidadeOportunidadesUpdate = Partial<ContinuidadeOportunidadesRow>
+
+// ============================================================================
+// Módulo de Relacionamento (CRM) — Fase 2: Calendário Inteligente
+// (migration 20260930350000). Modelo, §22-23.
+// ============================================================================
+export type DatasComemorativasProfissionaisRow = {
+  id: string
+  profissao: string
+  /** 'MM-DD' — mesmo dia todo ano. */
+  data_comemorativa: string
+  ativo: boolean
+  created_at: string
+  updated_at: string
+}
+export type DatasComemorativasProfissionaisInsert = ComDefaults<
+  DatasComemorativasProfissionaisRow,
+  'id' | 'ativo' | 'created_at' | 'updated_at'
+>
+export type DatasComemorativasProfissionaisUpdate = Partial<DatasComemorativasProfissionaisRow>
+
+export type CampanhasTematicasSaudeRow = {
+  id: string
+  nome: string
+  area_clinica: string | null
+  situacoes_permitidas: string[]
+  situacoes_excluidas: string[]
+  canal: RelacionamentoCanal | null
+  mensagem_modelo: string | null
+  ativo: boolean
+  created_at: string
+  updated_at: string
+}
+export type CampanhasTematicasSaudeInsert = ComDefaults<
+  CampanhasTematicasSaudeRow,
+  'id' | 'area_clinica' | 'situacoes_permitidas' | 'situacoes_excluidas' | 'canal' | 'mensagem_modelo' | 'ativo' | 'created_at' | 'updated_at'
+>
+export type CampanhasTematicasSaudeUpdate = Partial<CampanhasTematicasSaudeRow>
 
 // ============================================================================
 // atualizacoes_sistema (sino de notificações, 24/09/2026)
@@ -2886,6 +2947,18 @@ export interface Database {
         Row: ContinuidadeOportunidadesRow
         Insert: ContinuidadeOportunidadesInsert
         Update: ContinuidadeOportunidadesUpdate
+        Relationships: []
+      }
+      datas_comemorativas_profissionais: {
+        Row: DatasComemorativasProfissionaisRow
+        Insert: DatasComemorativasProfissionaisInsert
+        Update: DatasComemorativasProfissionaisUpdate
+        Relationships: []
+      }
+      campanhas_tematicas_saude: {
+        Row: CampanhasTematicasSaudeRow
+        Insert: CampanhasTematicasSaudeInsert
+        Update: CampanhasTematicasSaudeUpdate
         Relationships: []
       }
     }
