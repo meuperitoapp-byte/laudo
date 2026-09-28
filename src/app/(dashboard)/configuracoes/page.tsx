@@ -3,6 +3,9 @@ import { ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
 import { ConfiguracoesForm } from "@/features/configuracoes/configuracoes-form";
+import { AvatarForm } from "@/features/perfil/avatar-form";
+import { buscarAvatarUrl } from "@/features/perfil/avatares";
+import { nomeExibicaoDoEmail } from "@/lib/supabase/responsaveis";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 import { classesBotao } from "@/components/ui/button";
 import { obterContextoAcesso, podeAdministrarAcessos } from "@/features/acessos/contexto";
@@ -43,11 +46,13 @@ export default async function ConfiguracoesPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: config, error: erroConfig }, assinatura, logomarca, contexto] = await Promise.all([
+  const [{ data: config, error: erroConfig }, assinatura, logomarca, contexto, urlAvatar, meuNome] = await Promise.all([
     supabase.from("configuracoes").select("*").maybeSingle(),
     urlAtivoGlobal(supabase, "assinatura_perito"),
     urlAtivoGlobal(supabase, "logomarca"),
     user?.email ? obterContextoAcesso(supabase, user.email) : Promise.resolve(null),
+    buscarAvatarUrl(user?.email),
+    nomeExibicaoDoEmail(user?.email),
   ]);
   if (erroConfig) console.error("Configurações: falha ao buscar configuração:", erroConfig.message);
   const houveErro = Boolean(erroConfig) || assinatura.erro || logomarca.erro;
@@ -64,6 +69,11 @@ export default async function ConfiguracoesPage() {
       {houveErro && (
         <BannerErroConsulta mensagem="Não consegui carregar tudo agora — alguns dados abaixo podem estar incompletos." />
       )}
+      <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6 space-y-3">
+        <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Minha foto de perfil</h2>
+        <p className="text-xs text-nevoa-500 dark:text-nevoa-400">Aparece no Chat interno, ao lado do seu nome.</p>
+        <AvatarForm urlAtual={urlAvatar} meuNome={meuNome} />
+      </div>
       {mostrarLinkAcessos && (
         <div className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
