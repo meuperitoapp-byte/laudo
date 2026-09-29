@@ -166,15 +166,15 @@ export function ChatPanel({
   const grupos = useMemo(() => agruparMensagens(mensagensVisiveis), [mensagensVisiveis]);
 
   return (
-    <div className="flex flex-col rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 h-[calc(100vh-150px)]">
-      <div className="flex items-center justify-end gap-2 border-b border-nevoa-200 dark:border-nevoa-800 px-4 py-2.5">
-        <label className="flex items-center gap-1.5 text-xs text-nevoa-600 dark:text-nevoa-400">
+    <div className="flex flex-col h-full bg-white dark:bg-nevoa-900/40">
+      <div className="flex items-center justify-end gap-2 px-4 py-1">
+        <label className="flex items-center gap-1.5 text-xs text-nevoa-500 dark:text-nevoa-400">
           <input type="checkbox" checked={soMinhasMencoes} onChange={(e) => setSoMinhasMencoes(e.target.checked)} />
           Só minhas menções
         </label>
       </div>
 
-      <ul className="flex-1 overflow-y-auto p-4 space-y-3">
+      <ul className="flex-1 overflow-y-auto px-4 md:px-8 py-2 space-y-3">
         {grupos.length === 0 && (
           <p className="text-sm text-nevoa-500 dark:text-nevoa-400 text-center py-8">
             {soMinhasMencoes ? "Nenhuma mensagem te mencionou ainda." : "Nenhuma mensagem ainda — escreva a primeira."}
@@ -189,7 +189,7 @@ export function ChatPanel({
           return (
             <li key={grupo.itens[0].id} className={`flex items-end gap-2 ${minha ? "flex-row-reverse" : "flex-row"}`}>
               <AvatarCirculo url={urlAvatar} nome={nomeAutor} tamanho={32} />
-              <div className={`max-w-[65%] flex flex-col gap-0.5 ${minha ? "items-end" : "items-start"}`}>
+              <div className={`max-w-[72%] flex flex-col gap-0.5 ${minha ? "items-end" : "items-start"}`}>
                 <p className="text-xs font-medium px-1" style={{ color: cor }}>
                   {nomeAutor}
                 </p>
@@ -256,7 +256,7 @@ export function ChatPanel({
         <div ref={fimDaListaRef} />
       </ul>
 
-      <form action={enviar} className="border-t border-nevoa-200 dark:border-nevoa-800 p-3 space-y-2">
+      <form action={enviar} className="border-t border-nevoa-100 dark:border-nevoa-800/60 px-4 md:px-8 py-3 space-y-2">
         <div className="flex items-center gap-2">
           <label className="text-xs text-nevoa-500 dark:text-nevoa-400 shrink-0">Direcionar para:</label>
           <select
@@ -310,7 +310,7 @@ export function ChatPanel({
           </Botao>
         </div>
       </form>
-      {erro && <p className="px-3 pb-2 text-xs text-vinho-600 dark:text-vinho-400">{erro}</p>}
+      {erro && <p className="px-4 md:px-8 pb-2 text-xs text-vinho-600 dark:text-vinho-400">{erro}</p>}
     </div>
   );
 }
