@@ -65,6 +65,7 @@ export function ChatPanel({
   meuNome,
   nomesResponsaveis,
   avatares,
+  nomesPorEmail,
 }: {
   mensagensIniciais: ChatMensagensRow[];
   meuEmail: string;
@@ -72,6 +73,8 @@ export function ChatPanel({
   nomesResponsaveis: string[];
   /** email -> URL pública da foto de perfil (só quem tem foto cadastrada entra aqui). */
   avatares: Record<string, string>;
+  /** email -> nome de exibição ATUAL (não o gravado na mensagem no momento do envio) — ver comentário em mapaNomesPorEmail. */
+  nomesPorEmail: Record<string, string>;
 }) {
   const [mensagens, setMensagens] = useState(mensagensIniciais);
   const [texto, setTexto] = useState("");
@@ -184,7 +187,7 @@ export function ChatPanel({
           const minha = grupo.autorEmail === meuEmail;
           const cor = corDoAutor(grupo.autorEmail);
           const urlAvatar = avatares[grupo.autorEmail] ?? null;
-          const nomeAutor = grupo.itens[0].autor_nome;
+          const nomeAutor = nomesPorEmail[grupo.autorEmail] ?? grupo.itens[0].autor_nome;
 
           return (
             <li key={grupo.itens[0].id} className={`flex items-end gap-2 ${minha ? "flex-row-reverse" : "flex-row"}`}>

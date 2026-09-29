@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ChatPanel } from "@/features/chat/chat-panel";
-import { listarNomesResponsaveis, nomeExibicaoDoEmail } from "@/lib/supabase/responsaveis";
+import { listarNomesResponsaveis, nomeExibicaoDoEmail, mapaNomesPorEmail } from "@/lib/supabase/responsaveis";
 import { buscarTodosAvatares } from "@/features/perfil/avatares";
 import { ErroConsultaPagina } from "@/components/ui/erro-consulta";
 
@@ -31,6 +31,9 @@ export default async function ChatPage() {
     return <ErroConsultaPagina titulo="Não foi possível carregar o chat agora" />;
   }
 
+  const emailsAutores = Array.from(new Set((mensagens ?? []).map((m) => m.autor_email)));
+  const nomesPorEmail = await mapaNomesPorEmail(emailsAutores);
+
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col">
       <ChatPanel
@@ -39,6 +42,7 @@ export default async function ChatPage() {
         meuNome={meuNome}
         nomesResponsaveis={nomesResponsaveis}
         avatares={Object.fromEntries(avataresMap)}
+        nomesPorEmail={nomesPorEmail}
       />
     </div>
   );
