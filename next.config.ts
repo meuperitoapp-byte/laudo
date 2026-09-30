@@ -21,6 +21,18 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/processos/[id]/laudo": ["./node_modules/pdfmake/fonts/Roboto/*.ttf"],
   },
+  // Toda tela de upload (Documentos, anexo do Chat) envia o arquivo direto
+  // dentro do corpo de uma Server Action — o Next.js limita isso a 1MB por
+  // padrão, bem abaixo dos limites de 25/50MB que o sistema já anuncia pro
+  // usuário. Bug real (30/09/2026, relato dela): PDF de orçamento com
+  // fotos/arte passava de 1MB e o envio quebrava antes de chegar no Supabase,
+  // com uma tela de erro genérica do navegador. 50mb cobre o maior limite já
+  // configurado (Documentos, ver TAMANHO_MAXIMO_BYTES).
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "50mb",
+    },
+  },
 };
 
 export default nextConfig;

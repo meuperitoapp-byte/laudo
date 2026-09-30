@@ -709,9 +709,12 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   // Prazo REAL (data de envio + 7 dias) — some sozinho quando
   // `processos.data_contratacao` é preenchida (contratou) ou ela muda a
   // resposta do orçamento (query já filtrou só `= 'sim'` com data
-  // preenchida). Responsável fixo "Secretária": é ela quem envia o
-  // orçamento e faz o follow-up (CLAUDE.md/feedback da Dra. Fernanda,
-  // 30/09/2026) — não um dado digitado, por isso não vem de coluna.
+  // preenchida). Responsável fixo "Patrícia": é ela quem envia o orçamento e
+  // faz o follow-up (CLAUDE.md/feedback da Dra. Fernanda, 30/09/2026) — não
+  // um dado digitado, por isso não vem de coluna. Bug corrigido (30/09/2026):
+  // estava fixo como "Secretária" (um cargo, não um nome), então nunca batia
+  // com `contexto.nomeExibicao` no filtro de acesso por responsável — o item
+  // ficava invisível pro login dela mesma.
   for (const o of orcamentoSemRetornoDb ?? []) {
     const processo = processoPorId.get(o.processo_id);
     if (!processo || !o.pos_entrega_orcamento_enviado_em || processo.data_contratacao) continue;
@@ -726,7 +729,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo,
       dataContexto: { rotulo: "Orçamento enviado em", valor: o.pos_entrega_orcamento_enviado_em },
       ordenacao: prazo,
-      responsavel: "Secretária",
+      responsavel: "Patrícia",
       href: `/processos/${processo.id}/viabilidade`,
     });
   }
