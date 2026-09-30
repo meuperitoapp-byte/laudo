@@ -11,6 +11,8 @@ import { BarChartSimples } from "@/components/ui/bar-chart-simples";
 import { EvolucaoMensalChart } from "@/components/ui/evolucao-mensal-chart";
 import { DashboardCard } from "@/components/ui/dashboard-card";
 import { montarPainel } from "@/features/central-prazos/agregador";
+import { filtrarPorAcesso, ordenarPainel } from "@/features/central-prazos/regras";
+import { ItemCard } from "@/features/central-prazos/item-card";
 import { percentualVariacao, isoHaDias, novosPorMes } from "@/features/processos/metricas-tendencia";
 import {
   SITUACOES_FINANCEIRAS_SEED,
@@ -21,6 +23,7 @@ import {
 } from "@/features/processos/catalogos";
 import { BannerErroConsulta } from "@/components/ui/erro-consulta";
 import { valorDoProcesso } from "@/features/processos/valor";
+import { obterContextoAcesso, temAcessoAoModulo } from "@/features/acessos/contexto";
 import type { TipoTrabalhoProcesso } from "@/types/enums";
 
 const TIPO_TRABALHO_ROTULOS: Record<string, string> = {
@@ -66,6 +69,42 @@ export default async function ProcessosPage({
   const pagina = Math.max(1, parseInt(param(sp.pagina), 10) || 1);
 
   const supabase = await createClient();
+
+  // Tela simplificada pra perfil restrito sem acesso ao Financeiro (pedido
+  // dela, 30/09/2026: "prefiro que na tela dela fique as atividades que ela
+  // precisa cumprir... ela tem TDAH, se perde" + "essa receita estimada
+  // também não deve aparecer pra ela"). Quem tem Financeiro liberado (ex.:
+  // perfil do Bernardo) continua vendo o painel completo — a régua é acesso
+  // ao módulo, não uma lista fixa de nomes.
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const contexto = session?.user.email ? await obterContextoAcesso(supabase, session.user.email) : { tipo: "admin" as const };
+  const painelSimplificado = contexto.tipo === "restrito" && !temAcessoAoModulo(contexto, "financeiro");
+
+  if (painelSimplificado) {
+    const itensPainel = ordenarPainel(filtrarPorAcesso(await montarPainel(supabase), contexto));
+    return (
+      <main className="p-8 max-w-3xl mx-auto space-y-6">
+        <div>
+          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Casos</h1>
+          <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">O que você precisa cumprir nos casos em andamento.</p>
+        </div>
+        {itensPainel.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 bg-white dark:bg-nevoa-900/40 px-6 py-14 text-center">
+            <CheckCircle2 className="h-8 w-8 text-musgo-600 dark:text-musgo-400" />
+            <p className="text-sm text-nevoa-600 dark:text-nevoa-400 max-w-sm">Nada pendente pra você no momento.</p>
+          </div>
+        ) : (
+          <ol className="space-y-2">
+            {itensPainel.map((item) => (
+              <ItemCard key={item.id} item={item} />
+            ))}
+          </ol>
+        )}
+      </main>
+    );
+  }
 
   let query = supabase.from("processos").select("*", { count: "exact" }).order("created_at", { ascending: false });
   if (f.situacao === "") {

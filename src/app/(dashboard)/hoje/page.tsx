@@ -1,31 +1,12 @@
 import Link from "next/link";
 import { Plus, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Selo } from "@/components/ui/badge";
 import { classesBotao } from "@/components/ui/button";
 import { montarPainel } from "@/features/central-prazos/agregador";
 import { filtrarPorAcesso } from "@/features/central-prazos/regras";
-import { NIVEL_ROTULOS, NIVEL_SELO_VARIANTE, URGENTE_BADGE_CLASSE } from "@/features/central-prazos/rotulos";
+import { ItemCard } from "@/features/central-prazos/item-card";
 import type { ItemPainel } from "@/features/central-prazos/tipos";
 import { obterContextoAcesso } from "@/features/acessos/contexto";
-
-const dataCurta = (iso: string) => {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : new Date(iso).toLocaleDateString("pt-BR", { dateStyle: "short" });
-};
-
-/** O selo de nível — 5 dos 6 níveis reusam o `Selo` compartilhado; "Urgente" (laranja) não tem variante equivalente hoje (ver rotulos.ts). */
-function SeloNivel({ item }: { item: ItemPainel }) {
-  const rotulo = NIVEL_ROTULOS[item.nivel];
-  if (item.nivel === "urgente") {
-    return (
-      <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${URGENTE_BADGE_CLASSE}`}>
-        {rotulo}
-      </span>
-    );
-  }
-  return <Selo variante={NIVEL_SELO_VARIANTE[item.nivel] ?? "neutro"}>{rotulo}</Selo>;
-}
 
 const ABAS = [
   { valor: "hoje", rotulo: "Hoje" },
@@ -175,33 +156,5 @@ export default async function HojePage({
         </div>
       )}
     </main>
-  );
-}
-
-function ItemCard({ item }: { item: ItemPainel }) {
-  return (
-    <li>
-      <Link
-        href={item.href}
-        className="flex flex-wrap items-center gap-3 rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 px-4 py-3.5 text-sm transition-colors hover:border-petroleo-400 dark:hover:border-petroleo-600"
-      >
-        <SeloNivel item={item} />
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-nevoa-900 dark:text-nevoa-100 truncate">{item.titulo}</p>
-          <p className="text-nevoa-500 dark:text-nevoa-400">
-            {item.providencia}
-            {item.subtitulo ? ` · ${item.subtitulo}` : ""}
-          </p>
-        </div>
-        <div className="text-xs text-nevoa-500 dark:text-nevoa-400 text-right shrink-0">
-          {item.prazo && <p>Prazo: {dataCurta(item.prazo)}</p>}
-          {item.dataContexto && (
-            <p>
-              {item.dataContexto.rotulo} {dataCurta(item.dataContexto.valor)}
-            </p>
-          )}
-        </div>
-      </Link>
-    </li>
   );
 }
