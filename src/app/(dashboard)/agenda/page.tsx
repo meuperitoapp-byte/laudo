@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { montarPainel } from "@/features/central-prazos/agregador";
-import { hojeIsoBrasil, NIVEL_ORDEM, filtrarPorAcesso } from "@/features/central-prazos/regras";
+import { hojeIsoBrasil, NIVEL_ORDEM } from "@/features/central-prazos/regras";
 import {
   GRUPO_AGENDA_ROTULOS,
   GRUPO_AGENDA_POR_CATEGORIA,
@@ -9,7 +9,6 @@ import {
 } from "@/features/central-prazos/rotulos";
 import type { ItemPainel } from "@/features/central-prazos/tipos";
 import { ResponsavelFiltro } from "@/features/central-prazos/responsavel-filtro";
-import { obterContextoAcesso } from "@/features/acessos/contexto";
 import { listarNomesResponsaveis } from "@/lib/supabase/responsaveis";
 
 const DIAS_SEMANA_CURTO = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
@@ -87,22 +86,15 @@ export default async function AgendaPage({
   const base: BuscaParams = { ano: anoAtivo, mes: mesAtivo, grupo: grupoAtivo, q, responsavel: responsavelAtivo };
 
   const supabase = await createClient();
-  // getSession() (não getUser()) — mesmo raciocínio do layout do dashboard:
-  // o middleware já validou a sessão pra esta mesma requisição.
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const [todosItens, contexto, nomesResponsaveis] = await Promise.all([
-    montarPainel(supabase),
-    session?.user.email ? obterContextoAcesso(supabase, session.user.email) : Promise.resolve({ tipo: "admin" as const }),
-    listarNomesResponsaveis(),
-  ]);
-  // Perfil restrito (Etapa 5, 30/09/2026): só vê os próprios itens, sem o
-  // seletor de responsável — não faz sentido escolher "ver de outra pessoa"
-  // quando o próprio acesso já é limitado ao que é seu.
-  const itens = filtrarPorAcesso(todosItens, contexto);
-  const podeEscolherResponsavel = contexto.tipo === "admin";
-
+  const [itens, nomesResponsaveis] = await Promise.all([montarPainel(supabase), listarNomesResponsaveis()]);
+  // Sem filtro por acesso aqui de propósito (corrigido 30/09/2026, relato
+  // dela: "a minha agenda não aparece pra Patrícia") — a Agenda é o
+  // calendário COMPARTILHADO do escritório (perícias, reuniões, prazos de
+  // todo mundo), diferente de "O que fazer hoje" (`/hoje`), que é a lista
+  // pessoal de providências de cada um e continua filtrada por responsável
+  // (ver `filtrarPorAcesso`). O filtro de responsável abaixo fica disponível
+  // pra qualquer pessoa (não só admin), pra quem quiser ver só a agenda de
+  // alguém específico.
   const comData = itens.filter((i): i is ItemPainel & { prazo: string } => i.prazo !== null);
   const porGrupo = grupoAtivo === "todos" ? comData : comData.filter((i) => GRUPO_AGENDA_POR_CATEGORIA[i.categoria] === grupoAtivo);
   const porResponsavel = responsavelAtivo ? porGrupo.filter((i) => i.responsavel === responsavelAtivo) : porGrupo;
@@ -185,7 +177,7 @@ export default async function AgendaPage({
         </div>
 
         <div className="flex items-center gap-2">
-          {podeEscolherResponsavel && <ResponsavelFiltro opcoes={opcoesResponsavel} />}
+          <ResponsavelFiltro opcoes={opcoesResponsavel} />
           <form method="get" action="/agenda" className="flex items-center gap-2">
             <input type="hidden" name="ano" value={anoAtivo} />
             <input type="hidden" name="mes" value={mesAtivo} />
