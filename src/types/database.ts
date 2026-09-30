@@ -1881,6 +1881,7 @@ export type AnalisesViabilidadeRow = {
   proxima_acao_responsavel: string | null
   proxima_acao_prazo: string | null
   proxima_acao_prioridade: PrioridadeTarefa | null
+  proxima_acao_observacao: string | null
   pos_entrega_reuniao: ViabilidadePosEntregaReuniao | null
   pos_entrega_retorno_d7_em: string | null
   pos_entrega_satisfacao: ViabilidadeSatisfacao | null
@@ -1948,6 +1949,7 @@ export type AnalisesViabilidadeInsert = ComDefaults<
   | 'proxima_acao_responsavel'
   | 'proxima_acao_prazo'
   | 'proxima_acao_prioridade'
+  | 'proxima_acao_observacao'
   | 'pos_entrega_reuniao'
   | 'pos_entrega_retorno_d7_em'
   | 'pos_entrega_satisfacao'

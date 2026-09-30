@@ -50,6 +50,11 @@ export function PosEntregaPanel({ analise }: { analise: AnalisesViabilidadeRow }
 
   return (
     <form
+      // Mesma correção do ProximaAcaoPanel — os dois campos de data abaixo
+      // não são controlados, e o React 19 os resetava pro valor de quando a
+      // tela abriu (não pro recém-salvo) depois de uma Server Action bem-
+      // sucedida (bug real, 30/09/2026, print dela).
+      key={`${analise.pos_entrega_orcamento_enviado_em ?? ""}|${analise.pos_entrega_retorno_d7_em ?? ""}`}
       action={salvar}
       className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6 space-y-4"
     >

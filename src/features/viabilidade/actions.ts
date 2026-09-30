@@ -1608,6 +1608,7 @@ export async function salvarProximaAcao(formData: FormData): Promise<ActionResul
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath(`/processos/${processoId}/viabilidade/pos-entrega`);
   revalidatePath("/hoje");
   revalidatePath("/agenda");
   return { success: true };
@@ -1642,6 +1643,7 @@ export async function salvarPosEntrega(formData: FormData): Promise<ActionResult
   if (error) return { error: error.message };
 
   revalidatePath(`/processos/${processoId}/viabilidade`);
+  revalidatePath(`/processos/${processoId}/viabilidade/pos-entrega`);
   revalidatePath("/hoje");
   revalidatePath("/agenda");
   return { success: true };

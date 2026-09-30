@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { obterContextoAcesso } from "@/features/acessos/contexto";
 import { garantirAnaliseViabilidade, garantirNexoCausal, garantirDano, garantirIncapacidade } from "@/features/viabilidade/actions";
 import { CabecalhoViabilidadePanel } from "@/features/viabilidade/cabecalho-panel";
 import { FinalidadeNarrativasPanel } from "@/features/viabilidade/finalidade-narrativas-panel";
@@ -31,7 +32,6 @@ import { RecomendacaoPanel } from "@/features/viabilidade/recomendacao-panel";
 import { ProximaAcaoPanel } from "@/features/viabilidade/proxima-acao-panel";
 import { BloqueiosPanel } from "@/features/viabilidade/bloqueios-panel";
 import { GerarAnaliseViabilidadePanel, type VersaoAnaliseViabilidade } from "@/features/viabilidade/gerar-analise-viabilidade-panel";
-import { PosEntregaPanel } from "@/features/viabilidade/pos-entrega-panel";
 import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
 import { ESPECIALIDADE_SEED, MATERIA_SEED } from "@/features/viabilidade/catalogos";
 import { mesclarSugestoes } from "@/features/processos/catalogos";
@@ -49,12 +49,20 @@ import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-con
  * fragilidades + oportunidades probatórias + risco pericial, §20-23), 6
  * (tese adversa + raciocínio pericial + necessidade de especialista +
  * literatura, §24-27), 7 (matriz final + conclusão + recomendação +
- * próxima ação + bloqueios pra finalização, §28-31 e §42), 8 (geração do
+ * próxima ação + bloqueios pra finalização, §28-31 e §42) e 8 (geração do
  * PDF/Word, §38 — reaproveita o motor de `geracao-laudo`, ver
- * compilar-pdf.ts) e 9 (pós-entrega e satisfação, §39 — ÚLTIMA seção da
- * spec). Spec completa de 45 seções em memória do projeto
+ * compilar-pdf.ts). Spec completa de 45 seções em memória do projeto
  * (analise-viabilidade-spec) — módulo 100% implementado conforme o
  * recorte de escopo V1 aprovado.
+ *
+ * Pós-entrega e satisfação (§39, fatia 9) saiu daqui pra uma tela própria
+ * (`./pos-entrega`, 30/09/2026, pedido dela: "essa parte teria que ser
+ * outra janela, fica muito lá embaixo depois de tudo que analisei") — é
+ * também a ÚNICA parte da Análise que Patrícia/financeiro podem ver e
+ * preencher (sigilo: eles não têm acesso a nada do que é analisado aqui,
+ * só aos dados essenciais do caso e ao comando da próxima ação). Por isso
+ * perfil restrito nem chega a abrir ESTA página — é redirecionado direto
+ * pra lá, mais abaixo.
  *
  * Nexo/Dano/Incapacidade são 1:1 por processo — garantidos (select-ou-
  * cria) igual à análise, cada um com seu próprio bloco condicional na UI
@@ -67,6 +75,15 @@ import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-con
 export default async function ViabilidadePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const contexto = session?.user.email ? await obterContextoAcesso(supabase, session.user.email) : { tipo: "admin" as const };
+  // Sigilo (30/09/2026, pedido dela): Patrícia/financeiro não têm acesso a
+  // NADA do que é analisado aqui — só à tela de Pós-entrega, que é onde
+  // ficam os comandos e dados essenciais do caso pra eles agirem.
+  if (contexto.tipo === "restrito") redirect(`/processos/${id}/viabilidade/pos-entrega`);
 
   const { data: processo, error: erroProcesso } = await supabase
     .from("processos")
@@ -276,9 +293,17 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
         >
           ← {nomeCaso}
         </Link>
-        <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mt-1">
-          Análise de Viabilidade Técnico-Pericial
-        </h1>
+        <div className="flex items-start justify-between gap-3 mt-1">
+          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">
+            Análise de Viabilidade Técnico-Pericial
+          </h1>
+          <Link
+            href={`/processos/${id}/viabilidade/pos-entrega`}
+            className="shrink-0 text-sm text-petroleo-600 hover:underline dark:text-petroleo-400 whitespace-nowrap"
+          >
+            Pós-entrega e satisfação →
+          </Link>
+        </div>
         <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">
           Serviço pré-processual — sem número de processo, tribunal, vara ou comarca obrigatórios nesta fase.
         </p>
@@ -360,8 +385,6 @@ export default async function ViabilidadePage({ params }: { params: Promise<{ id
       />
 
       <GerarAnaliseViabilidadePanel processoId={id} versoes={versoesAnaliseViabilidade} />
-
-      <PosEntregaPanel analise={analise} />
     </main>
   );
 }

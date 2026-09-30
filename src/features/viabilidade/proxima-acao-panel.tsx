@@ -41,6 +41,12 @@ export function ProximaAcaoPanel({ analise, nomesResponsaveis }: { analise: Anal
 
   return (
     <form
+      // Força reabrir o formulário do zero quando os valores salvos mudam —
+      // sem isso, o React 19 reseta os campos não-controlados pro estado de
+      // quando a TELA abriu (não pro valor recém-salvo) depois de uma Server
+      // Action bem-sucedida, e eles ficavam voltando pra "Selecione…" mesmo
+      // tendo gravado certo no banco (bug real, 30/09/2026, print dela).
+      key={`${analise.proxima_acao ?? ""}|${analise.proxima_acao_responsavel ?? ""}|${analise.proxima_acao_prazo ?? ""}|${analise.proxima_acao_prioridade ?? ""}|${analise.proxima_acao_observacao ?? ""}`}
       action={salvar}
       className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6 space-y-4"
     >
@@ -103,6 +109,23 @@ export function ProximaAcaoPanel({ analise, nomesResponsaveis }: { analise: Anal
             ))}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label htmlFor="proxima_acao_observacao" className={labelClass}>
+          Observação/instruções (opcional)
+        </label>
+        <textarea
+          id="proxima_acao_observacao"
+          name="proxima_acao_observacao"
+          defaultValue={analise.proxima_acao_observacao ?? ""}
+          rows={3}
+          placeholder="Ex.: próximos serviços a oferecer, se o cliente é carente e será parceria…"
+          className={inputClass}
+        />
+        <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-1">
+          Recado seu pra quem for executar a ação — aparece na tela de Pós-entrega.
+        </p>
       </div>
 
       <div className="flex items-center gap-3 pt-2">
