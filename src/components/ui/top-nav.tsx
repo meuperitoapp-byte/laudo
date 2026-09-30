@@ -8,8 +8,21 @@ import { User } from "lucide-react";
 import { signOut } from "@/features/auth/actions";
 import { moduloDaRota } from "@/features/acessos/mapa-modulos";
 import { NotificacoesSino } from "@/components/ui/notificacoes-sino";
+import { createClient } from "@/lib/supabase/client";
 import type { ModuloSistema } from "@/types/enums";
 import type { AtualizacoesSistemaRow } from "@/types/database";
+
+const CHAVE_CHAT_ULTIMA_LEITURA = "pericons_chat_ultima_leitura";
+
+/** Última vez que este navegador "leu" o chat (guardado no localStorage). */
+function lerUltimaLeituraSalva(): string {
+  if (typeof window === "undefined") return "1970-01-01T00:00:00.000Z";
+  try {
+    return localStorage.getItem(CHAVE_CHAT_ULTIMA_LEITURA) ?? "1970-01-01T00:00:00.000Z";
+  } catch {
+    return "1970-01-01T00:00:00.000Z";
+  }
+}
 
 interface ItemNav {
   href: string;
@@ -62,14 +75,62 @@ export function TopNav({
   email,
   modulosPermitidos,
   atualizacoes,
+  ultimaMensagemChatEm,
 }: {
   email: string;
   modulosPermitidos: ModuloSistema[] | null;
   atualizacoes: AtualizacoesSistemaRow[];
+  /** Data da última mensagem do chat (lida no layout) — vira o pontinho no item "Chat" quando mais nova que a última leitura salva no navegador. */
+  ultimaMensagemChatEm: string | null;
 }) {
   const pathname = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
+  const [ultimaMensagemChegouEm, setUltimaMensagemChegouEm] = useState(ultimaMensagemChatEm);
+  const [ultimaLeituraEm, setUltimaLeituraEm] = useState(() => lerUltimaLeituraSalva());
   const menuRef = useRef<HTMLDivElement>(null);
+  const chatEstaAberto = pathname.startsWith("/chat");
+
+  // "Ajustar estado durante a renderização" (padrão oficial do React, não um
+  // efeito) — estar no Chat sempre implica ter visto a mensagem mais recente
+  // conhecida. Evita tanto ler ref durante a renderização (regra
+  // `react-hooks/refs`, que a primeira tentativa aqui violou) quanto chamar
+  // `setState` de forma síncrona dentro do corpo de um efeito (regra
+  // `react-hooks/set-state-in-effect`, violada pela tentativa anterior a essa).
+  if (chatEstaAberto && ultimaMensagemChegouEm && ultimaMensagemChegouEm !== ultimaLeituraEm) {
+    setUltimaLeituraEm(ultimaMensagemChegouEm);
+  }
+
+  const chatNaoLido = !chatEstaAberto && !!ultimaMensagemChegouEm && ultimaMensagemChegouEm > ultimaLeituraEm;
+
+  // Persiste a última leitura pro navegador lembrar entre sessões — efeito
+  // "puro" (só grava num sistema externo, nenhum `setState` dentro dele), por
+  // isso não cai na mesma regra de setState síncrono em efeito.
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAVE_CHAT_ULTIMA_LEITURA, ultimaLeituraEm);
+    } catch {
+      // sem persistência — sem problema, só volta a marcar como não lida na próxima visita
+    }
+  }, [ultimaLeituraEm]);
+
+  // Avisa mensagem nova em QUALQUER página do sistema (pergunta dela,
+  // 30/09/2026: "chega notificação no chat pra saber que tem mensagem?") —
+  // o `setState` aqui vem de dentro do callback de um evento externo
+  // (Realtime), não do corpo síncrono do efeito, que é o padrão recomendado
+  // pra "assinar atualizações de um sistema externo".
+  useEffect(() => {
+    const supabase = createClient();
+    const canal = supabase
+      .channel("topnav_chat_indicador")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_mensagens" }, (payload) => {
+        const nova = payload.new as { created_at: string };
+        setUltimaMensagemChegouEm(nova.created_at);
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(canal);
+    };
+  }, []);
 
   // `null` = admin, vê tudo (mesmo comportamento de sempre). Perfil restrito
   // só vê o item se o módulo daquela rota estiver na lista liberada — mesmo
@@ -115,6 +176,9 @@ export function TopNav({
                 }`}
               >
                 {item.rotulo}
+                {item.href === "/chat" && chatNaoLido && (
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-vinho-500 ring-2 ring-petroleo-700 dark:ring-nevoa-900" />
+                )}
                 {ativo && <span className="absolute left-3 right-3 -bottom-[9px] h-0.5 rounded-full bg-petroleo-400" />}
               </Link>
             );

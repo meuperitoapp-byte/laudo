@@ -45,9 +45,27 @@ export default async function DashboardLayout({
     console.error("Layout: falha ao buscar atualizações do sistema:", erroAtualizacoes.message);
   }
 
+  // Indicador de mensagem nova no Chat (30/09/2026, pergunta dela: "chega
+  // notificação no chat pra saber que tem mensagem?") — só a data da última
+  // mensagem, pro TopNav comparar com a última leitura salva no navegador.
+  const { data: ultimaMensagemChat, error: erroUltimaMensagemChat } = await supabase
+    .from("chat_mensagens")
+    .select("created_at")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroUltimaMensagemChat) {
+    console.error("Layout: falha ao buscar última mensagem do chat:", erroUltimaMensagemChat.message);
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
-      <TopNav email={user.email ?? ""} modulosPermitidos={modulosPermitidos} atualizacoes={atualizacoesDb ?? []} />
+      <TopNav
+        email={user.email ?? ""}
+        modulosPermitidos={modulosPermitidos}
+        atualizacoes={atualizacoesDb ?? []}
+        ultimaMensagemChatEm={ultimaMensagemChat?.created_at ?? null}
+      />
       <div className="flex-1 bg-nevoa-25 dark:bg-nevoa-950">{children}</div>
     </div>
   );
