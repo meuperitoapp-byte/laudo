@@ -1,19 +1,13 @@
 import Link from "next/link";
-import { Eye, Pencil, FileText, Clock, CheckCircle2, ListChecks, Wallet } from "lucide-react";
+import { Eye, Pencil, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
 import { ProcessosFiltros } from "@/features/processos/processos-filtros";
 import { ExcluirProcessoButton } from "@/features/processos/excluir-processo-button";
-import { KpiTendenciaCard } from "@/components/ui/kpi-tendencia-card";
-import { DonutChart } from "@/components/ui/donut-chart";
-import { BarChartSimples } from "@/components/ui/bar-chart-simples";
-import { EvolucaoMensalChart } from "@/components/ui/evolucao-mensal-chart";
-import { DashboardCard } from "@/components/ui/dashboard-card";
 import { montarPainel } from "@/features/central-prazos/agregador";
 import { filtrarPorAcesso, ordenarPainel } from "@/features/central-prazos/regras";
 import { ItemCard } from "@/features/central-prazos/item-card";
-import { percentualVariacao, isoHaDias, novosPorMes } from "@/features/processos/metricas-tendencia";
 import {
   SITUACOES_FINANCEIRAS_SEED,
   mesclarSugestoes,
@@ -130,11 +124,6 @@ export default async function ProcessosPage({
     { data: partesDb, error: erroPartes },
     { data: financeirasDb, error: erroFinanceiras },
     { data: protocoladosDb, error: erroProtocolados },
-    // KPIs/gráficos do topo são SEMPRE sobre o total real (sem os filtros da
-    // lista abaixo) — mesmo princípio do Dashboard: um filtro na tabela não
-    // pode fazer o "Total de demandas" mentir.
-    { data: todosProcessosDb, error: erroTodos },
-    itensPainel,
   ] = await Promise.all([
     query,
     supabase.from("tipos_laudo").select("id, nome").order("ordem", { ascending: true }),
@@ -144,8 +133,6 @@ export default async function ProcessosPage({
     // qualquer documento protocolado bloqueia excluir. Buscado em lote aqui
     // pra ExcluirProcessoButton, sem duplicar a query por linha da tabela.
     supabase.from("laudos_gerados").select("processo_id").eq("protocolado", true),
-    supabase.from("processos").select("tipo_trabalho, status, created_at, honorario_arbitrado, honorario_apresentado, valor_processo"),
-    montarPainel(supabase),
   ]);
   // Mesma classe de bug do dashboard "0 processos" (21/09/2026): sem checar
   // `error`, a lista principal falhando viraria "Nenhum processo em
@@ -155,7 +142,6 @@ export default async function ProcessosPage({
   if (erroPartes) console.error("Processos: falha ao buscar partes:", erroPartes.message);
   if (erroFinanceiras) console.error("Processos: falha ao buscar situações financeiras:", erroFinanceiras.message);
   if (erroProtocolados) console.error("Processos: falha ao buscar documentos protocolados:", erroProtocolados.message);
-  if (erroTodos) console.error("Processos: falha ao buscar KPIs:", erroTodos.message);
 
   const nomePorTipoLaudo = new Map((tiposLaudo ?? []).map((t) => [t.id, t.nome]));
   const primeiroNomePoloAtivoPorProcesso = new Map<string, string>();
@@ -172,43 +158,6 @@ export default async function ProcessosPage({
     : new Set((protocoladosDb ?? []).map((l) => l.processo_id));
 
   const filtrouAlgo = Object.values(f).some((v) => v);
-
-  // ---- KPIs e gráficos (modelo de tela enviado pela Dra. Fernanda, 25/09/2026) ----
-  const todos = todosProcessosDb ?? [];
-  const emAndamento = todos.filter((p) => p.status === "em_andamento");
-  const finalizados = todos.filter((p) => p.status === "finalizado");
-  const arquivados = todos.filter((p) => p.status === "arquivado");
-  const pendenciasAbertas = itensPainel.length;
-  const receitaEstimada = emAndamento.reduce((soma, p) => soma + (valorDoProcesso(p) ?? 0), 0);
-
-  const haUmMes = isoHaDias(30);
-  const trendTotal = percentualVariacao(todos.length, todos.filter((p) => p.created_at.slice(0, 10) <= haUmMes).length);
-  const trendEmAndamento = percentualVariacao(emAndamento.length, emAndamento.filter((p) => p.created_at.slice(0, 10) <= haUmMes).length);
-  const trendFinalizados = percentualVariacao(finalizados.length, finalizados.filter((p) => p.created_at.slice(0, 10) <= haUmMes).length);
-  const trendReceita = percentualVariacao(
-    receitaEstimada,
-    emAndamento.filter((p) => p.created_at.slice(0, 10) <= haUmMes).reduce((soma, p) => soma + (valorDoProcesso(p) ?? 0), 0),
-  );
-
-  const CORES_TIPO_TRABALHO: Record<string, string> = {
-    "Perícia Judicial": "var(--chart-teal)",
-    "Assistência Técnica": "var(--chart-amber)",
-  };
-  const totalJudicial = todos.filter((p) => p.tipo_trabalho === "pericia_judicial").length;
-  const totalAT = todos.filter((p) => p.tipo_trabalho === "assistencia_tecnica").length;
-  const donutTipoTrabalho = [
-    { rotulo: "Perícia Judicial", valor: totalJudicial, cor: CORES_TIPO_TRABALHO["Perícia Judicial"] },
-    { rotulo: "Assistência Técnica", valor: totalAT, cor: CORES_TIPO_TRABALHO["Assistência Técnica"] },
-  ].filter((d) => d.valor > 0);
-
-  const porSituacao = [
-    { rotulo: "Em andamento", valor: emAndamento.length },
-    { rotulo: "Finalizadas", valor: finalizados.length },
-    { rotulo: "Pendências", valor: pendenciasAbertas },
-    { rotulo: "Arquivadas", valor: arquivados.length },
-  ];
-
-  const demandasPorMes = novosPorMes(todos.map((p) => p.created_at), 6);
 
   const totalPaginas = Math.max(1, Math.ceil((totalFiltrado ?? 0) / ITENS_POR_PAGINA));
 
@@ -246,49 +195,9 @@ export default async function ProcessosPage({
         </Link>
       </div>
 
-      {(erroProcessos || erroTodos) && (
+      {erroProcessos && (
         <BannerErroConsulta mensagem="Não consegui carregar tudo agora. Os números e a lista abaixo podem estar incompletos." />
       )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <KpiTendenciaCard
-          rotulo="Total de demandas"
-          valor={todos.length}
-          icone={<FileText className="h-5 w-5" />}
-          tendencia={{ percentual: trendTotal, cor: trendTotal >= 0 ? "sucesso" : "erro" }}
-        />
-        <KpiTendenciaCard
-          rotulo="Em andamento"
-          valor={emAndamento.length}
-          icone={<Clock className="h-5 w-5" />}
-          tendencia={{ percentual: trendEmAndamento, cor: trendEmAndamento >= 0 ? "sucesso" : "erro" }}
-        />
-        <KpiTendenciaCard
-          rotulo="Finalizadas"
-          valor={finalizados.length}
-          icone={<CheckCircle2 className="h-5 w-5" />}
-          tendencia={{ percentual: trendFinalizados, cor: trendFinalizados >= 0 ? "sucesso" : "erro" }}
-        />
-        <KpiTendenciaCard rotulo="Pendências" valor={pendenciasAbertas} icone={<ListChecks className="h-5 w-5" />} href="/hoje" />
-        <KpiTendenciaCard
-          rotulo="Receita estimada"
-          valor={moedaBRL(receitaEstimada)}
-          icone={<Wallet className="h-5 w-5" />}
-          tendencia={{ percentual: trendReceita, cor: trendReceita >= 0 ? "sucesso" : "erro" }}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <DashboardCard titulo="Demandas por tipo de trabalho" total={totalJudicial + totalAT}>
-          <DonutChart itens={donutTipoTrabalho} />
-        </DashboardCard>
-        <DashboardCard titulo="Demandas por situação">
-          <BarChartSimples dados={porSituacao} />
-        </DashboardCard>
-        <DashboardCard titulo="Demandas por mês" subtitulo="Últimos 6 meses">
-          <EvolucaoMensalChart dados={demandasPorMes} />
-        </DashboardCard>
-      </div>
 
       <ProcessosFiltros
         tiposLaudo={tiposLaudo ?? []}
