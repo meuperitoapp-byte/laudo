@@ -1602,6 +1602,7 @@ export async function salvarProximaAcao(formData: FormData): Promise<ActionResul
     proxima_acao_responsavel: textoOuNull(formData.get("proxima_acao_responsavel")),
     proxima_acao_prazo: textoOuNull(formData.get("proxima_acao_prazo")),
     proxima_acao_prioridade: enumOuNull(formData.get("proxima_acao_prioridade"), PRIORIDADE_VALORES),
+    proxima_acao_observacao: textoOuNull(formData.get("proxima_acao_observacao")),
   };
 
   const { error } = await supabase.from("analises_viabilidade").update(update).eq("id", analiseId);
