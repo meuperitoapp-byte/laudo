@@ -78,20 +78,14 @@ export default async function ProcessosPage({
 
   if (painelSimplificado) {
     const itensPainel = ordenarPainel(filtrarPorAcesso(await montarPainel(supabase), contexto));
-    const idsCasos = Array.from(
-      new Set(
-        itensPainel
-          .map((item) => item.href.match(/^\/processos\/([^/]+)/)?.[1])
-          .filter((id): id is string => Boolean(id)),
-      ),
-    );
-    const { data: casosDela, error: erroCasosDela } = idsCasos.length
-      ? await supabase
-          .from("processos")
-          .select("id, numero_processo, periciando_nome, parte_autora, tipo_trabalho, situacao_processo, created_at")
-          .in("id", idsCasos)
-          .order("created_at", { ascending: false })
-      : { data: [], error: null };
+    // Todos os casos, sem valores financeiros (pedido dela, 06/10/2026: a
+    // secretária alimenta informações nos casos, então precisa ver todos).
+    // Sigilo da análise de viabilidade continua valendo — essa lista só traz
+    // dados básicos do caso.
+    const { data: casosDela, error: erroCasosDela } = await supabase
+      .from("processos")
+      .select("id, numero_processo, periciando_nome, parte_autora, tipo_trabalho, situacao_processo, created_at")
+      .order("created_at", { ascending: false });
     if (erroCasosDela) console.error("Casos (perfil restrito): falha ao listar casos:", erroCasosDela.message);
 
     return (
