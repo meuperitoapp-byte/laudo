@@ -78,24 +78,89 @@ export default async function ProcessosPage({
 
   if (painelSimplificado) {
     const itensPainel = ordenarPainel(filtrarPorAcesso(await montarPainel(supabase), contexto));
+    const idsCasos = Array.from(
+      new Set(
+        itensPainel
+          .map((item) => item.href.match(/^\/processos\/([^/]+)/)?.[1])
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const { data: casosDela, error: erroCasosDela } = idsCasos.length
+      ? await supabase
+          .from("processos")
+          .select("id, numero_processo, periciando_nome, parte_autora, tipo_trabalho, situacao_processo, created_at")
+          .in("id", idsCasos)
+          .order("created_at", { ascending: false })
+      : { data: [], error: null };
+    if (erroCasosDela) console.error("Casos (perfil restrito): falha ao listar casos:", erroCasosDela.message);
+
     return (
-      <main className="p-8 max-w-3xl mx-auto space-y-6">
-        <div>
-          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Casos</h1>
-          <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">O que você precisa cumprir nos casos em andamento.</p>
-        </div>
-        {itensPainel.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 bg-white dark:bg-nevoa-900/40 px-6 py-14 text-center">
-            <CheckCircle2 className="h-8 w-8 text-musgo-600 dark:text-musgo-400" />
-            <p className="text-sm text-nevoa-600 dark:text-nevoa-400 max-w-sm">Nada pendente pra você no momento.</p>
+      <main className="p-8 max-w-3xl mx-auto space-y-8">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50">Casos</h1>
+            <p className="text-sm text-nevoa-500 dark:text-nevoa-400 mt-1">O que você precisa cumprir e os casos ligados a você.</p>
           </div>
-        ) : (
-          <ol className="space-y-2">
-            {itensPainel.map((item) => (
-              <ItemCard key={item.id} item={item} />
-            ))}
-          </ol>
-        )}
+          <Link href="/processos/novo" className={classesBotao("primaria")}>
+            Nova demanda
+          </Link>
+        </div>
+
+        <section className="space-y-3">
+          <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">O que cumprir</h2>
+          {itensPainel.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 bg-white dark:bg-nevoa-900/40 px-6 py-10 text-center">
+              <CheckCircle2 className="h-8 w-8 text-musgo-600 dark:text-musgo-400" />
+              <p className="text-sm text-nevoa-600 dark:text-nevoa-400 max-w-sm">Nada pendente pra você no momento.</p>
+            </div>
+          ) : (
+            <ol className="space-y-2">
+              {itensPainel.map((item) => (
+                <ItemCard key={item.id} item={item} />
+              ))}
+            </ol>
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Meus casos</h2>
+          {(casosDela ?? []).length === 0 ? (
+            <p className="text-sm text-nevoa-500 dark:text-nevoa-400">Nenhum caso ligado a você ainda.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-nevoa-200 dark:border-nevoa-800">
+              <table className="w-full text-sm border-collapse">
+                <tbody className="bg-white dark:bg-nevoa-900/40">
+                  {(casosDela ?? []).map((p) => (
+                    <tr key={p.id} className="border-b border-nevoa-100 dark:border-nevoa-800 last:border-0 hover:bg-nevoa-50 dark:hover:bg-nevoa-800/60">
+                      <td className="py-2.5 px-4">
+                        <Link href={`/processos/${p.id}`} className="font-medium text-petroleo-600 hover:underline dark:text-petroleo-400">
+                          {p.numero_processo || p.periciando_nome || p.parte_autora || "(sem identificação)"}
+                        </Link>
+                      </td>
+                      <td className="py-2.5 px-4 text-nevoa-700 dark:text-nevoa-300">
+                        {TIPO_TRABALHO_ROTULOS[p.tipo_trabalho] ?? p.tipo_trabalho}
+                      </td>
+                      <td className="py-2.5 px-4">
+                        {p.situacao_processo ? (
+                          <Selo variante={varianteSituacaoProcesso(p.situacao_processo)}>{p.situacao_processo}</Selo>
+                        ) : (
+                          <span className="text-nevoa-400 dark:text-nevoa-600">—</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-4 text-nevoa-500 dark:text-nevoa-400 tabular-nums whitespace-nowrap">{dataCurta(p.created_at)}</td>
+                      <td className="py-2.5 px-4 text-right">
+                        <Link href={`/processos/${p.id}/editar`} className="text-sm text-petroleo-600 hover:underline dark:text-petroleo-400">
+                          Editar
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {erroCasosDela && <p className="text-xs text-vinho-600 dark:text-vinho-400">Não consegui carregar os casos agora.</p>}
+        </section>
       </main>
     );
   }

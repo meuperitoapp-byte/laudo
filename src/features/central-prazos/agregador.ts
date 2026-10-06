@@ -66,6 +66,7 @@ import type { createClient } from "@/lib/supabase/server";
 import { hojeIsoBrasil, nivelPorPrazo, ordenarPainel, paraDiasUtc, somarDiasIso } from "./regras";
 import { PROVIDENCIA_POR_CATEGORIA } from "./rotulos";
 import { PROXIMA_ACAO_ROTULOS as CONTESTACAO_PROXIMA_ACAO_ROTULOS } from "@/features/contestacao/catalogos";
+import { PROXIMA_ACAO_ROTULOS as PROXIMA_ACAO_VIABILIDADE_ROTULOS } from "@/features/viabilidade/catalogos";
 import { PROXIMA_ACAO_ESTRATEGIA_ROTULOS } from "@/features/estrategia-pericial/catalogos";
 import type { ItemPainel } from "./tipos";
 
@@ -671,7 +672,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     itens.push({
       id: `viabilidade_proxima_acao-${a.id}`,
       categoria: "viabilidade_proxima_acao",
-      titulo: `${a.proxima_acao || "Próxima ação"} — ${identificarProcesso(processo)}`,
+      titulo: `${a.proxima_acao ? PROXIMA_ACAO_VIABILIDADE_ROTULOS[a.proxima_acao] : "Próxima ação"} — ${identificarProcesso(processo)}`,
       subtitulo: a.proxima_acao_responsavel ? `Responsável: ${a.proxima_acao_responsavel}` : null,
       providencia: PROVIDENCIA_POR_CATEGORIA.viabilidade_proxima_acao,
       nivel: nivelPorPrazo(a.proxima_acao_prazo, hoje),
