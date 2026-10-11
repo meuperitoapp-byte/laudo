@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
 import { ProcessosFiltros } from "@/features/processos/processos-filtros";
+import { BuscaCasos } from "@/features/processos/busca-casos";
 import { ExcluirProcessoButton } from "@/features/processos/excluir-processo-button";
 import { montarPainel } from "@/features/central-prazos/agregador";
 import { filtrarPorAcesso, ordenarPainel } from "@/features/central-prazos/regras";
@@ -57,6 +58,10 @@ export default async function ProcessosPage({
     situacao: param(sp.situacao),
     situacaoFinanceira: param(sp.situacao_financeira),
     comarca: param(sp.comarca),
+    // Busca nos dois campos de advogado do processo (pedido dela, 11/10/2026:
+    // "geralmente puxamos mais pelo advogado") — quem contratou (AT) e quem
+    // indicou o caso (vale pros dois tipos de trabalho).
+    advogado: param(sp.advogado),
     dataInicial: param(sp.data_inicial),
     dataFinal: param(sp.data_final),
   };
@@ -82,10 +87,20 @@ export default async function ProcessosPage({
     // secretária alimenta informações nos casos, então precisa ver todos).
     // Sigilo da análise de viabilidade continua valendo — essa lista só traz
     // dados básicos do caso.
-    const { data: casosDela, error: erroCasosDela } = await supabase
+    let consultaCasos = supabase
       .from("processos")
       .select("id, numero_processo, periciando_nome, parte_autora, tipo_trabalho, situacao_processo, created_at")
       .order("created_at", { ascending: false });
+    // Lupa de busca (BuscaCasos) — vírgula/parênteses quebrariam o .or().
+    const busca = param(sp.busca).replace(/[,()]/g, " ").trim();
+    if (busca) {
+      consultaCasos = consultaCasos.or(
+        ["periciando_nome", "parte_autora", "numero_processo", "advogado_escritorio", "escritorio_indicacao"]
+          .map((c) => `${c}.ilike.%${busca}%`)
+          .join(","),
+      );
+    }
+    const { data: casosDela, error: erroCasosDela } = await consultaCasos;
     if (erroCasosDela) console.error("Casos (perfil restrito): falha ao listar casos:", erroCasosDela.message);
 
     return (
@@ -118,8 +133,11 @@ export default async function ProcessosPage({
 
         <section className="space-y-3">
           <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Meus casos</h2>
+          <BuscaCasos />
           {(casosDela ?? []).length === 0 ? (
-            <p className="text-sm text-nevoa-500 dark:text-nevoa-400">Nenhum caso ligado a você ainda.</p>
+            <p className="text-sm text-nevoa-500 dark:text-nevoa-400">
+              {busca ? "Nenhum caso encontrado para essa busca." : "Nenhum caso ligado a você ainda."}
+            </p>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-nevoa-200 dark:border-nevoa-800">
               <table className="w-full text-sm border-collapse">
@@ -173,6 +191,11 @@ export default async function ProcessosPage({
   if (f.tipoTrabalho) query = query.eq("tipo_trabalho", f.tipoTrabalho as TipoTrabalhoProcesso);
   if (f.situacaoFinanceira) query = query.eq("situacao_financeira", f.situacaoFinanceira);
   if (f.comarca) query = query.ilike("comarca_subsecao", `%${f.comarca}%`);
+  if (f.advogado) {
+    // Vírgula/parênteses quebrariam a sintaxe do .or() do PostgREST.
+    const termo = f.advogado.replace(/[,()]/g, " ").trim();
+    if (termo) query = query.or(`advogado_escritorio.ilike.%${termo}%,escritorio_indicacao.ilike.%${termo}%`);
+  }
   if (f.dataInicial) query = query.gte("created_at", f.dataInicial);
   if (f.dataFinal) query = query.lte("created_at", `${f.dataFinal}T23:59:59.999Z`);
   query = query.range((pagina - 1) * ITENS_POR_PAGINA, pagina * ITENS_POR_PAGINA - 1);

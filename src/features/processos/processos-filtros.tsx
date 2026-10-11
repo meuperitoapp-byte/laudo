@@ -55,6 +55,7 @@ export function ProcessosFiltros({
     numero: get("numero"),
     periciando: get("periciando"),
     comarca: get("comarca"),
+    advogado: get("advogado"),
   });
   const primeiroRender = useRef(true);
   useEffect(() => {
@@ -63,7 +64,12 @@ export function ProcessosFiltros({
       return;
     }
     const t = setTimeout(() => {
-      aplicar({ numero: texto.numero.trim(), periciando: texto.periciando.trim(), comarca: texto.comarca.trim() });
+      aplicar({
+        numero: texto.numero.trim(),
+        periciando: texto.periciando.trim(),
+        comarca: texto.comarca.trim(),
+        advogado: texto.advogado.trim(),
+      });
     }, 350);
     return () => clearTimeout(t);
   }, [texto, aplicar]);
@@ -74,12 +80,12 @@ export function ProcessosFiltros({
   const situacaoAtual = get("situacao") || "";
   const algumFiltro =
     situacaoAtual !== "" ||
-    ["numero", "periciando", "comarca", "tipo_laudo", "tipo_trabalho", "situacao_financeira", "data_inicial", "data_final"].some(
+    ["numero", "periciando", "comarca", "advogado", "tipo_laudo", "tipo_trabalho", "situacao_financeira", "data_inicial", "data_final"].some(
       (k) => get(k),
     );
 
   function limpar() {
-    setTexto({ numero: "", periciando: "", comarca: "" });
+    setTexto({ numero: "", periciando: "", comarca: "", advogado: "" });
     router.replace(pathname, { scroll: false });
   }
 
@@ -111,6 +117,15 @@ export function ProcessosFiltros({
             value={texto.comarca}
             onChange={(e) => setTexto((s) => ({ ...s, comarca: e.target.value }))}
             placeholder="Comarca"
+            className={campoClass}
+          />
+        </Campo>
+        <Campo rotulo="Advogado(a) / Escritório" htmlFor="f-advogado">
+          <input
+            id="f-advogado"
+            value={texto.advogado}
+            onChange={(e) => setTexto((s) => ({ ...s, advogado: e.target.value }))}
+            placeholder="Nome do advogado ou escritório"
             className={campoClass}
           />
         </Campo>
