@@ -10,6 +10,8 @@ import {
 import { Botao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
+import { BUCKET_DOCUMENTOS, TAMANHO_MAXIMO_BYTES } from "@/features/documentos/constants";
+import { anexarMetadadosArquivo, enviarArquivoDireto } from "@/lib/supabase/upload-direto";
 
 const inputClass =
   "w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-3 py-2 text-sm text-nevoa-900 dark:text-nevoa-100 " +
@@ -72,8 +74,25 @@ export function DocumentosSupervenientes({
 
   function adicionar(formData: FormData) {
     setMensagem(null);
+    const arquivo = formData.get("arquivo");
+    if (!(arquivo instanceof File) || arquivo.size === 0) {
+      setMensagem({ tipo: "erro", texto: "Selecione um arquivo." });
+      return;
+    }
+    if (arquivo.size > TAMANHO_MAXIMO_BYTES) {
+      setMensagem({ tipo: "erro", texto: "Arquivo maior que 50MB — não é possível enviar." });
+      return;
+    }
     startEnvio(async () => {
-      const r = await adicionarDocumentoSuperveniente(cicloId, processoId, formData);
+      const envio = await enviarArquivoDireto(BUCKET_DOCUMENTOS, processoId, arquivo);
+      if ("error" in envio) {
+        setMensagem({ tipo: "erro", texto: envio.error });
+        return;
+      }
+      anexarMetadadosArquivo(formData, envio.arquivo);
+      const r = await adicionarDocumentoSuperveniente(cicloId, processoId, formData).catch(() => ({
+        error: "Erro ao registrar o documento — tente de novo.",
+      }));
       if ("error" in r) {
         setMensagem({ tipo: "erro", texto: r.error });
         return;

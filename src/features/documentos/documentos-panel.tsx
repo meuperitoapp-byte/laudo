@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { atualizarDocumento, excluirDocumento, moverDocumento, uploadDocumento } from "./actions";
-import { CATEGORIAS_SUGERIDAS, TAMANHO_MAXIMO_BYTES } from "./constants";
+import { BUCKET_DOCUMENTOS, CATEGORIAS_SUGERIDAS, TAMANHO_MAXIMO_BYTES } from "./constants";
+import { anexarMetadadosArquivo, enviarArquivoDireto } from "@/lib/supabase/upload-direto";
 import { Botao, classesBotao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
 import type { DocumentosRow } from "@/types/database";
@@ -347,7 +348,13 @@ function UploadForm({ processoId }: { processoId: string }) {
       return;
     }
     startTransition(async () => {
-      const resultado = await uploadDocumento(processoId, formData);
+      const envio = await enviarArquivoDireto(BUCKET_DOCUMENTOS, processoId, arquivo);
+      if ("error" in envio) {
+        setErro(envio.error);
+        return;
+      }
+      anexarMetadadosArquivo(formData, envio.arquivo);
+      const resultado = await uploadDocumento(processoId, formData).catch(() => ({ error: "Erro ao registrar o documento — tente de novo." }));
       if ("error" in resultado) {
         setErro(resultado.error);
         return;

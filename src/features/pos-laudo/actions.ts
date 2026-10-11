@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { BUCKET_DOCUMENTOS, TAMANHO_MAXIMO_BYTES } from "@/features/documentos/constants";
+import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
+import { lerMetadadosArquivo } from "@/lib/supabase/upload-direto";
 import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
 import { buscarAtivosGlobais } from "@/features/geracao-laudo/ativos-globais";
 import { renderizarDocx } from "@/features/geracao-laudo/renderizar-docx";
@@ -657,10 +658,6 @@ function boolTri(fd: FormData, k: string): boolean | null {
   const v = fd.get(k) as string | null;
   return v === "sim" ? true : v === "nao" ? false : null;
 }
-function sanitizarNomeArquivo(nome: string): string {
-  const semAcento = nome.normalize("NFKD").replace(/[̀-ͯ]/g, "");
-  return semAcento.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-}
 
 /**
  * Cadastra um documento superveniente do ciclo. Reaproveita 100% o pipeline
@@ -676,13 +673,16 @@ export async function adicionarDocumentoSuperveniente(
   processoId: string,
   formData: FormData,
 ): Promise<ActionResult> {
-  const arquivo = formData.get("arquivo");
-  if (!(arquivo instanceof File) || arquivo.size === 0) {
+  // Arquivo já subiu direto do navegador (src/lib/supabase/upload-direto.ts);
+  // só chegam os metadados. Caminho só vale dentro da pasta deste processo.
+  const arquivo = lerMetadadosArquivo(formData);
+  if (!arquivo) {
     return { error: "Selecione um arquivo." };
   }
-  if (arquivo.size > TAMANHO_MAXIMO_BYTES) {
-    return { error: "Arquivo maior que 25MB — não é possível enviar." };
+  if (!arquivo.path.startsWith(`${processoId}/`)) {
+    return { error: "Caminho de arquivo inválido." };
   }
+  const path = arquivo.path;
 
   const papelBruto = formData.get("papel") as string | null;
   const papel: PosLaudoDocumentoPapel = (PAPEL_VALIDOS as readonly string[]).includes(papelBruto ?? "")
@@ -700,15 +700,6 @@ export async function adicionarDocumentoSuperveniente(
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = `${processoId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${sanitizarNomeArquivo(arquivo.name)}`;
-
-  const { error: erroUpload } = await supabase.storage
-    .from(BUCKET_DOCUMENTOS)
-    .upload(path, arquivo, { contentType: arquivo.type || undefined });
-  if (erroUpload) {
-    return { error: `Erro ao enviar o arquivo: ${erroUpload.message}` };
-  }
-
   const { data: ultimoDoc } = await supabase
     .from("documentos")
     .select("ordem")
@@ -720,10 +711,10 @@ export async function adicionarDocumentoSuperveniente(
   const docInsert: DocumentosInsert = {
     processo_id: processoId,
     tipo: "documento_processual",
-    nome_arquivo: arquivo.name,
+    nome_arquivo: arquivo.nome,
     storage_path: path,
-    mime_type: arquivo.type || null,
-    tamanho_bytes: arquivo.size,
+    mime_type: arquivo.tipo,
+    tamanho_bytes: arquivo.tamanho,
     ordem: (ultimoDoc?.ordem ?? 0) + 1,
     observacao: texto(formData, "observacao"),
     enviado_por: user?.id ?? null,

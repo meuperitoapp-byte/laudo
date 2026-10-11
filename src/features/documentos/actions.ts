@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { DocumentosInsert, DocumentosUpdate } from "@/types/database";
 import type { TipoDocumento } from "@/types/enums";
-import { BUCKET_DOCUMENTOS, TAMANHO_MAXIMO_BYTES } from "./constants";
+import { lerMetadadosArquivo } from "@/lib/supabase/upload-direto";
+import { BUCKET_DOCUMENTOS } from "./constants";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -20,45 +21,36 @@ function numeroOuNull(valor: FormDataEntryValue | null): number | null {
   return Number.isFinite(numero) ? numero : null;
 }
 
-/** Troca acentos/espaços/símbolos por algo seguro pra virar parte de um storage_path. */
-function sanitizarNomeArquivo(nome: string): string {
-  const semAcento = nome.normalize("NFKD").replace(/[̀-ͯ]/g, "");
-  return semAcento.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-}
-
 /**
- * Upload de um documento/imagem vinculado ao processo (CLAUDE.md > Fluxo
- * aprovado, item 9). Sobe o arquivo pro Storage primeiro; se o insert na
- * tabela `documentos` falhar depois, desfaz o upload pra não deixar arquivo
- * órfão no bucket.
+ * Registra um documento/imagem vinculado ao processo (CLAUDE.md > Fluxo
+ * aprovado, item 9). O arquivo já subiu direto do navegador pro Storage
+ * (ver src/lib/supabase/upload-direto.ts — o corpo de uma Server Action na
+ * Vercel não passa de 4,5MB); aqui só chegam os metadados. Se o insert na
+ * tabela `documentos` falhar, desfaz o upload pra não deixar arquivo órfão
+ * no bucket.
  */
 export async function uploadDocumento(processoId: string, formData: FormData): Promise<ActionResult> {
-  const arquivo = formData.get("arquivo");
-  if (!(arquivo instanceof File) || arquivo.size === 0) {
+  const arquivo = lerMetadadosArquivo(formData);
+  if (!arquivo) {
     return { error: "Selecione um arquivo." };
   }
-  if (arquivo.size > TAMANHO_MAXIMO_BYTES) {
-    return { error: "Arquivo maior que 50MB — não é possível enviar." };
+  // O caminho vem do navegador — só aceita dentro da pasta deste processo.
+  if (!arquivo.path.startsWith(`${processoId}/`)) {
+    return { error: "Caminho de arquivo inválido." };
   }
+  const path = arquivo.path;
+
+  const supabase = await createClient();
 
   const tipo = formData.get("tipo") as TipoDocumento | null;
   if (tipo !== "documento_processual" && tipo !== "imagem_pericia") {
+    await supabase.storage.from(BUCKET_DOCUMENTOS).remove([path]);
     return { error: "Selecione o tipo do documento." };
   }
 
-  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const path = `${processoId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${sanitizarNomeArquivo(arquivo.name)}`;
-
-  const { error: erroUpload } = await supabase.storage
-    .from(BUCKET_DOCUMENTOS)
-    .upload(path, arquivo, { contentType: arquivo.type || undefined });
-  if (erroUpload) {
-    return { error: `Erro ao enviar o arquivo: ${erroUpload.message}` };
-  }
 
   const { data: ultimo } = await supabase
     .from("documentos")
@@ -71,10 +63,10 @@ export async function uploadDocumento(processoId: string, formData: FormData): P
   const insert: DocumentosInsert = {
     processo_id: processoId,
     tipo,
-    nome_arquivo: arquivo.name,
+    nome_arquivo: arquivo.nome,
     storage_path: path,
-    mime_type: arquivo.type || null,
-    tamanho_bytes: arquivo.size,
+    mime_type: arquivo.tipo,
+    tamanho_bytes: arquivo.tamanho,
     ordem: (ultimo?.ordem ?? 0) + 1,
     ilegivel_insuficiente: formData.get("ilegivel_insuficiente") === "on",
     observacao: textoOuNull(formData.get("observacao")),

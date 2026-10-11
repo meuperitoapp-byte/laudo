@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Paperclip, Download, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { enviarMensagem } from "./actions";
+import { anexarMetadadosArquivo, enviarArquivoDireto } from "@/lib/supabase/upload-direto";
 import { BUCKET_CHAT_ARQUIVOS, TAMANHO_MAXIMO_ARQUIVO_BYTES } from "./constants";
 import { AvatarCirculo } from "@/features/perfil/avatar-form";
 import { Botao } from "@/components/ui/button";
@@ -148,13 +149,24 @@ export function ChatPanel({
     const textoEnviado = texto;
     const arquivoEnviado = arquivo;
     const mencionadoEnviado = mencionadoNome;
-    if (arquivo) formData.set("arquivo", arquivo);
+    formData.delete("arquivo");
     setTexto("");
     setArquivo(null);
     setMencionadoNome("");
     if (inputArquivoRef.current) inputArquivoRef.current.value = "";
     startTransition(async () => {
-      const resultado = await enviarMensagem(formData);
+      if (arquivoEnviado) {
+        const envio = await enviarArquivoDireto(BUCKET_CHAT_ARQUIVOS, "", arquivoEnviado);
+        if ("error" in envio) {
+          setErro(envio.error);
+          setTexto(textoEnviado);
+          setArquivo(arquivoEnviado);
+          setMencionadoNome(mencionadoEnviado);
+          return;
+        }
+        anexarMetadadosArquivo(formData, envio.arquivo);
+      }
+      const resultado = await enviarMensagem(formData).catch(() => ({ error: "Erro ao enviar a mensagem — tente de novo." }));
       if ("error" in resultado) {
         setErro(resultado.error);
         setTexto(textoEnviado);

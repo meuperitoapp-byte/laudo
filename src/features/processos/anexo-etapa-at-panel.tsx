@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadDocumento } from "@/features/documentos/actions";
+import { BUCKET_DOCUMENTOS, TAMANHO_MAXIMO_BYTES } from "@/features/documentos/constants";
+import { anexarMetadadosArquivo, enviarArquivoDireto } from "@/lib/supabase/upload-direto";
 import { salvarAnaliseContestacaoObservacoes } from "@/features/processos/actions";
 import { Botao } from "@/components/ui/button";
 import { Toast } from "@/components/ui/toast";
@@ -65,11 +67,22 @@ export function AnexoEtapaAtPanel({
       setMensagem({ tipo: "erro", texto: "Selecione um arquivo." });
       return;
     }
+    if (arquivo.size > TAMANHO_MAXIMO_BYTES) {
+      setMensagem({ tipo: "erro", texto: "Arquivo maior que 50MB — não é possível enviar." });
+      return;
+    }
     formData.set("tipo", "documento_processual");
     formData.set("etapa_at", etapa);
 
     setIsPending(true);
-    const r = await uploadDocumento(processoId, formData);
+    const envio = await enviarArquivoDireto(BUCKET_DOCUMENTOS, processoId, arquivo);
+    if ("error" in envio) {
+      setIsPending(false);
+      setMensagem({ tipo: "erro", texto: envio.error });
+      return;
+    }
+    anexarMetadadosArquivo(formData, envio.arquivo);
+    const r = await uploadDocumento(processoId, formData).catch(() => ({ error: "Erro ao registrar o arquivo — tente de novo." }));
     setIsPending(false);
     if ("error" in r) {
       setMensagem({ tipo: "erro", texto: r.error });

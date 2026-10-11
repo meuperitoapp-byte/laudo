@@ -3,17 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { obterContextoAcesso } from "@/features/acessos/contexto";
 import { nomeExibicaoDoEmail } from "@/lib/supabase/responsaveis";
-import { BUCKET_CHAT_ARQUIVOS, TAMANHO_MAXIMO_ARQUIVO_BYTES } from "./constants";
+import { lerMetadadosArquivo } from "@/lib/supabase/upload-direto";
+import { BUCKET_CHAT_ARQUIVOS } from "./constants";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, ChatMensagensRow, ChatMensagensInsert } from "@/types/database";
 
 type ActionResult = { error: string } | { success: true; mensagem: ChatMensagensRow };
-
-/** Troca acentos/espaços/símbolos por algo seguro pra virar parte de um storage_path — mesmo helper de features/documentos/actions.ts. */
-function sanitizarNomeArquivo(nome: string): string {
-  const semAcento = nome.normalize("NFKD").replace(/[̀-ͯ]/g, "");
-  return semAcento.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-}
 
 /**
  * Nome de exibição no chat — reaproveita o `nome_exibicao` de quem já tem
@@ -45,13 +40,11 @@ async function nomeDoAutor(supabase: SupabaseClient<Database>, email: string): P
 export async function enviarMensagem(formData: FormData): Promise<ActionResult> {
   const texto = (formData.get("texto") as string | null)?.trim() || null;
   const mencionado_nome = (formData.get("mencionado_nome") as string | null)?.trim() || null;
-  const arquivo = formData.get("arquivo");
-  const temArquivo = arquivo instanceof File && arquivo.size > 0;
+  // Anexo já subiu direto do navegador (src/lib/supabase/upload-direto.ts) —
+  // aqui só chegam os metadados.
+  const arquivo = lerMetadadosArquivo(formData);
 
-  if (!texto && !temArquivo) return { error: "Escreva algo ou anexe um arquivo antes de enviar." };
-  if (temArquivo && arquivo.size > TAMANHO_MAXIMO_ARQUIVO_BYTES) {
-    return { error: "Arquivo maior que 25MB — não é possível enviar." };
-  }
+  if (!texto && !arquivo) return { error: "Escreva algo ou anexe um arquivo antes de enviar." };
 
   const supabase = await createClient();
   const {
@@ -59,22 +52,10 @@ export async function enviarMensagem(formData: FormData): Promise<ActionResult> 
   } = await supabase.auth.getUser();
   if (!user?.email) return { error: "Sessão inválida — recarregue a página e faça login de novo." };
 
-  let arquivo_path: string | null = null;
-  let arquivo_nome: string | null = null;
-  let arquivo_tipo: string | null = null;
-  let arquivo_tamanho_bytes: number | null = null;
-
-  if (temArquivo) {
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${sanitizarNomeArquivo(arquivo.name)}`;
-    const { error: erroUpload } = await supabase.storage
-      .from(BUCKET_CHAT_ARQUIVOS)
-      .upload(path, arquivo, { contentType: arquivo.type || undefined });
-    if (erroUpload) return { error: `Erro ao enviar o arquivo: ${erroUpload.message}` };
-    arquivo_path = path;
-    arquivo_nome = arquivo.name;
-    arquivo_tipo = arquivo.type || null;
-    arquivo_tamanho_bytes = arquivo.size;
-  }
+  const arquivo_path = arquivo?.path ?? null;
+  const arquivo_nome = arquivo?.nome ?? null;
+  const arquivo_tipo = arquivo?.tipo ?? null;
+  const arquivo_tamanho_bytes = arquivo?.tamanho ?? null;
 
   const autor_nome = await nomeDoAutor(supabase, user.email);
   const payload: ChatMensagensInsert = {
