@@ -312,21 +312,27 @@ export async function salvarProximoMarcoHonorarios(
 /**
  * Data da reunião de explicações técnicas com o advogado (Assistência
  * Técnica, etapa "Estratégia pericial") — item 2 do lote pós-Fase-2
- * (21/09/2026). Só a data (sem local/modalidade/participantes — não
- * pedido). Preenchida e limpa manualmente por ela; não alimenta a Central
+ * (21/09/2026). Data + horário opcional (horário desde 15/10/2026); sem
+ * local/modalidade/participantes — não pedido. Preenchida e limpa manualmente por ela; não alimenta a Central
  * de Prazos (não é prazo que vence, é registro do que já foi combinado).
  */
 export async function salvarReuniaoEstrategiaPericial(
   processoId: string,
   data: string | null,
   responsavel?: string | null,
+  hora?: string | null,
 ): Promise<{ error: string } | { success: true }> {
+  // Horário opcional (lote 15/10/2026) — sem ele a reunião caía na Agenda
+  // sem hora e ela acabava criando outro agendamento (duplicado). Sem data,
+  // o horário também é limpo.
+  const horaValida = data && hora && /^\d{2}:\d{2}$/.test(hora) ? hora : null;
   const supabase = await createClient();
 
   const { error } = await supabase
     .from("processos")
     .update({
       estrategia_pericial_reuniao_em: data,
+      estrategia_pericial_reuniao_hora: horaValida,
       ...(responsavel !== undefined ? { estrategia_pericial_responsavel: responsavel } : {}),
     })
     .eq("id", processoId);

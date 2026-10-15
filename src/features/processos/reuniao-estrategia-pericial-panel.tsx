@@ -28,15 +28,22 @@ const dataCurta = (iso: string) => {
  * DEPOIS de combinar com o advogado — o campo não pode vir pré-preenchido
  * com a data de hoje (senão parece já marcada). Responsável também deixou de
  * ser texto livre — vira os nomes dos logins já criados.
+ *
+ * Horário (lote 15/10/2026): opcional, vai junto pra Agenda — antes ela
+ * precisava criar outro agendamento com horário, e a reunião ficava
+ * duplicada.
  */
 export function ReuniaoEstrategiaPericialPanel({
   processoId,
   reuniaoEm,
+  reuniaoHora,
   responsavel,
   nomesResponsaveis,
 }: {
   processoId: string;
   reuniaoEm: string | null;
+  /** "HH:MM:SS" do banco, ou null (reunião marcada antes de existir o campo, ou sem horário). */
+  reuniaoHora: string | null;
   responsavel: string | null;
   nomesResponsaveis: string[];
 }) {
@@ -44,6 +51,10 @@ export function ReuniaoEstrategiaPericialPanel({
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [data, setData] = useState("");
+  const [hora, setHora] = useState("");
+  // Reunião já marcada: dá pra incluir/trocar só o horário sem remover a
+  // data (caso das reuniões marcadas antes de existir o campo).
+  const [editandoHora, setEditandoHora] = useState(false);
   const [resp, setResp] = useState(responsavel ?? "");
 
   async function marcarReuniao() {
@@ -52,13 +63,27 @@ export function ReuniaoEstrategiaPericialPanel({
       return;
     }
     setIsPending(true);
-    const r = await salvarReuniaoEstrategiaPericial(processoId, data, resp.trim() || null);
+    const r = await salvarReuniaoEstrategiaPericial(processoId, data, resp.trim() || null, hora || null);
     setIsPending(false);
     if ("error" in r) {
       setMensagem({ tipo: "erro", texto: r.error });
       return;
     }
     setMensagem({ tipo: "ok", texto: "Reunião registrada." });
+    router.refresh();
+  }
+
+  async function salvarSoHorario() {
+    if (!reuniaoEm) return;
+    setIsPending(true);
+    const r = await salvarReuniaoEstrategiaPericial(processoId, reuniaoEm, undefined, hora || null);
+    setIsPending(false);
+    if ("error" in r) {
+      setMensagem({ tipo: "erro", texto: r.error });
+      return;
+    }
+    setEditandoHora(false);
+    setMensagem({ tipo: "ok", texto: hora ? "Horário salvo." : "Horário removido." });
     router.refresh();
   }
 
@@ -86,25 +111,67 @@ export function ReuniaoEstrategiaPericialPanel({
       {reuniaoEm ? (
         <>
           <p className="text-xs text-nevoa-500 dark:text-nevoa-400 flex flex-wrap items-center gap-2">
-            <Selo variante="sucesso">Marcada para {dataCurta(reuniaoEm)}</Selo>
+            <Selo variante="sucesso">
+              Marcada para {dataCurta(reuniaoEm)}
+              {reuniaoHora ? ` às ${reuniaoHora.slice(0, 5)}` : ""}
+            </Selo>
             {responsavel && <span>Responsável: {responsavel}</span>}
           </p>
-          <Botao
-            variante="secundaria"
-            onClick={() => limparReuniao()}
-            disabled={isPending}
-            carregando={isPending}
-            textoCarregando="Salvando…"
-          >
-            Remover data
-          </Botao>
+          {editandoHora ? (
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label htmlFor="reuniao_estrategia_hora_edicao" className={labelClass}>
+                  Horário
+                </label>
+                <input
+                  id="reuniao_estrategia_hora_edicao"
+                  type="time"
+                  value={hora}
+                  onChange={(e) => setHora(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <Botao onClick={() => salvarSoHorario()} disabled={isPending} carregando={isPending} textoCarregando="Salvando…">
+                Salvar horário
+              </Botao>
+              <button
+                type="button"
+                onClick={() => setEditandoHora(false)}
+                className="text-sm text-nevoa-500 hover:text-nevoa-800 dark:text-nevoa-400 dark:hover:text-nevoa-100 pb-2"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              <Botao
+                variante="secundaria"
+                onClick={() => {
+                  setHora(reuniaoHora ? reuniaoHora.slice(0, 5) : "");
+                  setEditandoHora(true);
+                }}
+                disabled={isPending}
+              >
+                {reuniaoHora ? "Alterar horário" : "Incluir horário"}
+              </Botao>
+              <Botao
+                variante="secundaria"
+                onClick={() => limparReuniao()}
+                disabled={isPending}
+                carregando={isPending}
+                textoCarregando="Salvando…"
+              >
+                Remover data
+              </Botao>
+            </div>
+          )}
         </>
       ) : (
         <>
           <p className="text-xs text-nevoa-500 dark:text-nevoa-400">
             Preencha quando combinar com o advogado a reunião de explicações técnicas.
           </p>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label htmlFor="reuniao_estrategia_data" className={labelClass}>
                 Data da reunião
@@ -114,6 +181,18 @@ export function ReuniaoEstrategiaPericialPanel({
                 type="date"
                 value={data}
                 onChange={(e) => setData(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="reuniao_estrategia_hora" className={labelClass}>
+                Horário
+              </label>
+              <input
+                id="reuniao_estrategia_hora"
+                type="time"
+                value={hora}
+                onChange={(e) => setHora(e.target.value)}
                 className={inputClass}
               />
             </div>

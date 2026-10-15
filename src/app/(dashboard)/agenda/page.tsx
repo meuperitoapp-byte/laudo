@@ -115,7 +115,14 @@ export default async function AgendaPage({
     itensPorData.set(item.prazo, lista);
   }
   for (const lista of itensPorData.values()) {
-    lista.sort((a, b) => NIVEL_ORDEM[a.nivel] - NIVEL_ORDEM[b.nivel] || a.ordenacao.localeCompare(b.ordenacao));
+    // Com horário primeiro, em ordem de hora (lote 15/10/2026 — reunião de
+    // Estratégia ganhou horário); o resto segue a régua de nível de sempre.
+    lista.sort((a, b) => {
+      if (a.hora && b.hora) return a.hora.localeCompare(b.hora);
+      if (a.hora) return -1;
+      if (b.hora) return 1;
+      return NIVEL_ORDEM[a.nivel] - NIVEL_ORDEM[b.nivel] || a.ordenacao.localeCompare(b.ordenacao);
+    });
   }
 
   // Primeiro e último dia do mês ativo, em dias UTC desde a época.
@@ -250,9 +257,10 @@ export default async function AgendaPage({
                 <Link
                   key={item.id}
                   href={item.href}
-                  title={item.titulo}
+                  title={item.hora ? `${item.hora} — ${item.titulo}` : item.titulo}
                   className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] leading-tight truncate transition-opacity ${GRUPO_PILL_CLASSE[GRUPO_AGENDA_POR_CATEGORIA[item.categoria]]}`}
                 >
+                  {item.hora && <span className="font-semibold tabular-nums shrink-0">{item.hora}</span>}
                   <span className="truncate">{item.titulo}</span>
                 </Link>
               ))}
