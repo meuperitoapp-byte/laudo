@@ -45,7 +45,9 @@ export interface ItemPainel {
     | "estrategia_proxima_acao"
     | "continuidade_oportunidade_aberta"
     | "cliente_saude_desatualizado"
-    | "desfecho_judicial_pendente";
+    | "desfecho_judicial_pendente"
+    | "quesitos_prazo_entrega"
+    | "replica_prazo_entrega";
   titulo: string;
   subtitulo: string | null;
   /** Texto fixo por categoria (ver rotulos.ts) pras fontes automáticas; pra `tarefa_manual` é a descrição que ela mesma digitou (ou um fallback genérico quando em branco). Nunca vazio. */
@@ -61,6 +63,8 @@ export interface ItemPainel {
   responsavel: string | null;
   /** "YYYY-MM-DD" — só quando a categoria tem prazo de verdade (ciclo aberto, nomeação sem decisão com prazo de manifestação, agendamento marcado). */
   prazo: string | null;
+  /** "HH:MM" — só nas fontes que têm horário de verdade (evento manual, reunião de Estratégia). A Agenda mostra antes do título e ordena o dia por ele. */
+  hora?: string | null;
   /** Data só pra exibir (ex.: "entregue em"), nunca usada pra calcular nível. */
   dataContexto: { rotulo: string; valor: string } | null;
   /** Data usada só pro desempate dentro do mesmo nível — nunca pra decidir o nível em si. */

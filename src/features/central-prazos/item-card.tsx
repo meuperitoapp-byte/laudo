@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Selo } from "@/components/ui/badge";
-import { NIVEL_ROTULOS, NIVEL_SELO_VARIANTE, URGENTE_BADGE_CLASSE } from "@/features/central-prazos/rotulos";
+import { CATEGORIAS_CONCLUIVEIS, NIVEL_ROTULOS, NIVEL_SELO_VARIANTE, URGENTE_BADGE_CLASSE } from "@/features/central-prazos/rotulos";
+import { assinaturaItem } from "@/features/central-prazos/regras";
+import { ConcluirItemBotao } from "@/features/central-prazos/concluir-item-botao";
 import type { ItemPainel } from "@/features/central-prazos/tipos";
 
 /** "YYYY-MM-DD" -> "DD/MM/AAAA", sem passar por `Date` (evita fuso horário). */
@@ -28,14 +30,16 @@ export function SeloNivel({ item }: { item: ItemPainel }) {
  * Financeiro (pedido da Dra. Fernanda: "prefiro que na tela dela fique as
  * atividades que ela precisa cumprir... ela tem TDAH, se perde"). Mesmo
  * cartão em ambos os lugares — evita duas versões divergindo com o tempo.
+ *
+ * Lote 15/10/2026: categorias sem lugar natural pra dizer "feito" ganham o
+ * botão "Concluir" (ver CATEGORIAS_CONCLUIVEIS). O botão fica FORA do link
+ * (botão dentro de `<a>` é HTML inválido e o clique navegaria junto).
  */
 export function ItemCard({ item }: { item: ItemPainel }) {
+  const concluivel = CATEGORIAS_CONCLUIVEIS.has(item.categoria);
   return (
-    <li>
-      <Link
-        href={item.href}
-        className="flex flex-wrap items-center gap-3 rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 px-4 py-3.5 text-sm transition-colors hover:border-petroleo-400 dark:hover:border-petroleo-600"
-      >
+    <li className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 text-sm transition-colors hover:border-petroleo-400 dark:hover:border-petroleo-600">
+      <Link href={item.href} className="flex flex-wrap items-center gap-3 px-4 pt-3.5 pb-3.5">
         <SeloNivel item={item} />
         <div className="min-w-0 flex-1">
           <p className="font-medium text-nevoa-900 dark:text-nevoa-100 truncate">{item.titulo}</p>
@@ -53,6 +57,15 @@ export function ItemCard({ item }: { item: ItemPainel }) {
           )}
         </div>
       </Link>
+      {concluivel && (
+        <div className="flex justify-end px-4 pb-3 -mt-1.5">
+          <ConcluirItemBotao
+            itemId={item.id}
+            assinatura={assinaturaItem(item)}
+            tarefaId={item.categoria === "tarefa_manual" ? item.id.slice("tarefa_manual-".length) : null}
+          />
+        </div>
+      )}
     </li>
   );
 }

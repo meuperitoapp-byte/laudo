@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hojeIsoBrasil, horaAgoraBrasil } from "./regras";
+import { nomeExibicaoDoEmail } from "@/lib/supabase/responsaveis";
 import type { CentralTarefasInsert, CentralTarefasUpdate } from "@/types/database";
 import type { TipoCentralTarefa, NivelUrgencia } from "@/types/enums";
 
@@ -165,8 +166,39 @@ export async function marcarTarefaConcluida(id: string, concluida: boolean): Pro
   if (error) return { error: error.message };
 
   revalidatePath("/hoje");
+  revalidatePath("/processos");
   revalidatePath("/tarefas/concluidas");
   revalidatePath(`/tarefas/${id}`);
+  return { success: true };
+}
+
+/**
+ * "Concluir" de um item AUTOMÁTICO da Central (lote 15/10/2026 — ex.:
+ * "Elaborar/enviar orçamento" de um orçamento que já foi enviado e não
+ * aprovado). Não mexe na tabela de origem: só registra que este item, com
+ * esta assinatura, já foi tratado — ver `assinaturaItem` em regras.ts.
+ * `motivo` é opcional (ela pode só querer tirar da tela).
+ */
+export async function concluirItemCentral(itemId: string, assinatura: string, motivo: string | null): Promise<ActionResult> {
+  if (!itemId || !assinatura) return { error: "Item inválido — recarregue a página e tente de novo." };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase.from("central_itens_concluidos").upsert({
+    item_id: itemId,
+    assinatura,
+    motivo: motivo?.trim() || null,
+    concluido_por_nome: await nomeExibicaoDoEmail(user?.email),
+    concluido_em: new Date().toISOString(),
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/hoje");
+  revalidatePath("/processos");
+  revalidatePath("/agenda");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 

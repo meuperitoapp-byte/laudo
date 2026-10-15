@@ -70,7 +70,28 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   continuidade_oportunidade_aberta: "Fazer o follow-up de continuidade e registrar o resultado.",
   cliente_saude_desatualizado: "Verificar e atualizar a situação do Cliente Saúde.",
   desfecho_judicial_pendente: "Solicitar atualização do desfecho ao advogado e registrar a decisão.",
+  quesitos_prazo_entrega: "Elaborar e entregar os quesitos ao advogado.",
+  replica_prazo_entrega: "Elaborar e entregar a orientação para réplica ao advogado.",
 };
+
+/**
+ * Categorias AUTOMÁTICAS que ganham o botão "Concluir" no card (lote
+ * 15/10/2026, relato dela: "como excluo ou coloco como concluído essas
+ * demandas de orçamento? ... já foi enviado orçamento, a cliente não
+ * aprovou"). São as que nascem de um campo "próxima ação"/pós-entrega —
+ * sem lugar natural pra dizer "feito". As demais têm resolução própria na
+ * tela de origem (ex.: documento "Obtido", prazo de entrega → registrar a
+ * entrega), então continuam saindo por lá. `tarefa_manual` também ganha o
+ * botão, mas usa a conclusão que a tarefa já tinha (central_tarefas).
+ */
+export const CATEGORIAS_CONCLUIVEIS: ReadonlySet<ItemPainel["categoria"]> = new Set<ItemPainel["categoria"]>([
+  "viabilidade_proxima_acao",
+  "viabilidade_pos_entrega_reuniao",
+  "viabilidade_orcamento_sem_retorno",
+  "contestacao_proxima_acao",
+  "estrategia_proxima_acao",
+  "tarefa_manual",
+]);
 
 /**
  * Agrupamento por categoria pra Agenda (módulo novo, 23/09/2026) — mesma
@@ -115,4 +136,6 @@ export const GRUPO_AGENDA_POR_CATEGORIA: Record<ItemPainel["categoria"], GrupoAg
   continuidade_oportunidade_aberta: "prazos",
   cliente_saude_desatualizado: "prazos",
   desfecho_judicial_pendente: "prazos",
+  quesitos_prazo_entrega: "prazos",
+  replica_prazo_entrega: "prazos",
 };

@@ -139,37 +139,25 @@ export default async function ProcessosPage({
               {busca ? "Nenhum caso encontrado para essa busca." : "Nenhum caso ligado a você ainda."}
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-nevoa-200 dark:border-nevoa-800">
-              <table className="w-full text-sm border-collapse">
-                <tbody className="bg-white dark:bg-nevoa-900/40">
-                  {(casosDela ?? []).map((p) => (
-                    <tr key={p.id} className="border-b border-nevoa-100 dark:border-nevoa-800 last:border-0 hover:bg-nevoa-50 dark:hover:bg-nevoa-800/60">
-                      <td className="py-2.5 px-4">
-                        <Link href={`/processos/${p.id}`} className="font-medium text-petroleo-600 hover:underline dark:text-petroleo-400">
-                          {p.numero_processo || p.periciando_nome || p.parte_autora || "(sem identificação)"}
-                        </Link>
-                      </td>
-                      <td className="py-2.5 px-4 text-nevoa-700 dark:text-nevoa-300">
-                        {TIPO_TRABALHO_ROTULOS[p.tipo_trabalho] ?? p.tipo_trabalho}
-                      </td>
-                      <td className="py-2.5 px-4">
-                        {p.situacao_processo ? (
-                          <Selo variante={varianteSituacaoProcesso(p.situacao_processo)}>{p.situacao_processo}</Selo>
-                        ) : (
-                          <span className="text-nevoa-400 dark:text-nevoa-600">—</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-4 text-nevoa-500 dark:text-nevoa-400 tabular-nums whitespace-nowrap">{dataCurta(p.created_at)}</td>
-                      <td className="py-2.5 px-4 text-right">
-                        <Link href={`/processos/${p.id}/editar`} className="text-sm text-petroleo-600 hover:underline dark:text-petroleo-400">
-                          Editar
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            // Lista em vez de tabela (lote 15/10/2026, print dela): a tabela
+            // estourava a largura da coluna central (max-w-3xl) quando algum
+            // selo de situação era longo, e a data/"Editar" ficavam cortados
+            // à direita. Aqui cada linha quebra sozinha em vez de empurrar.
+            <ul className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 divide-y divide-nevoa-100 dark:divide-nevoa-800 text-sm">
+              {(casosDela ?? []).map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 hover:bg-nevoa-50 dark:hover:bg-nevoa-800/60">
+                  <Link href={`/processos/${p.id}`} className="min-w-0 flex-1 basis-48 font-medium text-petroleo-600 hover:underline dark:text-petroleo-400">
+                    {p.numero_processo || p.periciando_nome || p.parte_autora || "(sem identificação)"}
+                  </Link>
+                  <span className="text-nevoa-700 dark:text-nevoa-300 whitespace-nowrap">{TIPO_TRABALHO_ROTULOS[p.tipo_trabalho] ?? p.tipo_trabalho}</span>
+                  {p.situacao_processo && <Selo variante={varianteSituacaoProcesso(p.situacao_processo)}>{p.situacao_processo}</Selo>}
+                  <span className="text-nevoa-500 dark:text-nevoa-400 tabular-nums whitespace-nowrap">{dataCurta(p.created_at)}</span>
+                  <Link href={`/processos/${p.id}/editar`} className="text-petroleo-600 hover:underline dark:text-petroleo-400">
+                    Editar
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
           {erroCasosDela && <p className="text-xs text-vinho-600 dark:text-vinho-400">Não consegui carregar os casos agora.</p>}
         </section>

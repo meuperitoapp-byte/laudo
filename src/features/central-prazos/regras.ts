@@ -111,6 +111,18 @@ export function filtrarPorAcesso(itens: ItemPainel[], contexto: ContextoAcesso):
   return itens.filter((i) => i.responsavel === contexto.nomeExibicao);
 }
 
+/**
+ * "Impressão digital" de um item automático no momento em que alguém clica
+ * "Concluir" (lote 15/10/2026) — categoria + título + prazo. Guardada em
+ * `central_itens_concluidos`; o agregador só esconde o item enquanto ela
+ * continuar igual. Se a origem mudar (nova próxima ação, novo prazo), o
+ * título/prazo mudam e o item volta — é outra demanda, não a que foi
+ * concluída.
+ */
+export function assinaturaItem(item: Pick<ItemPainel, "categoria" | "titulo" | "prazo">): string {
+  return `${item.categoria}|${item.titulo}|${item.prazo ?? ""}`;
+}
+
 export function ordenarPainel(itens: ItemPainel[]): ItemPainel[] {
   return [...itens].sort((a, b) => {
     const porNivel = NIVEL_ORDEM[a.nivel] - NIVEL_ORDEM[b.nivel];

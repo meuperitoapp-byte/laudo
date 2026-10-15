@@ -63,7 +63,7 @@
  */
 
 import type { createClient } from "@/lib/supabase/server";
-import { hojeIsoBrasil, nivelPorPrazo, ordenarPainel, paraDiasUtc, somarDiasIso } from "./regras";
+import { assinaturaItem, hojeIsoBrasil, nivelPorPrazo, ordenarPainel, paraDiasUtc, somarDiasIso } from "./regras";
 import { PROVIDENCIA_POR_CATEGORIA } from "./rotulos";
 import { PROXIMA_ACAO_ROTULOS as CONTESTACAO_PROXIMA_ACAO_ROTULOS } from "@/features/contestacao/catalogos";
 import { PROXIMA_ACAO_ROTULOS as PROXIMA_ACAO_VIABILIDADE_ROTULOS } from "@/features/viabilidade/catalogos";
@@ -119,6 +119,9 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     { data: relacionamentoConfigDb },
     { data: todosLaudosGeradosDb },
     { data: desfechosJudiciaisDb },
+    { data: quesitosDocumentosDb },
+    { data: replicasDb },
+    { data: itensConcluidosDb },
   ] = await Promise.all([
     // Processos ativos — filtro aplicado a TODAS as fontes abaixo: um
     // processo finalizado/arquivado não é "o que fazer hoje", mesmo que
@@ -127,7 +130,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     supabase
       .from("processos")
       .select(
-        "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, situacao_financeira, estrategia_pericial_reuniao_em, estrategia_pericial_responsavel, data_contratacao",
+        "id, tipo_trabalho, numero_processo, periciando_nome, parte_autora, aceitou_nomeacao, nomeacao_prazo_manifestacao, agendamento_data, liberacao_solicitada_em, honorarios_recebidos_em, documentos_solicitados_em, documentos_solicitados_descricao, honorarios_proximo_marco_em, honorarios_proximo_marco_descricao, honorarios_forma_pagamento, honorarios_vencimento, situacao_financeira, estrategia_pericial_reuniao_em, estrategia_pericial_reuniao_hora, estrategia_pericial_responsavel, data_contratacao, etapas_contratadas",
       )
       .eq("status", "em_andamento"),
     // Fonte 1 — ciclos de pós-laudo abertos.
@@ -251,6 +254,13 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     // mesmo princípio das fontes 22/23.
     supabase.from("laudos_gerados").select("processo_id, created_at"),
     supabase.from("desfechos_judiciais").select("processo_id, updated_at"),
+    // Fontes 25/26 — prazo de entrega dos Quesitos e da Réplica, enquanto a
+    // entrega não foi registrada (lote 15/10/2026).
+    supabase.from("quesitos_documentos").select("id, processo_id, prazo_entrega").not("prazo_entrega", "is", null).is("entregue_em", null),
+    supabase.from("replicas").select("id, processo_id, prazo_entrega").not("prazo_entrega", "is", null).is("entregue_em", null),
+    // Itens automáticos que alguém marcou como concluídos (lote 15/10/2026) —
+    // filtrados no fim, depois de todas as fontes montarem a lista.
+    supabase.from("central_itens_concluidos").select("item_id, assinatura"),
   ]);
   const processos = processosDb ?? [];
   const processoPorId = new Map(processos.map((p) => [p.id, p]));
@@ -509,6 +519,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       categoria: "tarefa_manual",
       titulo: nomeProcesso ? `${t.titulo} — ${nomeProcesso}` : t.titulo,
       subtitulo: horario ? `${t.status} · ${horario}` : t.status,
+      hora: horario,
       providencia: t.descricao?.trim() || PROVIDENCIA_POR_CATEGORIA.tarefa_manual,
       // Correção manual SEMPRE vence o cálculo — nunca o contrário.
       nivel: t.nivel_urgencia_manual ?? nivelPorPrazo(t.data, hoje),
@@ -573,12 +584,16 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   // Prazo REAL (ela mesma marcou a data) — mesmo critério de honorários_proximo_marco_em.
   for (const p of processos) {
     if (p.tipo_trabalho === "assistencia_tecnica" && p.estrategia_pericial_reuniao_em) {
+      const horaReuniao = p.estrategia_pericial_reuniao_hora ? p.estrategia_pericial_reuniao_hora.slice(0, 5) : null;
       itens.push({
         id: `reuniao_estrategia_pericial-${p.id}`,
         categoria: "reuniao_estrategia_pericial",
         titulo: `Reunião — Estratégia pericial — ${identificarProcesso(p)}`,
-        subtitulo: p.estrategia_pericial_responsavel ? `Responsável: ${p.estrategia_pericial_responsavel}` : null,
+        subtitulo: [horaReuniao ? `Às ${horaReuniao}` : null, p.estrategia_pericial_responsavel ? `Responsável: ${p.estrategia_pericial_responsavel}` : null]
+          .filter(Boolean)
+          .join(" · ") || null,
         providencia: PROVIDENCIA_POR_CATEGORIA.reuniao_estrategia_pericial,
+        hora: horaReuniao,
         nivel: nivelPorPrazo(p.estrategia_pericial_reuniao_em, hoje),
         prazo: p.estrategia_pericial_reuniao_em,
         dataContexto: null,
@@ -905,5 +920,51 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     });
   }
 
-  return ordenarPainel(itens);
+  // ---- 25/26. Prazo de entrega dos Quesitos e da Réplica (AT) ----
+  // Prazo REAL (ela informa na abertura da etapa). Some sozinho quando a
+  // entrega é registrada (query já filtrou `entregue_em is null`) — sem
+  // botão "Concluir" de propósito: registrar a entrega (data + meio) é o
+  // jeito certo de fechar, e é isso que alimenta o selo da etapa.
+  for (const q of quesitosDocumentosDb ?? []) {
+    const processo = processoPorId.get(q.processo_id);
+    if (!processo || !q.prazo_entrega || !(processo.etapas_contratadas?.includes("quesitos") ?? false)) continue;
+    itens.push({
+      id: `quesitos_prazo_entrega-${q.id}`,
+      categoria: "quesitos_prazo_entrega",
+      titulo: `Entregar quesitos — ${identificarProcesso(processo)}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.quesitos_prazo_entrega,
+      nivel: nivelPorPrazo(q.prazo_entrega, hoje),
+      prazo: q.prazo_entrega,
+      dataContexto: null,
+      ordenacao: q.prazo_entrega,
+      responsavel: null,
+      href: `/processos/${q.processo_id}/quesitos`,
+    });
+  }
+  for (const r of replicasDb ?? []) {
+    const processo = processoPorId.get(r.processo_id);
+    if (!processo || !r.prazo_entrega || !(processo.etapas_contratadas?.includes("dados_replica") ?? false)) continue;
+    itens.push({
+      id: `replica_prazo_entrega-${r.id}`,
+      categoria: "replica_prazo_entrega",
+      titulo: `Entregar orientação para réplica — ${identificarProcesso(processo)}`,
+      subtitulo: null,
+      providencia: PROVIDENCIA_POR_CATEGORIA.replica_prazo_entrega,
+      nivel: nivelPorPrazo(r.prazo_entrega, hoje),
+      prazo: r.prazo_entrega,
+      dataContexto: null,
+      ordenacao: r.prazo_entrega,
+      responsavel: null,
+      href: `/processos/${r.processo_id}/replica`,
+    });
+  }
+
+  // Itens que alguém marcou como concluídos (botão "Concluir" do card) —
+  // só somem enquanto a assinatura bater: se a origem mudou depois (nova
+  // próxima ação, novo prazo), o item volta, porque já é outra demanda.
+  const assinaturaConcluida = new Map((itensConcluidosDb ?? []).map((c) => [c.item_id, c.assinatura]));
+  const pendentes = itens.filter((i) => assinaturaConcluida.get(i.id) !== assinaturaItem(i));
+
+  return ordenarPainel(pendentes);
 }
