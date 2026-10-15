@@ -97,6 +97,7 @@ import type {
   ContestacaoDecisao,
   ContestacaoProximaAcao,
   QuesitoParteProcessual,
+  MeioEntrega,
   RelatorioTecnicoDocumentacaoSuficiente,
   EstrategiaFragilidadeClassificacao,
   EstrategiaTeseAdversaDestino,
@@ -330,6 +331,8 @@ export type ProcessosRow = {
   // --- AT — ação por etapa (migration 20260922120000) ---
   /** Só etapa "estrategia_pericial". Data da reunião de explicações técnicas com o advogado — preenchida/limpa manualmente. */
   estrategia_pericial_reuniao_em: string | null
+  /** Horário opcional da reunião de Estratégia pericial ("HH:MM:SS") — migration 20261015120000. */
+  estrategia_pericial_reuniao_hora: string | null
   /** Responsável pela reunião de Estratégia pericial — alimenta a Central de Prazos/Agenda (migration 20260930190000). */
   estrategia_pericial_responsavel: string | null
   /** Anotações da perita ao estudar a contestação — complementa o anexo de arquivo (migration 20260930190000). */
@@ -417,6 +420,7 @@ export type ProcessosInsert = ComDefaults<
   | 'honorarios_vencimento'
   | 'observacoes_financeiras'
   | 'estrategia_pericial_reuniao_em'
+  | 'estrategia_pericial_reuniao_hora'
   | 'estrategia_pericial_responsavel'
   | 'analise_contestacao_observacoes'
   | 'orgao_classe'
@@ -474,6 +478,8 @@ export type DocumentosRow = {
   etapa_at: string | null
   /** Vínculo opcional com caso_necessidade_especialista (migration 20260926120000) — mesmo padrão de etapa_at, reaproveita o pipeline de Documentos existente. */
   necessidade_especialista_id: string | null
+  /** Vínculo opcional com um item de estrategia_documentos_provas (migration 20261015120000). */
+  estrategia_documento_prova_id: string | null
   created_at: string
   updated_at: string
 }
@@ -493,6 +499,7 @@ export type DocumentosInsert = ComDefaults<
   | 'enviado_por'
   | 'etapa_at'
   | 'necessidade_especialista_id'
+  | 'estrategia_documento_prova_id'
   | 'created_at'
   | 'updated_at'
 >
@@ -696,12 +703,14 @@ export type QuesitosRow = {
   resposta: string | null
   ordem: number | null
   apresentar: boolean
+  /** Tema/grupo opcional (documento de Quesitos da AT) — migration 20261015120000. */
+  grupo: string | null
   created_at: string
   updated_at: string
 }
 export type QuesitosInsert = ComDefaults<
   QuesitosRow,
-  'id' | 'origem' | 'resposta' | 'ordem' | 'apresentar' | 'created_at' | 'updated_at'
+  'id' | 'origem' | 'resposta' | 'ordem' | 'apresentar' | 'grupo' | 'created_at' | 'updated_at'
 >
 export type QuesitosUpdate = Partial<QuesitosRow>
 
@@ -718,6 +727,14 @@ export type QuesitosDocumentosRow = {
   o_que_demonstrar_pericia: string | null
   local_emissao: string | null
   data_emissao: string | null
+  // --- migration 20261015120000 (novo layout + abertura + entrega) ---
+  apresentacao_at: string | null
+  resumo_fatos: string | null
+  introducao_quesitos: string | null
+  data_contratacao: string | null
+  prazo_entrega: string | null
+  entregue_em: string | null
+  entregue_via: MeioEntrega | null
   created_at: string
   updated_at: string
 }
@@ -731,6 +748,13 @@ export type QuesitosDocumentosInsert = ComDefaults<
   | 'o_que_demonstrar_pericia'
   | 'local_emissao'
   | 'data_emissao'
+  | 'apresentacao_at'
+  | 'resumo_fatos'
+  | 'introducao_quesitos'
+  | 'data_contratacao'
+  | 'prazo_entrega'
+  | 'entregue_em'
+  | 'entregue_via'
   | 'created_at'
   | 'updated_at'
 >
@@ -2594,6 +2618,11 @@ export type ReplicasRow = {
   conclusao_tecnica: string | null
   local_emissao: string | null
   data_emissao: string | null
+  // --- migration 20261015120000 (abertura + entrega) ---
+  data_contratacao: string | null
+  prazo_entrega: string | null
+  entregue_em: string | null
+  entregue_via: MeioEntrega | null
   created_at: string
   updated_at: string
 }
@@ -2605,10 +2634,34 @@ export type ReplicasInsert = ComDefaults<
   | 'conclusao_tecnica'
   | 'local_emissao'
   | 'data_emissao'
+  | 'data_contratacao'
+  | 'prazo_entrega'
+  | 'entregue_em'
+  | 'entregue_via'
   | 'created_at'
   | 'updated_at'
 >
 export type ReplicasUpdate = Partial<ReplicasRow>
+
+// ============================================================================
+// Lote 15/10/2026 — Central (itens concluídos) e Chat (leituras)
+// ============================================================================
+export type CentralItensConcluidosRow = {
+  item_id: string
+  assinatura: string
+  motivo: string | null
+  concluido_por_nome: string | null
+  concluido_em: string
+}
+export type CentralItensConcluidosInsert = ComDefaults<CentralItensConcluidosRow, 'motivo' | 'concluido_por_nome' | 'concluido_em'>
+export type CentralItensConcluidosUpdate = Partial<CentralItensConcluidosRow>
+
+export type ChatLeiturasRow = {
+  usuario_email: string
+  lido_em: string
+}
+export type ChatLeiturasInsert = ComDefaults<ChatLeiturasRow, 'lido_em'>
+export type ChatLeiturasUpdate = Partial<ChatLeiturasRow>
 
 // ============================================================================
 // Database — shape esperado por createClient<Database>()
@@ -2896,6 +2949,18 @@ export interface Database {
         Row: ChatMensagensRow
         Insert: ChatMensagensInsert
         Update: ChatMensagensUpdate
+        Relationships: []
+      }
+      chat_leituras: {
+        Row: ChatLeiturasRow
+        Insert: ChatLeiturasInsert
+        Update: ChatLeiturasUpdate
+        Relationships: []
+      }
+      central_itens_concluidos: {
+        Row: CentralItensConcluidosRow
+        Insert: CentralItensConcluidosInsert
+        Update: CentralItensConcluidosUpdate
         Relationships: []
       }
       perfil_avatares: {

@@ -639,6 +639,9 @@ export type ContestacaoProximaAcao =
 /** quesitos_documentos.parte_selecionada — cabeçalho "QUESITOS DA [...]" do modelo. */
 export type QuesitoParteProcessual = 'autora' | 're' | 'reclamante' | 'reclamada' | 'parte_assistida'
 
+/** quesitos_documentos.entregue_via / replicas.entregue_via — meio pelo qual o documento foi entregue (migration 20261015120000). */
+export type MeioEntrega = 'whatsapp' | 'email' | 'sistema'
+
 /** relatorios_tecnicos.documentacao_suficiente — §II do modelo. */
 export type RelatorioTecnicoDocumentacaoSuficiente = 'sim' | 'parcialmente' | 'nao'
 
