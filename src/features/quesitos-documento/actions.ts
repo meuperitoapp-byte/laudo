@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { QuesitosDocumentosRow, QuesitosDocumentosUpdate } from "@/types/database";
 import type { QuesitoParteProcessual } from "@/types/enums";
+import { apresentacaoPadrao } from "./catalogos";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -41,13 +42,19 @@ export async function salvarQuesitosDocumento(formData: FormData): Promise<Actio
   const processoId = textoOuNull(formData.get("processo_id"));
   if (!id || !processoId) return { error: "Documento inválido — recarregue a página e tente de novo." };
 
+  const parte = (formData.get("parte_selecionada") as QuesitoParteProcessual | "") || null;
+  // Apresentação igual ao texto padrão (ela não mexeu) fica NULL — assim o
+  // documento continua acompanhando a parte selecionada se ela mudar depois.
+  const apresentacao = textoOuNull(formData.get("apresentacao_at"));
+  const apresentacaoEditada = apresentacao && apresentacao !== apresentacaoPadrao(parte) ? apresentacao : null;
+
   const supabase = await createClient();
   const update: QuesitosDocumentosUpdate = {
-    parte_selecionada: (formData.get("parte_selecionada") as QuesitoParteProcessual | "") || null,
+    parte_selecionada: parte,
     endereco_juizo: textoOuNull(formData.get("endereco_juizo")),
-    pontos_controvertidos: textoOuNull(formData.get("pontos_controvertidos")),
-    sintese_tese: textoOuNull(formData.get("sintese_tese")),
-    o_que_demonstrar_pericia: textoOuNull(formData.get("o_que_demonstrar_pericia")),
+    apresentacao_at: apresentacaoEditada,
+    resumo_fatos: textoOuNull(formData.get("resumo_fatos")),
+    introducao_quesitos: textoOuNull(formData.get("introducao_quesitos")),
     local_emissao: textoOuNull(formData.get("local_emissao")),
     data_emissao: textoOuNull(formData.get("data_emissao")),
   };

@@ -38,6 +38,7 @@ export async function criarQuesito(processoId: string, formData: FormData): Prom
   const insert: QuesitosInsert = {
     processo_id: processoId,
     origem: textoOuNull(formData.get("origem")),
+    grupo: textoOuNull(formData.get("grupo")),
     pergunta,
     ordem: (ultimo?.ordem ?? 0) + 1,
   };
@@ -65,6 +66,8 @@ export async function atualizarQuesito(input: {
   pergunta: string;
   resposta: string | null;
   apresentar: boolean;
+  /** Só no modo AT (documento de Quesitos) — `undefined` não mexe no grupo. */
+  grupo?: string | null;
 }): Promise<ActionResult> {
   const pergunta = input.pergunta.trim();
   if (!pergunta) {
@@ -77,6 +80,7 @@ export async function atualizarQuesito(input: {
     pergunta,
     resposta: input.resposta?.trim() || null,
     apresentar: input.apresentar,
+    ...(input.grupo !== undefined ? { grupo: input.grupo?.trim() || null } : {}),
   };
 
   const { error } = await supabase.from("quesitos").update(update).eq("id", input.quesitoId);

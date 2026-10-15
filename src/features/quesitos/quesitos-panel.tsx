@@ -18,12 +18,21 @@ const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400
 const TEXTO_SEM_ELEMENTOS =
   "Não há elementos médico-periciais objetivos suficientes para resposta conclusiva...";
 
+/**
+ * `modoAt` (lote 15/10/2026): na Assistência Técnica a perita ELABORA os
+ * quesitos (não responde) — some "Origem"/"Resposta" e entra "Grupo/tema",
+ * que agrupa os quesitos no documento ("A) Sobre a Associação Hospitalar de
+ * Mondai:"). Subitens a)/b)/c) vão dentro da própria pergunta, uma linha
+ * cada. Perícia Judicial continua exatamente como antes.
+ */
 export function QuesitosPanel({
   processoId,
   quesitos,
+  modoAt = false,
 }: {
   processoId: string;
   quesitos: QuesitosRow[];
+  modoAt?: boolean;
 }) {
   return (
     <div className="space-y-8 max-w-3xl">
@@ -39,12 +48,13 @@ export function QuesitosPanel({
               numero={index + 1}
               primeiro={index === 0}
               ultimo={index === quesitos.length - 1}
+              modoAt={modoAt}
             />
           ))}
         </ol>
       )}
 
-      <NovoQuesitoForm processoId={processoId} />
+      <NovoQuesitoForm processoId={processoId} modoAt={modoAt} ultimoGrupo={quesitos.at(-1)?.grupo ?? null} />
     </div>
   );
 }
@@ -55,15 +65,18 @@ function QuesitoCard({
   numero,
   primeiro,
   ultimo,
+  modoAt,
 }: {
   processoId: string;
   quesito: QuesitosRow;
   numero: number;
   primeiro: boolean;
   ultimo: boolean;
+  modoAt: boolean;
 }) {
   const router = useRouter();
   const [origem, setOrigem] = useState(quesito.origem ?? "");
+  const [grupo, setGrupo] = useState(quesito.grupo ?? "");
   const [pergunta, setPergunta] = useState(quesito.pergunta);
   const [resposta, setResposta] = useState(quesito.resposta ?? "");
   const [apresentar, setApresentar] = useState(quesito.apresentar);
@@ -80,14 +93,19 @@ function QuesitoCard({
     pergunta: quesito.pergunta,
     resposta: quesito.resposta ?? "",
     apresentar: quesito.apresentar,
+    grupo: quesito.grupo ?? "",
   });
   const dirty =
-    origem !== salvo.origem || pergunta !== salvo.pergunta || resposta !== salvo.resposta || apresentar !== salvo.apresentar;
+    origem !== salvo.origem ||
+    pergunta !== salvo.pergunta ||
+    resposta !== salvo.resposta ||
+    apresentar !== salvo.apresentar ||
+    grupo !== salvo.grupo;
 
   function salvar() {
     setErro(null);
     startTransition(async () => {
-      const alvo = { origem, pergunta, resposta, apresentar };
+      const alvo = { origem, pergunta, resposta, apresentar, grupo };
       const resultado = await atualizarQuesito({
         quesitoId: quesito.id,
         processoId,
@@ -95,6 +113,7 @@ function QuesitoCard({
         pergunta: alvo.pergunta,
         resposta: alvo.resposta || null,
         apresentar: alvo.apresentar,
+        grupo: modoAt ? alvo.grupo || null : undefined,
       });
       if ("error" in resultado) {
         setErro(resultado.error);
@@ -128,11 +147,13 @@ function QuesitoCard({
     setPergunta(quesito.pergunta);
     setResposta(quesito.resposta ?? "");
     setApresentar(quesito.apresentar);
+    setGrupo(quesito.grupo ?? "");
     setSalvo({
       origem: quesito.origem ?? "",
       pergunta: quesito.pergunta,
       resposta: quesito.resposta ?? "",
       apresentar: quesito.apresentar,
+      grupo: quesito.grupo ?? "",
     });
   }
 
@@ -199,26 +220,40 @@ function QuesitoCard({
         </div>
       </div>
 
-      <div>
-        <label className={labelClass}>Origem</label>
-        <input
-          value={origem}
-          onChange={(e) => setOrigem(e.target.value)}
-          placeholder="ex.: Juízo, Parte Autora, Parte Ré, Ministério Público..."
-          className={inputClass}
-        />
-      </div>
+      {modoAt ? (
+        <div>
+          <label className={labelClass}>Grupo / tema (opcional)</label>
+          <input
+            value={grupo}
+            onChange={(e) => setGrupo(e.target.value)}
+            placeholder="ex.: Sobre a Associação Hospitalar de Mondai:"
+            className={inputClass}
+          />
+        </div>
+      ) : (
+        <div>
+          <label className={labelClass}>Origem</label>
+          <input
+            value={origem}
+            onChange={(e) => setOrigem(e.target.value)}
+            placeholder="ex.: Juízo, Parte Autora, Parte Ré, Ministério Público..."
+            className={inputClass}
+          />
+        </div>
+      )}
 
       <div>
-        <label className={labelClass}>Pergunta</label>
+        <label className={labelClass}>{modoAt ? "Quesito" : "Pergunta"}</label>
         <textarea
           value={pergunta}
           onChange={(e) => setPergunta(e.target.value)}
-          rows={2}
+          rows={modoAt ? 4 : 2}
           className={inputClass}
         />
+        {modoAt && <p className="text-xs text-nevoa-400 dark:text-nevoa-600 mt-1">Subitens a), b), c): um por linha, dentro do mesmo quesito.</p>}
       </div>
 
+      {!modoAt && (
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className={labelClass}>Resposta</label>
@@ -238,6 +273,7 @@ function QuesitoCard({
           className={inputClass}
         />
       </div>
+      )}
 
       <label className="flex items-center gap-2 text-sm text-nevoa-700 dark:text-nevoa-300">
         <input type="checkbox" checked={apresentar} onChange={(e) => setApresentar(e.target.checked)} />
@@ -253,7 +289,7 @@ function QuesitoCard({
         >
           {dirty ? "Salvar" : "Salvo"}
         </Botao>
-        {!salvo.resposta.trim() && !dirty && !isPending && (
+        {!modoAt && !salvo.resposta.trim() && !dirty && !isPending && (
           <Selo variante="atencao">Sem resposta ainda</Selo>
         )}
         {erro && <span className="text-sm text-vinho-600 dark:text-vinho-400">{erro}</span>}
@@ -262,7 +298,7 @@ function QuesitoCard({
   );
 }
 
-function NovoQuesitoForm({ processoId }: { processoId: string }) {
+function NovoQuesitoForm({ processoId, modoAt, ultimoGrupo }: { processoId: string; modoAt: boolean; ultimoGrupo: string | null }) {
   const router = useRouter();
   const [erro, setErro] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -287,22 +323,45 @@ function NovoQuesitoForm({ processoId }: { processoId: string }) {
       className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-3"
     >
       <h2 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Adicionar quesito</h2>
-      <div>
-        <label htmlFor="origem" className={labelClass}>
-          Origem
-        </label>
-        <input
-          id="origem"
-          name="origem"
-          placeholder="ex.: Juízo, Parte Autora, Parte Ré, Ministério Público..."
-          className={inputClass}
-        />
-      </div>
+      {modoAt ? (
+        <div>
+          <label htmlFor="grupo" className={labelClass}>
+            Grupo / tema (opcional)
+          </label>
+          {/* Já vem com o grupo do último quesito — o normal é ir adicionando vários no mesmo tema. */}
+          <input
+            key={ultimoGrupo ?? ""}
+            id="grupo"
+            name="grupo"
+            defaultValue={ultimoGrupo ?? ""}
+            placeholder="ex.: Sobre a Associação Hospitalar de Mondai:"
+            className={inputClass}
+          />
+        </div>
+      ) : (
+        <div>
+          <label htmlFor="origem" className={labelClass}>
+            Origem
+          </label>
+          <input
+            id="origem"
+            name="origem"
+            placeholder="ex.: Juízo, Parte Autora, Parte Ré, Ministério Público..."
+            className={inputClass}
+          />
+        </div>
+      )}
       <div>
         <label htmlFor="pergunta" className={labelClass}>
-          Pergunta
+          {modoAt ? "Quesito" : "Pergunta"}
         </label>
-        <textarea id="pergunta" name="pergunta" rows={3} placeholder="Cole aqui o texto do quesito" className={inputClass} />
+        <textarea
+          id="pergunta"
+          name="pergunta"
+          rows={modoAt ? 5 : 3}
+          placeholder={modoAt ? "Texto do quesito. Subitens a), b), c): um por linha." : "Cole aqui o texto do quesito"}
+          className={inputClass}
+        />
       </div>
       {erro && <p className="text-sm text-vinho-600 dark:text-vinho-400">{erro}</p>}
       <Botao type="submit" carregando={isPending} textoCarregando="Adicionando…">
