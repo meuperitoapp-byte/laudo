@@ -3,6 +3,7 @@ import {
   BorderStyle,
   Document,
   Footer,
+  Header,
   HeadingLevel,
   ImageRun,
   Packer,
@@ -37,19 +38,30 @@ const TAMANHO_TABELA = 20; // 10pt
 
 type Bloco = Paragraph | Table;
 
+/** Fonte da petição de AT (Quesitos) — sem serifa, como o modelo dela. */
+const FONTE_PETICAO = "Arial";
+const TAMANHO_PETICAO = 22; // 11pt
+
 function paragrafo(
   texto: string,
-  opts: { negrito?: boolean; centralizado?: boolean; direita?: boolean } = {}
+  opts: { negrito?: boolean; centralizado?: boolean; direita?: boolean; esquerda?: boolean; fonte?: string; tamanho?: number } = {}
 ): Paragraph {
   const alinhamento = opts.centralizado
     ? AlignmentType.CENTER
     : opts.direita
       ? AlignmentType.RIGHT
-      : AlignmentType.JUSTIFIED;
+      : opts.esquerda
+        ? AlignmentType.LEFT
+        : AlignmentType.JUSTIFIED;
+  // Quebra de linha dentro do texto (ex.: subitens a)/b)/c) de um quesito)
+  // vira quebra de linha de verdade no Word — um TextRun com "\n" não quebra.
+  const linhas = texto.split("\n");
   return new Paragraph({
     alignment: alinhamento,
     spacing: { after: 200 },
-    children: [new TextRun({ text: texto, bold: opts.negrito, font: FONTE, size: TAMANHO_BASE })],
+    children: linhas.map(
+      (linha, i) => new TextRun({ text: linha, bold: opts.negrito, font: opts.fonte ?? FONTE, size: opts.tamanho ?? TAMANHO_BASE, break: i > 0 ? 1 : undefined }),
+    ),
   });
 }
 
@@ -92,6 +104,39 @@ function tabelaDocx(colunas: string[], linhas: string[][]): Table {
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [linhaCabecalho, ...linhasDados],
   });
+}
+
+/** Mesma lógica de renderizar-pdf.ts (blocoParaPdf com `peticao`) — ver comentários lá. */
+function blocoPeticaoDocx(bloco: BlocoConteudo, assinatura: AtivoImagem | null): Bloco[] {
+  const p = (texto: string, opts: Parameters<typeof paragrafo>[1] = {}) =>
+    paragrafo(texto, { fonte: FONTE_PETICAO, tamanho: TAMANHO_PETICAO, ...opts });
+  if (bloco.tipo === "paragrafo") return [p(bloco.texto)];
+  if (bloco.tipo === "tabela") return [tabelaDocx(bloco.colunas, bloco.linhas)];
+  if (bloco.tipo === "assinatura") {
+    const out: Bloco[] = [p(bloco.cidadeData, { direita: true }), new Paragraph({ spacing: { after: 200 }, children: [] })];
+    if (assinatura) {
+      out.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [imagemDocx(assinatura, 170)] }));
+    } else {
+      out.push(p("_______________________________________________", { centralizado: true }));
+    }
+    out.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: bloco.nome, font: FONTE_PETICAO, size: TAMANHO_PETICAO })] }));
+    out.push(p(bloco.tituloCrm, { centralizado: true }));
+    return out;
+  }
+  // quesitos
+  const out: Bloco[] = [];
+  let grupoAtual: string | null = null;
+  let indiceGrupo = -1;
+  for (const q of bloco.itens) {
+    const grupo = q.grupo?.trim() || null;
+    if (grupo && grupo !== grupoAtual) {
+      indiceGrupo += 1;
+      out.push(p(`${String.fromCharCode(65 + (indiceGrupo % 26))}) ${grupo}`, { negrito: true }));
+    }
+    grupoAtual = grupo;
+    out.push(p(`${q.numero}. ${q.pergunta}`));
+  }
+  return out;
 }
 
 function blocoParaDocx(bloco: BlocoConteudo): Bloco[] {
@@ -205,11 +250,68 @@ function cabecalhoAtDocx(modelo: ModeloLaudo, ativos: AtivosGlobais): Bloco[] {
   return out;
 }
 
+/**
+ * Petição de AT ao Juízo (documento de Quesitos, modelo aprovado por ela em
+ * 15/10/2026) — mesma estrutura do ramo `peticao` de renderizar-pdf.ts:
+ * logomarca no cabeçalho de toda página, contato cinza à esquerda no
+ * rodapé, endereçamento em negrito, sem título, assinatura entre data e nome.
+ */
+async function renderizarPeticaoDocx(modelo: ModeloLaudo, ativos: AtivosGlobais): Promise<Buffer> {
+  const cab = modelo.cabecalho;
+  const p = (texto: string, opts: Parameters<typeof paragrafo>[1] = {}) =>
+    paragrafo(texto, { fonte: FONTE_PETICAO, tamanho: TAMANHO_PETICAO, ...opts });
+  const filhos: Bloco[] = [];
+  if (cab.tipo === "judicial") {
+    for (const linha of cab.linhasEndereco) filhos.push(p(linha.toUpperCase(), { negrito: true, esquerda: true, tamanho: 24 }));
+    filhos.push(...linhasVazias(3));
+    if (cab.processoNumero) filhos.push(p(`Processo nº ${cab.processoNumero}`, { esquerda: true }));
+    filhos.push(...linhasVazias(3));
+    if (cab.paragrafoIntroducao) filhos.push(p(cab.paragrafoIntroducao));
+  }
+  for (const secao of modelo.secoes) {
+    filhos.push(
+      new Paragraph({
+        spacing: { before: 300, after: 200 },
+        children: [new TextRun({ text: secao.titulo, bold: true, font: FONTE_PETICAO, size: 24 })],
+      }),
+    );
+    filhos.push(...secao.blocos.flatMap((b) => blocoPeticaoDocx(b, ativos.assinatura)));
+  }
+
+  const cabecalhoPagina = ativos.logomarca
+    ? new Header({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [imagemDocx(ativos.logomarca, 110)] })] })
+    : undefined;
+  const rodapePagina = modelo.rodapeTexto
+    ? new Footer({
+        children: modelo.rodapeTexto.split("\n").map(
+          (linha) =>
+            new Paragraph({
+              alignment: AlignmentType.LEFT,
+              children: [new TextRun({ text: linha, font: FONTE_PETICAO, size: 16, color: "9A9A8A" })],
+            }),
+        ),
+      })
+    : undefined;
+
+  const documento = new Document({
+    sections: [
+      {
+        properties: {},
+        headers: cabecalhoPagina ? { default: cabecalhoPagina } : undefined,
+        footers: rodapePagina ? { default: rodapePagina } : undefined,
+        children: filhos,
+      },
+    ],
+  });
+  return Packer.toBuffer(documento);
+}
+
 export async function renderizarDocx(
   modelo: ModeloLaudo,
   ativos: AtivosGlobais,
   imagensPericia: ImagemPericiaEmbutida[] = []
 ): Promise<Buffer> {
+  if (modelo.estilo === "peticao_at") return renderizarPeticaoDocx(modelo, ativos);
   const filhos: Bloco[] = [];
 
   // Cabeçalho: endereçamento formal (Perícia Judicial) OU cabeçalho de Parecer

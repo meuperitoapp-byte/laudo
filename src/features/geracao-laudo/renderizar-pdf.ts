@@ -54,9 +54,35 @@ function tituloSecao(texto: string): Content {
   return { text: texto, style: "tituloSecao" };
 }
 
-function blocoParaPdf(bloco: BlocoConteudo): Content[] {
+/** Letra do grupo de quesitos: 0 -> "A", 1 -> "B"... */
+function letraGrupo(indice: number): string {
+  return String.fromCharCode(65 + (indice % 26));
+}
+
+function blocoParaPdf(bloco: BlocoConteudo, peticao: boolean, assinatura: AtivoImagem | null): Content[] {
   if (bloco.tipo === "paragrafo") {
     return [{ text: bloco.texto, margin: [0, 0, 0, 10] }];
+  }
+  if (bloco.tipo === "assinatura" && peticao) {
+    // Petição (Quesitos): a imagem da assinatura fica ENTRE a data e o nome
+    // — no layout padrão ela vinha depois do nome, separada por um espaço
+    // grande (era a "assinatura fora do lugar" do PDF que ela mandou).
+    const out: Content[] = [{ text: bloco.cidadeData, alignment: "right", margin: [0, 10, 0, 30] }];
+    if (assinatura) {
+      // A imagem cadastrada costuma vir com bastante margem em branco em
+      // volta do traço (a atual é 1080×1350, retrato). Margem negativa
+      // proporcional à altura aproxima o traço da data e do nome, como no
+      // modelo dela, sem cortar a imagem.
+      const largura = 130;
+      const altura = (largura * assinatura.alturaPx) / assinatura.larguraPx;
+      const folga = Math.max(0, (altura - largura * 0.45) / 2);
+      out.push({ image: imagemBase64(assinatura), width: largura, alignment: "center", margin: [0, -folga, 0, -folga] });
+    } else {
+      out.push({ text: "_______________________________________________", alignment: "center", margin: [0, 24, 0, 2] });
+    }
+    out.push({ text: bloco.nome, alignment: "center" });
+    out.push({ text: bloco.tituloCrm, alignment: "center", margin: [0, 0, 0, 10] });
+    return out;
   }
   if (bloco.tipo === "assinatura") {
     return [
@@ -82,6 +108,24 @@ function blocoParaPdf(bloco: BlocoConteudo): Content[] {
   }
 
   // bloco.tipo === "quesitos"
+  if (peticao) {
+    // Petição (Quesitos da AT): texto normal (sem negrito), subitens a)/b)/c)
+    // em linhas próprias (o \n da pergunta já quebra linha no pdfmake) e
+    // título de grupo "A) <tema>" quando o grupo muda.
+    const out: Content[] = [];
+    let grupoAtual: string | null = null;
+    let indiceGrupo = -1;
+    for (const q of bloco.itens) {
+      const grupo = q.grupo?.trim() || null;
+      if (grupo && grupo !== grupoAtual) {
+        indiceGrupo += 1;
+        out.push({ text: `${letraGrupo(indiceGrupo)}) ${grupo}`, bold: true, margin: [0, 10, 0, 6] });
+      }
+      grupoAtual = grupo;
+      out.push({ text: `${q.numero}. ${q.pergunta}`, margin: [0, 0, 0, 10] });
+    }
+    return out;
+  }
   return bloco.itens.flatMap((q): Content[] => {
     const cabecalhoQuesito = q.origem ? `${q.numero}. (${q.origem}) ${q.pergunta}` : `${q.numero}. ${q.pergunta}`;
     const linhas: Content[] = [{ text: cabecalhoQuesito, bold: true, margin: [0, 8, 0, 2] }];
@@ -112,10 +156,28 @@ function linhasVaziasPdf(n: number): Content[] {
   return Array.from({ length: n }, () => ({ text: " " }) as Content);
 }
 
+/**
+ * Abertura da petição de AT (Quesitos): endereçamento em negrito/caixa alta
+ * → espaço → "Processo nº" → espaço → parágrafo de apresentação (sem
+ * título). Sem título de documento — igual ao modelo dela.
+ */
+function cabecalhoPeticaoPdf(modelo: ModeloLaudo): Content[] {
+  const cab = modelo.cabecalho;
+  if (cab.tipo !== "judicial") return [];
+  const out: Content[] = cab.linhasEndereco.map((linha) => ({ text: linha.toUpperCase(), bold: true, fontSize: 12, alignment: "left" }) as Content);
+  out.push(...linhasVaziasPdf(4));
+  if (cab.processoNumero) out.push({ text: `Processo nº ${cab.processoNumero}`, alignment: "left" });
+  out.push(...linhasVaziasPdf(4));
+  if (cab.paragrafoIntroducao) out.push({ text: cab.paragrafoIntroducao, margin: [0, 0, 0, 10] });
+  out.push(...linhasVaziasPdf(1));
+  return out;
+}
+
 /** Cabeçalho de Perícia Judicial: endereçamento ao Juízo + dados do processo + título. */
 function cabecalhoJudicialPdf(modelo: ModeloLaudo): Content[] {
   const cab = modelo.cabecalho;
   if (cab.tipo !== "judicial") return [];
+  if (modelo.estilo === "peticao_at") return cabecalhoPeticaoPdf(modelo);
   const out: Content[] = cab.linhasEndereco.map((linha) => ({ text: linha }) as Content);
   out.push(...linhasVaziasPdf(LINHAS_ENTRE_ENDERECO_E_PROCESSO));
   if (cab.processoNumero) out.push({ text: `Processo nº: ${cab.processoNumero}` });
@@ -161,6 +223,7 @@ function montarDocDefinition(
   imagensPericia: ImagemPericiaEmbutida[]
 ): TDocumentDefinitions {
   const conteudo: Content[] = [];
+  const peticao = modelo.estilo === "peticao_at";
 
   // Cabeçalho: endereçamento formal (Perícia Judicial) OU cabeçalho de Parecer
   // Técnico (Assistência Técnica) — discriminado por modelo.cabecalho.tipo.
@@ -189,11 +252,14 @@ function montarDocDefinition(
       conteudo.push(...blocoImagensPericia(imagensPericia));
     }
     conteudo.push(tituloSecao(secao.titulo));
-    conteudo.push(...secao.blocos.flatMap(blocoParaPdf));
+    conteudo.push(...secao.blocos.flatMap((b) => blocoParaPdf(b, peticao, ativos.assinatura)));
   }
 
   // Assinatura — imagem, se já cadastrada (Etapa 5); senão, espaço em branco pra assinatura manual.
-  if (ativos.assinatura) {
+  // Na petição ela já saiu dentro do bloco de assinatura, entre a data e o nome.
+  if (peticao) {
+    // nada — ver blocoParaPdf
+  } else if (ativos.assinatura) {
     conteudo.push({
       image: imagemBase64(ativos.assinatura),
       width: 150,
@@ -234,6 +300,25 @@ function montarDocDefinition(
         return { margin: [56, 4, 56, 10], stack: itens };
       }
     : undefined;
+
+  if (peticao) {
+    // Petição (Quesitos): logomarca no TOPO de toda página e contato em
+    // cinza claro no rodapé, alinhado à esquerda, sem régua — igual ao
+    // modelo aprovado por ela.
+    const logo = ativos.logomarca;
+    return {
+      defaultStyle: { font: "Roboto", fontSize: 11, alignment: "justify", lineHeight: 1.2 },
+      pageMargins: [70, logo ? 125 : 70, 70, 70],
+      header: logo ? (): Content => ({ image: imagemBase64(logo), width: 82, alignment: "center", margin: [0, 28, 0, 0] }) : undefined,
+      footer: modelo.rodapeTexto
+        ? (): Content => ({ text: modelo.rodapeTexto ?? "", fontSize: 8, color: "#9a9a8a", alignment: "left", margin: [70, 18, 70, 0] })
+        : undefined,
+      content: conteudo,
+      styles: {
+        tituloSecao: { fontSize: 12, bold: true, margin: [0, 14, 0, 10] },
+      },
+    };
+  }
 
   return {
     defaultStyle: { font: "Roboto", fontSize: 11, alignment: "justify" },

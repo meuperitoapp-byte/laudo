@@ -33,6 +33,12 @@ export interface QuesitoCompilado {
   origem: string | null;
   pergunta: string;
   resposta: string | null;
+  /**
+   * Tema opcional (documento de Quesitos da AT, lote 15/10/2026). Quesitos
+   * consecutivos com o mesmo grupo saem sob um único título "A) <grupo>";
+   * a numeração continua corrida entre grupos.
+   */
+  grupo?: string | null;
 }
 
 /**
@@ -92,8 +98,20 @@ export interface ImagemPericiaRef {
   storagePath: string;
 }
 
+/**
+ * Layout da página. `undefined` = o de sempre (laudo/pareceres: régua +
+ * logo pequena + contato no rodapé, assinatura depois do conteúdo).
+ * `"peticao_at"` = petição de Assistência Técnica ao Juízo (documento de
+ * Quesitos, modelo aprovado por ela em 15/10/2026): logomarca no topo de
+ * TODA página, contato em cinza no rodapé, endereçamento em negrito, sem
+ * título de documento, quesitos sem negrito e a imagem da assinatura entre
+ * a data e o nome.
+ */
+export type EstiloDocumento = "peticao_at";
+
 export interface ModeloLaudo {
   processoId: string;
+  estilo?: EstiloDocumento;
   /** 'pericia_judicial' | 'assistencia_tecnica'. */
   tipoTrabalho: TipoTrabalhoProcesso;
   /** Linha exata do rodapé (faixa de identidade), já escolhida conforme tipoTrabalho. null = sem linha de rodapé. */

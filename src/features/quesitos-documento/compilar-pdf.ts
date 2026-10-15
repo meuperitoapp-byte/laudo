@@ -1,13 +1,25 @@
 /**
  * Compila o documento externo de Quesitos — mesmo padrão "modelo
- * intermediário único" dos demais compiladores. Baseado em
- * PERICONS_MODELO_ENXUTO_APRESENTACAO_QUESITOS.pdf.
+ * intermediário único" dos demais compiladores.
  *
- * Diferente dos outros documentos do lote (Réplica, Relatório Técnico,
- * Estratégia Pericial — todos entregues ao advogado), este vai AO JUÍZO: usa
- * `CabecalhoFormal` (endereçamento), não `CabecalhoAssistenciaTecnica`. Como
- * a Assistência Técnica não tem vara/comarca estruturada, o endereçamento é
- * texto livre digitado pela perita (quesitos_documentos.endereco_juizo).
+ * Layout novo (15/10/2026) — modelo que ela montou no Canva e mandou como
+ * "o material precisa ficar assim". O layout anterior (I-Apresentação com
+ * pontos controvertidos, título "QUESITOS DA AUTORA", IV-Requerimento) saía
+ * com "a ordem trocada" e foi substituído por inteiro:
+ *
+ *   [logomarca no topo de toda página]
+ *   AO DOUTO JUÍZO ... (negrito)
+ *   Processo nº ...
+ *   Parágrafo de apresentação do AT (sem título)
+ *   I- BREVE CONTEXTUALIZAÇÃO TÉCNICO-PERICIAL   (só se preenchido)
+ *   II- QUESITOS TÉCNICO-PERICIAIS               (frase opcional, grupos A/B, subitens a/b/c)
+ *   Parágrafo de fechamento (sem título)
+ *   Local, data (à direita) · assinatura · nome · título | CRM
+ *   [contato em cinza no rodapé]
+ *
+ * Vai AO JUÍZO: usa `CabecalhoFormal` (endereçamento) com `estilo:
+ * "peticao_at"` (ver modelo.ts). Endereçamento é texto livre — a AT nem
+ * sempre tem vara/comarca estruturada no cadastro.
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -16,8 +28,8 @@ import { VALORES_PADRAO_PERITO } from "@/features/preenchimento/perito-padrao";
 import type { ModeloLaudo, SecaoCompilada, BlocoConteudo } from "@/features/geracao-laudo/modelo";
 import type { CabecalhoFormal } from "@/features/geracao-laudo/cabecalho";
 import type { SnapshotQuesitosParte } from "@/types/json-fields";
-import { PARTE_ROTULOS } from "./catalogos";
-import type { QuesitosDocumentosRow, QuesitosRow } from "@/types/database";
+import { apresentacaoPadrao, trechoParte } from "./catalogos";
+import type { QuesitosRow } from "@/types/database";
 
 export type ResultadoQuesitosDocumento =
   | { status: "ok"; modelo: ModeloLaudo; snapshot: SnapshotQuesitosParte }
@@ -25,6 +37,17 @@ export type ResultadoQuesitosDocumento =
 
 function paragrafo(texto: string): BlocoConteudo {
   return { tipo: "paragrafo", texto };
+}
+
+/** Texto multilinha → um parágrafo por bloco separado por linha em branco (quebras simples ficam dentro do parágrafo). */
+function paragrafos(texto: string | null): BlocoConteudo[] {
+  if (!texto?.trim()) return [];
+  return texto
+    .replace(/\r\n/g, "\n")
+    .split(/\n\s*\n/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map(paragrafo);
 }
 
 function hojeIso(): string {
@@ -43,13 +66,9 @@ function formatarDataExtenso(dataIso: string): string {
   return `${parseInt(dia, 10)} de ${MESES_EXTENSO[parseInt(mes, 10) - 1]} de ${ano}`;
 }
 
-function linhas(texto: string | null): BlocoConteudo[] {
-  if (!texto) return [];
-  return texto
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((l) => paragrafo(`• ${l}`));
+/** "Fortaleza - CE" → "Fortaleza-CE" (formato do modelo dela). */
+function localCompacto(local: string): string {
+  return local.replace(/\s*-\s*/g, "-");
 }
 
 export async function compilarQuesitosDocumento(processoId: string, documentoId: string): Promise<ResultadoQuesitosDocumento> {
@@ -81,82 +100,73 @@ export async function compilarQuesitosDocumento(processoId: string, documentoId:
     return { status: "erro", mensagem: "Nenhum quesito marcado para apresentar — marque ao menos um quesito antes de gerar." };
   }
 
-  const parteRotulo = documento.parte_selecionada ? PARTE_ROTULOS[documento.parte_selecionada] : "PARTE";
   const linhasEndereco = (documento.endereco_juizo ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
 
   const cabecalho: CabecalhoFormal = {
     tipo: "judicial",
-    tituloDocumento: `QUESITOS DA ${parteRotulo.toUpperCase()}`,
+    tituloDocumento: "",
     linhasEndereco: linhasEndereco.length > 0 ? linhasEndereco : ["[ENDEREÇAMENTO AO JUÍZO NÃO PREENCHIDO]"],
     processoNumero: processo.numero_processo,
     parteAutora: null,
     partesRe: null,
+    paragrafoIntroducao: documento.apresentacao_at?.trim() || apresentacaoPadrao(documento.parte_selecionada),
   };
 
   const secoes: SecaoCompilada[] = [];
+  let numeroSecao = 0;
+  const romano = ["I", "II", "III", "IV"];
 
-  const blocosApresentacao: BlocoConteudo[] = [
-    paragrafo(
-      `${VALORES_PADRAO_PERITO.nome_perito}, Assistente Técnico(a) da parte ${parteRotulo}, vem, respeitosamente, à presença de Vossa Excelência, apresentar os QUESITOS TÉCNICO-PERICIAIS, destinados ao esclarecimento das questões técnicas controvertidas e à adequada produção da prova pericial.`,
-    ),
-  ];
-  const pontosControvertidos = linhas(documento.pontos_controvertidos);
-  if (pontosControvertidos.length > 0) {
-    blocosApresentacao.push(paragrafo("Conforme delimitado na decisão de saneamento, a prova pericial deverá apreciar, especialmente, os seguintes pontos:"));
-    blocosApresentacao.push(...pontosControvertidos);
-  }
-  secoes.push({ secaoId: "quesitos-doc-i", codigo: "apresentacao", titulo: "I — APRESENTAÇÃO", ordem: 1, blocos: blocosApresentacao });
-
-  const blocosContexto: BlocoConteudo[] = [];
-  if (documento.sintese_tese) blocosContexto.push(paragrafo(documento.sintese_tese));
-  if (documento.o_que_demonstrar_pericia) blocosContexto.push(paragrafo(documento.o_que_demonstrar_pericia));
+  // I — contextualização: só entra se preenchida. Registros antigos que
+  // ainda não têm `resumo_fatos` caem nos dois campos antigos.
+  const blocosContexto = paragrafos(
+    documento.resumo_fatos ??
+      ([documento.sintese_tese, documento.o_que_demonstrar_pericia].filter((t) => t?.trim()).join("\n\n") || null),
+  );
   if (blocosContexto.length > 0) {
     secoes.push({
-      secaoId: "quesitos-doc-ii",
+      secaoId: "quesitos-doc-contexto",
       codigo: "contextualizacao",
-      titulo: "II — BREVE CONTEXTUALIZAÇÃO TÉCNICO-PERICIAL",
-      ordem: 2,
+      titulo: `${romano[numeroSecao++]}- BREVE CONTEXTUALIZAÇÃO TÉCNICO-PERICIAL`,
+      ordem: numeroSecao,
       blocos: blocosContexto,
     });
   }
 
   secoes.push({
-    secaoId: "quesitos-doc-iii",
+    secaoId: "quesitos-doc-quesitos",
     codigo: "quesitos_tecnicos",
-    titulo: "III — QUESITOS TÉCNICO-PERICIAIS",
-    ordem: 3,
+    titulo: `${romano[numeroSecao++]}- QUESITOS TÉCNICO-PERICIAIS`,
+    ordem: numeroSecao,
     blocos: [
+      ...paragrafos(documento.introducao_quesitos),
       {
         tipo: "quesitos",
         semResposta: true,
-        itens: quesitos.map((q, i) => ({ numero: i + 1, origem: null, pergunta: q.pergunta, resposta: null })),
+        itens: quesitos.map((q, i) => ({
+          numero: i + 1,
+          origem: null,
+          pergunta: q.pergunta.replace(/\r\n/g, "\n").trim(),
+          resposta: null,
+          grupo: q.grupo,
+        })),
       },
-    ],
-  });
-
-  const dataIso = documento.data_emissao ?? hojeIso();
-  secoes.push({
-    secaoId: "quesitos-doc-iv",
-    codigo: "requerimento",
-    titulo: "IV — REQUERIMENTO",
-    ordem: 4,
-    blocos: [
-      paragrafo(
-        "Diante do exposto, apresentam-se os quesitos técnico-periciais acima, requerendo-se que sejam submetidos à apreciação do(a) Sr.(a) Perito(a) Judicial e respondidos de forma individualizada e devidamente fundamentada, à luz dos elementos constantes dos autos e dos achados técnico-periciais.",
-      ),
+      paragrafo("Diante do exposto, apresentam-se os quesitos acima, requerendo-se que sejam submetidos à apreciação do(a) Sr.(a) Perito(a) Judicial."),
       {
         tipo: "assinatura",
-        cidadeData: `${documento.local_emissao || VALORES_PADRAO_PERITO.cidade_uf_assinatura}, ${formatarDataExtenso(dataIso)}.`,
-        nome: VALORES_PADRAO_PERITO.nome_perito,
-        tituloCrm: `Médica Perita - Assistente Técnica | CRM ${VALORES_PADRAO_PERITO.crm_uf}`,
+        cidadeData: `${localCompacto(documento.local_emissao || VALORES_PADRAO_PERITO.cidade_uf_assinatura)}, ${formatarDataExtenso(documento.data_emissao ?? hojeIso())}`,
+        nome: "Dra. Fernanda Nascimento Resende",
+        tituloCrm: `Médica Perita – Assistente Técnica ${trechoParte(documento.parte_selecionada).toLowerCase()} | CRM-CE nº ${VALORES_PADRAO_PERITO.crm_uf}`,
       },
     ],
   });
 
   const modelo: ModeloLaudo = {
     processoId,
+    estilo: "peticao_at",
     tipoTrabalho: processo.tipo_trabalho,
-    rodapeTexto: rodapeTexto(config ?? null, processo.tipo_trabalho),
+    // Petição de AT: sempre o contato de Assistência Técnica, mesmo que o
+    // processo esteja cadastrado como judicial.
+    rodapeTexto: rodapeTexto(config ?? null, "assistencia_tecnica"),
     tipoLaudoCodigo: "",
     tipoLaudoNome: "",
     geradoEm: new Date().toISOString(),
