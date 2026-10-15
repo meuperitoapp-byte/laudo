@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/ui/top-nav";
 import { obterContextoAcesso } from "@/features/acessos/contexto";
+import { contarNaoLidasDe } from "@/features/chat/nao-lidas";
 
 export default async function DashboardLayout({
   children,
@@ -45,17 +46,17 @@ export default async function DashboardLayout({
     console.error("Layout: falha ao buscar atualizações do sistema:", erroAtualizacoes.message);
   }
 
-  // Indicador de mensagem nova no Chat (30/09/2026, pergunta dela: "chega
-  // notificação no chat pra saber que tem mensagem?") — só a data da última
-  // mensagem, pro TopNav comparar com a última leitura salva no navegador.
-  const { data: ultimaMensagemChat, error: erroUltimaMensagemChat } = await supabase
-    .from("chat_mensagens")
-    .select("created_at")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (erroUltimaMensagemChat) {
-    console.error("Layout: falha ao buscar última mensagem do chat:", erroUltimaMensagemChat.message);
+  // Contador de mensagens não lidas no Chat (lote 15/10/2026, relato dela:
+  // "não aparece que tem novas mensagens para mim") — a última leitura agora
+  // fica no banco por pessoa (antes era um pontinho guardado só no
+  // navegador). Daqui em diante o TopNav mantém o número via Realtime.
+  let chatNaoLidas = 0;
+  if (user.email) {
+    try {
+      chatNaoLidas = await contarNaoLidasDe(supabase, user.email);
+    } catch (e) {
+      console.error("Layout: falha ao contar mensagens não lidas do chat:", e instanceof Error ? e.message : e);
+    }
   }
 
   return (
@@ -64,7 +65,7 @@ export default async function DashboardLayout({
         email={user.email ?? ""}
         modulosPermitidos={modulosPermitidos}
         atualizacoes={atualizacoesDb ?? []}
-        ultimaMensagemChatEm={ultimaMensagemChat?.created_at ?? null}
+        chatNaoLidasInicial={chatNaoLidas}
       />
       <div className="flex-1 bg-nevoa-25 dark:bg-nevoa-950">{children}</div>
     </div>

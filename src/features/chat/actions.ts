@@ -5,6 +5,7 @@ import { obterContextoAcesso } from "@/features/acessos/contexto";
 import { nomeExibicaoDoEmail } from "@/lib/supabase/responsaveis";
 import { lerMetadadosArquivo } from "@/lib/supabase/upload-direto";
 import { BUCKET_CHAT_ARQUIVOS } from "./constants";
+import { contarNaoLidasDe } from "./nao-lidas";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, ChatMensagensRow, ChatMensagensInsert } from "@/types/database";
 
@@ -75,4 +76,32 @@ export async function enviarMensagem(formData: FormData): Promise<ActionResult> 
   }
 
   return { success: true, mensagem: data };
+}
+
+/** Recontagem pedida pelo menu (fallback do Realtime: a cada minuto e quando a aba volta ao foco). `null` = não deu pra contar agora. */
+export async function contarChatNaoLidas(): Promise<number | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return null;
+  try {
+    return await contarNaoLidasDe(supabase, user.email);
+  } catch (e) {
+    console.error("Chat: falha ao contar não lidas:", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+/** Marca o Chat como lido agora pra quem está logado — chamado ao abrir a tela do Chat e a cada mensagem que chega com ela aberta. */
+export async function marcarChatLido(): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return;
+  const { error } = await supabase
+    .from("chat_leituras")
+    .upsert({ usuario_email: user.email, lido_em: new Date().toISOString() });
+  if (error) console.error("Chat: falha ao marcar como lido:", error.message);
 }

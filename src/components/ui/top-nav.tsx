@@ -4,25 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { User } from "lucide-react";
+import { MessageCircle, User, X } from "lucide-react";
 import { signOut } from "@/features/auth/actions";
 import { moduloDaRota } from "@/features/acessos/mapa-modulos";
 import { NotificacoesSino } from "@/components/ui/notificacoes-sino";
 import { createClient } from "@/lib/supabase/client";
+import { contarChatNaoLidas, marcarChatLido } from "@/features/chat/actions";
 import type { ModuloSistema } from "@/types/enums";
 import type { AtualizacoesSistemaRow } from "@/types/database";
-
-const CHAVE_CHAT_ULTIMA_LEITURA = "pericons_chat_ultima_leitura";
-
-/** Última vez que este navegador "leu" o chat (guardado no localStorage). */
-function lerUltimaLeituraSalva(): string {
-  if (typeof window === "undefined") return "1970-01-01T00:00:00.000Z";
-  try {
-    return localStorage.getItem(CHAVE_CHAT_ULTIMA_LEITURA) ?? "1970-01-01T00:00:00.000Z";
-  } catch {
-    return "1970-01-01T00:00:00.000Z";
-  }
-}
 
 interface ItemNav {
   href: string;
@@ -75,62 +64,96 @@ export function TopNav({
   email,
   modulosPermitidos,
   atualizacoes,
-  ultimaMensagemChatEm,
+  chatNaoLidasInicial,
 }: {
   email: string;
   modulosPermitidos: ModuloSistema[] | null;
   atualizacoes: AtualizacoesSistemaRow[];
-  /** Data da última mensagem do chat (lida no layout) — vira o pontinho no item "Chat" quando mais nova que a última leitura salva no navegador. */
-  ultimaMensagemChatEm: string | null;
+  /** Mensagens de outras pessoas desde a última vez que ela abriu o Chat (contado no layout, a partir de chat_leituras). */
+  chatNaoLidasInicial: number;
 }) {
   const pathname = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
-  const [ultimaMensagemChegouEm, setUltimaMensagemChegouEm] = useState(ultimaMensagemChatEm);
-  const [ultimaLeituraEm, setUltimaLeituraEm] = useState(() => lerUltimaLeituraSalva());
+  const [naoLidas, setNaoLidas] = useState(chatNaoLidasInicial);
+  const [aviso, setAviso] = useState<{ id: string; autor: string; texto: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const chatEstaAberto = pathname.startsWith("/chat");
+  // Ref pro callback do Realtime (assinado uma vez só) saber se o Chat está
+  // aberto agora, sem reassinar o canal a cada navegação.
+  const chatAbertoRef = useRef(chatEstaAberto);
+  useEffect(() => {
+    chatAbertoRef.current = chatEstaAberto;
+  }, [chatEstaAberto]);
 
-  // "Ajustar estado durante a renderização" (padrão oficial do React, não um
-  // efeito) — estar no Chat sempre implica ter visto a mensagem mais recente
-  // conhecida. Evita tanto ler ref durante a renderização (regra
-  // `react-hooks/refs`, que a primeira tentativa aqui violou) quanto chamar
-  // `setState` de forma síncrona dentro do corpo de um efeito (regra
-  // `react-hooks/set-state-in-effect`, violada pela tentativa anterior a essa).
-  if (chatEstaAberto && ultimaMensagemChegouEm && ultimaMensagemChegouEm !== ultimaLeituraEm) {
-    setUltimaLeituraEm(ultimaMensagemChegouEm);
+  // Aviso de mensagem nova no Chat — lote 15/10/2026 (relato dela: "não
+  // aparece que tem novas mensagens para mim"). O pontinho de 2px de antes
+  // passava despercebido, dependia do navegador lembrar a última leitura e
+  // contava até as mensagens da própria pessoa. Agora: número no item
+  // "Chat", aviso flutuante em qualquer tela, número no título da aba e
+  // leitura gravada no banco (chat_leituras), por pessoa.
+  //
+  // "Ajustar estado durante a renderização" (padrão oficial do React, não
+  // um efeito): estar no Chat zera o contador.
+  if (chatEstaAberto && (naoLidas !== 0 || aviso !== null)) {
+    setNaoLidas(0);
+    setAviso(null);
   }
 
-  const chatNaoLido = !chatEstaAberto && !!ultimaMensagemChegouEm && ultimaMensagemChegouEm > ultimaLeituraEm;
-
-  // Persiste a última leitura pro navegador lembrar entre sessões — efeito
-  // "puro" (só grava num sistema externo, nenhum `setState` dentro dele), por
-  // isso não cai na mesma regra de setState síncrono em efeito.
+  // Abriu o Chat → grava a leitura no banco (efeito só com sistema externo).
   useEffect(() => {
-    try {
-      localStorage.setItem(CHAVE_CHAT_ULTIMA_LEITURA, ultimaLeituraEm);
-    } catch {
-      // sem persistência — sem problema, só volta a marcar como não lida na próxima visita
-    }
-  }, [ultimaLeituraEm]);
+    if (chatEstaAberto) void marcarChatLido();
+  }, [chatEstaAberto]);
 
-  // Avisa mensagem nova em QUALQUER página do sistema (pergunta dela,
-  // 30/09/2026: "chega notificação no chat pra saber que tem mensagem?") —
-  // o `setState` aqui vem de dentro do callback de um evento externo
-  // (Realtime), não do corpo síncrono do efeito, que é o padrão recomendado
-  // pra "assinar atualizações de um sistema externo".
+  // Mensagem nova em QUALQUER página — o `setState` vem do callback do
+  // Realtime, não do corpo síncrono do efeito.
   useEffect(() => {
     const supabase = createClient();
     const canal = supabase
       .channel("topnav_chat_indicador")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_mensagens" }, (payload) => {
-        const nova = payload.new as { created_at: string };
-        setUltimaMensagemChegouEm(nova.created_at);
+        const nova = payload.new as { id: string; autor_email: string; autor_nome: string; texto: string | null; arquivo_nome: string | null };
+        if (nova.autor_email === email) return; // a própria mensagem não é "nova" pra quem mandou
+        if (chatAbertoRef.current) {
+          void marcarChatLido();
+          return;
+        }
+        setNaoLidas((n) => n + 1);
+        setAviso({ id: nova.id, autor: nova.autor_nome, texto: nova.texto?.trim() || (nova.arquivo_nome ? `📎 ${nova.arquivo_nome}` : "") });
       })
       .subscribe();
     return () => {
       supabase.removeChannel(canal);
     };
+  }, [email]);
+
+  // Rede de segurança do Realtime (conexão caiu, aba dormiu): reconta a
+  // cada minuto e sempre que a aba volta ao foco.
+  useEffect(() => {
+    async function recontar() {
+      if (chatAbertoRef.current) return;
+      const n = await contarChatNaoLidas();
+      if (n !== null) setNaoLidas(n);
+    }
+    const intervalo = window.setInterval(recontar, 60_000);
+    window.addEventListener("focus", recontar);
+    return () => {
+      window.clearInterval(intervalo);
+      window.removeEventListener("focus", recontar);
+    };
   }, []);
+
+  // Aviso flutuante some sozinho depois de alguns segundos.
+  useEffect(() => {
+    if (!aviso) return;
+    const t = window.setTimeout(() => setAviso(null), 8000);
+    return () => window.clearTimeout(t);
+  }, [aviso]);
+
+  // "(3) Sistema PERICONS" no título da aba — dá pra ver mesmo com outra aba aberta.
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\+?\)\s*/, "");
+    document.title = naoLidas > 0 ? `(${naoLidas > 99 ? "99+" : naoLidas}) ${base}` : base;
+  }, [naoLidas, pathname]);
 
   // `null` = admin, vê tudo (mesmo comportamento de sempre). Perfil restrito
   // só vê o item se o módulo daquela rota estiver na lista liberada — mesmo
@@ -176,8 +199,13 @@ export function TopNav({
                 }`}
               >
                 {item.rotulo}
-                {item.href === "/chat" && chatNaoLido && (
-                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-vinho-500 ring-2 ring-petroleo-700 dark:ring-nevoa-900" />
+                {item.href === "/chat" && naoLidas > 0 && (
+                  <span
+                    aria-label={`${naoLidas} mensagens novas`}
+                    className="ml-1.5 inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full bg-vinho-500 px-1.5 text-[11px] font-semibold leading-none text-white tabular-nums"
+                  >
+                    {naoLidas > 99 ? "99+" : naoLidas}
+                  </span>
                 )}
                 {ativo && <span className="absolute left-3 right-3 -bottom-[9px] h-0.5 rounded-full bg-petroleo-400" />}
               </Link>
@@ -215,6 +243,30 @@ export function TopNav({
           )}
         </div>
       </div>
+
+      {aviso && (
+        <div
+          role="status"
+          className="fixed bottom-5 right-5 z-50 w-80 max-w-[calc(100vw-2.5rem)] rounded-xl border border-nevoa-200 dark:border-nevoa-700 bg-white dark:bg-nevoa-900 shadow-lg p-4"
+        >
+          <div className="flex items-start gap-3">
+            <MessageCircle className="h-5 w-5 shrink-0 text-petroleo-600 dark:text-petroleo-400 mt-0.5" />
+            <Link href="/chat" onClick={() => setAviso(null)} className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Nova mensagem de {aviso.autor}</p>
+              {aviso.texto && <p className="text-sm text-nevoa-600 dark:text-nevoa-300 line-clamp-2 mt-0.5">{aviso.texto}</p>}
+              <p className="text-xs font-medium text-petroleo-600 dark:text-petroleo-400 mt-1.5">Abrir o Chat →</p>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setAviso(null)}
+              aria-label="Fechar aviso"
+              className="shrink-0 text-nevoa-400 hover:text-nevoa-700 dark:hover:text-nevoa-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
