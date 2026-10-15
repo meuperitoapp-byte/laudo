@@ -7,6 +7,11 @@ import { QuesitosDocumentoPanel } from "@/features/quesitos-documento/quesitos-d
 import { gerarQuesitosDocumentoPdf } from "@/features/quesitos-documento/gerar-pdf-actions";
 import { GerarDocumentoPanel, type VersaoDocumentoGerado } from "@/components/ui/gerar-documento-panel";
 import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
+import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
+import { enderecamentoSugerido } from "@/features/quesitos-documento/catalogos";
+import { AberturaEtapaAtPanel } from "@/features/processos/abertura-etapa-at-panel";
+import { EntregaEtapaAtPanel } from "@/features/processos/entrega-etapa-at-panel";
+import { AnexoEtapaAtPanel, type DocumentoEtapaAt } from "@/features/processos/anexo-etapa-at-panel";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 const VALIDADE_URL_SEGUNDOS = 60 * 60;
@@ -21,7 +26,7 @@ export default async function QuesitosPage({
 
   const { data: processo, error: erroProcesso } = await supabase
     .from("processos")
-    .select("id, periciando_nome, parte_autora, numero_processo")
+    .select("id, periciando_nome, parte_autora, numero_processo, tipo_trabalho, vara_numero, comarca_subsecao, uf")
     .eq("id", processoId)
     .single();
 
@@ -77,6 +82,79 @@ export default async function QuesitosPage({
   const titulo =
     processo.numero_processo || processo.periciando_nome || processo.parte_autora || "Processo sem identificação";
 
+  // Assistência Técnica (lote 15/10/2026): a perita ELABORA os quesitos pro
+  // advogado — a tela segue a ordem do trabalho dela: dados do processo e
+  // arquivo do advogado → texto do documento → quesitos → gerar → entrega.
+  // Perícia Judicial continua igual (lista pra responder quesitos do laudo).
+  const ehAt = processo.tipo_trabalho === "assistencia_tecnica";
+  let anexosAdvogado: DocumentoEtapaAt[] = [];
+  let erroAnexos: string | null = null;
+  if (ehAt) {
+    const { data: docs, error } = await supabase
+      .from("documentos")
+      .select("id, nome_arquivo, storage_path")
+      .eq("processo_id", processoId)
+      .eq("etapa_at", "quesitos")
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error(`Quesitos do processo ${processoId}: falha ao buscar anexos:`, error.message);
+      erroAnexos = error.message;
+    }
+    const lista = docs ?? [];
+    let urlAnexo = new Map<string, string | null>();
+    if (lista.length > 0) {
+      const { data: assinadas } = await supabase.storage.from(BUCKET_DOCUMENTOS).createSignedUrls(lista.map((d) => d.storage_path), VALIDADE_URL_SEGUNDOS);
+      if (assinadas) urlAnexo = new Map(assinadas.map((a) => [a.path ?? "", a.signedUrl]));
+    }
+    anexosAdvogado = lista.map((d) => ({ id: d.id, nomeArquivo: d.nome_arquivo, signedUrl: urlAnexo.get(d.storage_path) ?? null }));
+  }
+
+  if (ehAt) {
+    return (
+      <main className="p-8 max-w-3xl mx-auto space-y-6">
+        <div>
+          <Link
+            href={`/processos/${processoId}`}
+            className="text-sm text-nevoa-500 hover:text-petroleo-600 dark:text-nevoa-400 dark:hover:text-petroleo-400"
+          >
+            ← Voltar para o processo
+          </Link>
+          <h1 className="font-title text-2xl font-semibold text-nevoa-900 dark:text-nevoa-50 mt-2 mb-1">Quesitos</h1>
+          <p className="text-sm text-nevoa-500 dark:text-nevoa-400">{processo.periciando_nome || titulo}</p>
+        </div>
+
+        {(erroQuesitos || erroAnexos) && (
+          <BannerErroConsulta mensagem={`Não consegui carregar agora: ${[erroQuesitos && "a lista de quesitos", erroAnexos && "os arquivos anexados"].filter(Boolean).join(", ")}.`} />
+        )}
+
+        <AberturaEtapaAtPanel
+          etapa="quesitos"
+          registroId={documento.id}
+          processoId={processoId}
+          numeroProcesso={processo.numero_processo}
+          dataContratacao={documento.data_contratacao}
+          prazoEntrega={documento.prazo_entrega}
+        />
+        <AnexoEtapaAtPanel processoId={processoId} etapa="quesitos" tituloEtapa="arquivo enviado pelo advogado" documentos={anexosAdvogado} />
+        <QuesitosDocumentoPanel documento={documento} enderecamentoSugerido={enderecamentoSugerido(processo)} />
+
+        <section className="space-y-3">
+          <h2 className="font-title text-base font-semibold text-nevoa-900 dark:text-nevoa-100">Quesitos técnico-periciais</h2>
+          <QuesitosPanel processoId={processoId} quesitos={quesitos ?? []} modoAt />
+        </section>
+
+        <GerarDocumentoPanel gerar={gerarQuesitosDocumentoPdf.bind(null, processoId, documento.id)} versoes={versoes} />
+        <EntregaEtapaAtPanel
+          etapa="quesitos"
+          registroId={documento.id}
+          processoId={processoId}
+          entregueEm={documento.entregue_em}
+          entregueVia={documento.entregue_via}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="p-8 max-w-3xl mx-auto">
       <Link
@@ -97,7 +175,7 @@ export default async function QuesitosPage({
       <QuesitosPanel processoId={processoId} quesitos={quesitos ?? []} />
 
       <div className="mt-8 space-y-6">
-        <QuesitosDocumentoPanel documento={documento} />
+        <QuesitosDocumentoPanel documento={documento} enderecamentoSugerido={enderecamentoSugerido(processo)} />
         <GerarDocumentoPanel gerar={gerarQuesitosDocumentoPdf.bind(null, processoId, documento.id)} versoes={versoes} />
       </div>
     </main>

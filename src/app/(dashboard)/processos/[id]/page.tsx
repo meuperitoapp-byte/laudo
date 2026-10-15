@@ -21,6 +21,8 @@ import { VIABILIDADE_STATUS_ROTULOS } from "@/features/viabilidade/catalogos";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
 import { listarNomesResponsaveis } from "@/lib/supabase/responsaveis";
+import { MEIO_ENTREGA_ROTULOS } from "@/features/quesitos-documento/catalogos";
+import type { MeioEntrega } from "@/types/enums";
 
 const URL_ASSINADA_VALIDADE_SEGUNDOS = 60 * 60;
 
@@ -41,6 +43,34 @@ const ACEITOU_NOMEACAO_ROTULOS: Record<string, string> = {
   destituida: "Destituída do cargo",
   encargo_declinado: "Encargo declinado (devolvido após aceitar)",
 };
+
+/** Selo de andamento de uma etapa com entrega (Quesitos, Réplica) — lote 15/10/2026. */
+function seloEntrega(registro: { prazo_entrega: string | null; entregue_em: string | null; entregue_via: MeioEntrega | null } | null) {
+  if (registro?.entregue_em) {
+    const via = registro.entregue_via ? ` · ${MEIO_ENTREGA_ROTULOS[registro.entregue_via]}` : "";
+    return { variante: "sucesso" as const, texto: `Entregue ${dataCurta(registro.entregue_em)}${via}` };
+  }
+  if (registro?.prazo_entrega) return { variante: "atencao" as const, texto: `Entregar até ${dataCurta(registro.prazo_entrega)}` };
+  return null;
+}
+
+function CardEtapa({ href, titulo, descricao, selo }: { href: string; titulo: string; descricao: string; selo?: { variante: "sucesso" | "atencao"; texto: string } | null }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
+    >
+      <div>
+        <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100 flex flex-wrap items-center gap-2">
+          {titulo}
+          {selo && <Selo variante={selo.variante}>{selo.texto}</Selo>}
+        </h3>
+        <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">{descricao}</p>
+      </div>
+      <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
+    </Link>
+  );
+}
 
 function moedaBRL(valor: number | null): string {
   if (valor == null) return "—";
@@ -96,6 +126,9 @@ export default async function ProcessoDetalhePage({
   const temAnaliseViabilidade = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("analise_viabilidade") ?? false);
   const temAtestado = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("atestados") ?? false);
   const temDeclaracao = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("declaracao") ?? false);
+  const temQuesitosAt = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("quesitos") ?? false);
+  const temReplica = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("dados_replica") ?? false);
+  const temRelatorioTecnico = ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("relatorio_tecnico") ?? false);
   // Barra de ações do laudo tradicional (Preencher laudo/Laudo final/
   // Pós-laudo) — feedback dela (24/09/2026): só faz sentido pra Perícia
   // Judicial ou pra etapa "Parecer técnico" de AT; as demais etapas de AT
@@ -120,6 +153,8 @@ export default async function ProcessoDetalhePage({
     { data: anexosDb, error: erroAnexos },
     { data: viabilidadeStatusDb, error: erroViabilidadeStatus },
     nomesResponsaveis,
+    { data: quesitosDocDb, error: erroQuesitosDoc },
+    { data: replicaDb, error: erroReplica },
   ] = await Promise.all([
     supabase.from("processo_partes").select("*").eq("processo_id", id).order("ordem", { ascending: true }),
     // Gate do Módulo Pós-Laudo: a aba só abre quando existe um laudo (tipo =
@@ -161,8 +196,26 @@ export default async function ProcessoDetalhePage({
       ? supabase.from("analises_viabilidade").select("status").eq("processo_id", id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     listarNomesResponsaveis(),
+    // Selo de prazo/entrega nas etapas Quesitos e Réplica (lote 15/10/2026).
+    temQuesitosAt
+      ? supabase.from("quesitos_documentos").select("prazo_entrega, entregue_em, entregue_via").eq("processo_id", id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    temReplica
+      ? supabase.from("replicas").select("prazo_entrega, entregue_em, entregue_via").eq("processo_id", id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
   const { data: tipoLaudo, error: erroTipoLaudo } = tipoLaudoResultado;
+  if (erroQuesitosDoc) {
+    console.error(`Processo ${id}: falha ao buscar entrega dos quesitos:`, erroQuesitosDoc.message);
+    erros.push("o andamento dos quesitos");
+  }
+  if (erroReplica) {
+    console.error(`Processo ${id}: falha ao buscar entrega da réplica:`, erroReplica.message);
+    erros.push("o andamento da réplica");
+  }
+  const seloQuesitos = seloEntrega(quesitosDocDb);
+  const seloReplica = seloEntrega(replicaDb);
+  const horaReuniao = processo.estrategia_pericial_reuniao_hora ? ` às ${processo.estrategia_pericial_reuniao_hora.slice(0, 5)}` : "";
   const { data: primeiraSecao, error: erroPrimeiraSecao } = primeiraSecaoResultado;
 
   if (erroPartes) {
@@ -312,8 +365,18 @@ export default async function ProcessoDetalhePage({
                         {e === "estrategia_pericial" && (
                           <Link href="#reuniao-estrategia-pericial" className="hover:opacity-75">
                             <Selo variante={processo.estrategia_pericial_reuniao_em ? "sucesso" : "atencao"}>
-                              {processo.estrategia_pericial_reuniao_em ? `Reunião ${dataCurta(processo.estrategia_pericial_reuniao_em)}` : "Aguardando reunião"}
+                              {processo.estrategia_pericial_reuniao_em ? `Reunião ${dataCurta(processo.estrategia_pericial_reuniao_em)}${horaReuniao}` : "Aguardando reunião"}
                             </Selo>
+                          </Link>
+                        )}
+                        {e === "quesitos" && seloQuesitos && (
+                          <Link href={`/processos/${processo.id}/quesitos`} className="hover:opacity-75">
+                            <Selo variante={seloQuesitos.variante}>{seloQuesitos.texto}</Selo>
+                          </Link>
+                        )}
+                        {e === "dados_replica" && seloReplica && (
+                          <Link href={`/processos/${processo.id}/replica`} className="hover:opacity-75">
+                            <Selo variante={seloReplica.variante}>{seloReplica.texto}</Selo>
                           </Link>
                         )}
                         {e === "analise_contestacao" && (
@@ -402,106 +465,32 @@ export default async function ProcessoDetalhePage({
         numero={processo.nota_fiscal_numero}
       />
 
+      {/*
+        Cards das etapas de AT na MESMA ordem da lista "Etapas contratadas"
+        (lote 15/10/2026, pedido dela: "o quesito não aparece na ordem como
+        próximo passo"). Cada etapa com ação própria (reunião, anexo) fica
+        logo abaixo do card dela.
+      */}
       {temAnaliseViabilidade && (
-        <Link
-          href={`/processos/${processo.id}/viabilidade`}
-          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
-        >
-          <div>
-            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">
-              Análise de Viabilidade Técnico-Pericial
-            </h3>
-            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Abrir a janela estruturada da análise</p>
-          </div>
-          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
-        </Link>
-      )}
-
-      {temAnaliseContestacao && (
-        <Link
-          href={`/processos/${processo.id}/analise-contestacao`}
-          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
-        >
-          <div>
-            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Análise da Contestação</h3>
-            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Abrir a matriz de confronto dos argumentos</p>
-          </div>
-          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
-        </Link>
-      )}
-
-      {ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("dados_replica") ?? false) && (
-        <Link
-          href={`/processos/${processo.id}/replica`}
-          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
-        >
-          <div>
-            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Orientação para Réplica</h3>
-            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Preencher e gerar o documento (PDF/Word)</p>
-          </div>
-          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
-        </Link>
-      )}
-
-      {ehAssistenciaTecnica && (processo.etapas_contratadas?.includes("relatorio_tecnico") ?? false) && (
-        <Link
-          href={`/processos/${processo.id}/relatorio-tecnico`}
-          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
-        >
-          <div>
-            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Relatório Técnico</h3>
-            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Preencher e gerar o documento (PDF/Word)</p>
-          </div>
-          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
-        </Link>
-      )}
-
-      {temAtestado && (
-        <Link
-          href={`/processos/${processo.id}/atestado`}
-          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
-        >
-          <div>
-            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Atestado Médico-Pericial</h3>
-            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Preencher e gerar o atestado (PDF/Word)</p>
-          </div>
-          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
-        </Link>
-      )}
-
-      {temDeclaracao && (
-        <Link
-          href={`/processos/${processo.id}/declaracao`}
-          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
-        >
-          <div>
-            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Declaração Médico-Pericial</h3>
-            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Preencher e gerar a declaração (PDF/Word)</p>
-          </div>
-          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
-        </Link>
+        <CardEtapa href={`/processos/${processo.id}/viabilidade`} titulo="Análise de Viabilidade Técnico-Pericial" descricao="Abrir a janela estruturada da análise" />
       )}
 
       {temEstrategiaPericial && (
-        <Link
-          href={`/processos/${processo.id}/estrategia-pericial`}
-          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
-        >
-          <div>
-            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Estratégia Pericial</h3>
-            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Abrir o documento estruturado de direção da prova</p>
-          </div>
-          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
-        </Link>
+        <CardEtapa href={`/processos/${processo.id}/estrategia-pericial`} titulo="Estratégia Pericial" descricao="Abrir o documento estruturado de direção da prova" />
       )}
 
       {temEstrategiaPericial && (
         <ReuniaoEstrategiaPericialPanel
           processoId={processo.id}
           reuniaoEm={processo.estrategia_pericial_reuniao_em}
+          reuniaoHora={processo.estrategia_pericial_reuniao_hora}
           responsavel={processo.estrategia_pericial_responsavel}
           nomesResponsaveis={nomesResponsaveis}
         />
+      )}
+
+      {temAnaliseContestacao && (
+        <CardEtapa href={`/processos/${processo.id}/analise-contestacao`} titulo="Análise da Contestação" descricao="Abrir a matriz de confronto dos argumentos" />
       )}
 
       {temAnaliseContestacao && (
@@ -512,6 +501,26 @@ export default async function ProcessoDetalhePage({
           documentos={anexosContestacao}
           observacoes={processo.analise_contestacao_observacoes}
         />
+      )}
+
+      {temReplica && (
+        <CardEtapa href={`/processos/${processo.id}/replica`} titulo="Orientação para Réplica" descricao="Preencher e gerar o documento (PDF/Word)" selo={seloReplica} />
+      )}
+
+      {temQuesitosAt && (
+        <CardEtapa href={`/processos/${processo.id}/quesitos`} titulo="Quesitos" descricao="Elaborar os quesitos e gerar o documento ao Juízo (PDF/Word)" selo={seloQuesitos} />
+      )}
+
+      {temRelatorioTecnico && (
+        <CardEtapa href={`/processos/${processo.id}/relatorio-tecnico`} titulo="Relatório Técnico" descricao="Preencher e gerar o documento (PDF/Word)" />
+      )}
+
+      {temAtestado && (
+        <CardEtapa href={`/processos/${processo.id}/atestado`} titulo="Atestado Médico-Pericial" descricao="Preencher e gerar o atestado (PDF/Word)" />
+      )}
+
+      {temDeclaracao && (
+        <CardEtapa href={`/processos/${processo.id}/declaracao`} titulo="Declaração Médico-Pericial" descricao="Preencher e gerar a declaração (PDF/Word)" />
       )}
 
       <Link
@@ -559,9 +568,19 @@ export default async function ProcessoDetalhePage({
         <Link href={`/processos/${processo.id}/editar`} className={classesBotao("secundaria")}>
           Editar dados do processo
         </Link>
-        <Link href={`/processos/${processo.id}/quesitos`} className={classesBotao("secundaria")}>
-          Quesitos
-        </Link>
+        {/*
+          Botão genérico de Quesitos: só onde a lista de quesitos serve ao
+          laudo (respostas aos quesitos do Juízo/partes) — Perícia Judicial ou
+          AT com Parecer técnico. Na AT com a etapa "Quesitos" contratada o
+          acesso é pelo card da sequência; AT sem nenhum dos dois não tem
+          quesitos (pedido dela, 15/10/2026: "está no botão abaixo igual para
+          todos, mesmo quem não contrata").
+        */}
+        {mostrarLaudoTradicional && !temQuesitosAt && (
+          <Link href={`/processos/${processo.id}/quesitos`} className={classesBotao("secundaria")}>
+            Quesitos
+          </Link>
+        )}
         <Link href={`/processos/${processo.id}/documentos`} className={classesBotao("secundaria")}>
           Documentos
         </Link>

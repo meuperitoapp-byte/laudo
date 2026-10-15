@@ -6,6 +6,10 @@ import { ReplicaPanel } from "@/features/replica/replica-panel";
 import { gerarReplicaPdf } from "@/features/replica/gerar-pdf-actions";
 import { GerarDocumentoPanel, type VersaoDocumentoGerado } from "@/components/ui/gerar-documento-panel";
 import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
+import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
+import { AberturaEtapaAtPanel } from "@/features/processos/abertura-etapa-at-panel";
+import { EntregaEtapaAtPanel } from "@/features/processos/entrega-etapa-at-panel";
+import { AnexoEtapaAtPanel } from "@/features/processos/anexo-etapa-at-panel";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 const VALIDADE_URL_SEGUNDOS = 60 * 60;
@@ -16,7 +20,7 @@ export default async function ReplicaPage({ params }: { params: Promise<{ id: st
 
   const { data: processo, error: erroProcesso } = await supabase
     .from("processos")
-    .select("id, periciando_nome, etapas_contratadas")
+    .select("id, periciando_nome, etapas_contratadas, numero_processo")
     .eq("id", processoId)
     .maybeSingle();
   if (erroProcesso) {
@@ -46,7 +50,7 @@ export default async function ReplicaPage({ params }: { params: Promise<{ id: st
   }
   const replica = replicaResultado.data;
 
-  const [{ data: analise }, { data: versoesDb, error: erroVersoes }] = await Promise.all([
+  const [{ data: analise }, { data: versoesDb, error: erroVersoes }, { data: anexosDb, error: erroAnexos }] = await Promise.all([
     supabase.from("analises_contestacao").select("id").eq("processo_id", processoId).maybeSingle(),
     supabase
       .from("laudos_gerados")
@@ -54,6 +58,13 @@ export default async function ReplicaPage({ params }: { params: Promise<{ id: st
       .eq("processo_id", processoId)
       .eq("tipo", "orientacao_replica")
       .order("versao", { ascending: false }),
+    // Arquivo que o advogado manda pra elaborar a réplica (lote 15/10/2026).
+    supabase
+      .from("documentos")
+      .select("id, nome_arquivo, storage_path")
+      .eq("processo_id", processoId)
+      .eq("etapa_at", "dados_replica")
+      .order("created_at", { ascending: true }),
   ]);
 
   let temPontosSelecionados = false;
@@ -71,6 +82,18 @@ export default async function ReplicaPage({ params }: { params: Promise<{ id: st
     console.error(`Réplica: falha ao buscar versões geradas (${processoId}):`, erroVersoes.message);
     erros.push("as versões já geradas");
   }
+
+  if (erroAnexos) {
+    console.error(`Réplica: falha ao buscar anexos (${processoId}):`, erroAnexos.message);
+    erros.push("os arquivos anexados");
+  }
+  const listaAnexos = anexosDb ?? [];
+  let urlAnexo = new Map<string, string | null>();
+  if (listaAnexos.length > 0) {
+    const { data: assinadasAnexos } = await supabase.storage.from(BUCKET_DOCUMENTOS).createSignedUrls(listaAnexos.map((d) => d.storage_path), VALIDADE_URL_SEGUNDOS);
+    if (assinadasAnexos) urlAnexo = new Map(assinadasAnexos.map((a) => [a.path ?? "", a.signedUrl]));
+  }
+  const anexosAdvogado = listaAnexos.map((d) => ({ id: d.id, nomeArquivo: d.nome_arquivo, signedUrl: urlAnexo.get(d.storage_path) ?? null }));
 
   const listaVersoes = versoesDb ?? [];
   const caminhos = listaVersoes.flatMap((v) => [v.storage_path_pdf, v.storage_path_docx].filter((p): p is string => Boolean(p)));
@@ -113,8 +136,24 @@ export default async function ReplicaPage({ params }: { params: Promise<{ id: st
         <BannerErroConsulta mensagem={`Não foi possível carregar ${erros.join(", ")}. A tela continua funcionando, mas alguns dados podem estar incompletos.`} />
       )}
 
+      <AberturaEtapaAtPanel
+        etapa="replica"
+        registroId={replica.id}
+        processoId={processoId}
+        numeroProcesso={processo.numero_processo}
+        dataContratacao={replica.data_contratacao}
+        prazoEntrega={replica.prazo_entrega}
+      />
+      <AnexoEtapaAtPanel processoId={processoId} etapa="dados_replica" tituloEtapa="arquivo enviado pelo advogado" documentos={anexosAdvogado} />
       <ReplicaPanel replica={replica} temPontosSelecionados={temPontosSelecionados} />
       <GerarDocumentoPanel gerar={gerarReplicaPdf.bind(null, processoId, replica.id)} versoes={versoes} />
+      <EntregaEtapaAtPanel
+        etapa="replica"
+        registroId={replica.id}
+        processoId={processoId}
+        entregueEm={replica.entregue_em}
+        entregueVia={replica.entregue_via}
+      />
     </main>
   );
 }
