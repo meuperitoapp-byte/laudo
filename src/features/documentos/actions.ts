@@ -79,6 +79,9 @@ export async function uploadDocumento(processoId: string, formData: FormData): P
     // documento pertence a uma etapa contratada específica (ex.: o anexo da
     // "Análise da contestação"). Independente de `categoria`.
     etapa_at: textoOuNull(formData.get("etapa_at")),
+    // Anexo de um documento/prova complementar da Estratégia Pericial
+    // (lote 15/10/2026) — mesmo pipeline, só marca a qual item pertence.
+    estrategia_documento_prova_id: textoOuNull(formData.get("estrategia_documento_prova_id")),
   };
 
   const { error: erroInsert } = await supabase.from("documentos").insert(insert);
@@ -91,6 +94,7 @@ export async function uploadDocumento(processoId: string, formData: FormData): P
   // Documento pode aparecer também no painel de etapa da tela do processo
   // (AnexoEtapaAtPanel) quando `etapa_at` está preenchido.
   revalidatePath(`/processos/${processoId}`);
+  if (insert.estrategia_documento_prova_id) revalidatePath(`/processos/${processoId}/estrategia-pericial`);
   return { success: true };
 }
 

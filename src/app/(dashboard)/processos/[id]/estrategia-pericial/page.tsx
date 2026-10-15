@@ -15,6 +15,8 @@ import { gerarEstrategiaPericialPdf } from "@/features/estrategia-pericial/gerar
 import { GerarDocumentoPanel, type VersaoDocumentoGerado } from "@/components/ui/gerar-documento-panel";
 import { listarNomesResponsaveis } from "@/lib/supabase/responsaveis";
 import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
+import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
+import type { AnexoDocumentoProva } from "@/features/estrategia-pericial/documentos-provas-panel";
 import { ErroConsultaPagina, BannerErroConsulta } from "@/components/ui/erro-consulta";
 
 const VALIDADE_URL_SEGUNDOS = 60 * 60;
@@ -118,6 +120,26 @@ export default async function EstrategiaPericialPage({ params }: { params: Promi
     urlDocx: v.storage_path_docx ? (urlPorCaminho.get(v.storage_path_docx) ?? null) : null,
   }));
 
+  // Anexos dos documentos/provas complementares (lote 15/10/2026) — saem da
+  // mesma lista de documentos do processo já buscada acima.
+  const docsComItem = (documentosAnexadosDb ?? []).filter((d) => d.estrategia_documento_prova_id);
+  let urlAnexoPorCaminho = new Map<string, string | null>();
+  if (docsComItem.length > 0) {
+    const { data: assinadasAnexos, error: erroAssinadasAnexos } = await supabase.storage
+      .from(BUCKET_DOCUMENTOS)
+      .createSignedUrls(docsComItem.map((d) => d.storage_path), VALIDADE_URL_SEGUNDOS);
+    if (erroAssinadasAnexos) {
+      console.error(`Estratégia pericial (${processoId}): falha ao gerar links dos anexos:`, erroAssinadasAnexos.message);
+      erros.push("os links dos anexos");
+    }
+    if (assinadasAnexos) urlAnexoPorCaminho = new Map(assinadasAnexos.map((a) => [a.path ?? "", a.signedUrl]));
+  }
+  const anexosPorItem: Record<string, AnexoDocumentoProva[]> = {};
+  for (const d of docsComItem) {
+    const itemId = d.estrategia_documento_prova_id!;
+    (anexosPorItem[itemId] ??= []).push({ id: d.id, nomeArquivo: d.nome_arquivo, signedUrl: urlAnexoPorCaminho.get(d.storage_path) ?? null });
+  }
+
   const nomeCaso = processo.periciando_nome || "Processo sem identificação";
 
   return (
@@ -143,7 +165,7 @@ export default async function EstrategiaPericialPage({ params }: { params: Promi
       <ResponsabilidadesPanel estrategiaId={estrategia.id} processoId={processoId} itens={responsabilidadesDb ?? []} />
       <FragilidadesPanel estrategiaId={estrategia.id} processoId={processoId} fragilidades={fragilidadesDb ?? []} />
       <TesesAdversasPanel estrategiaId={estrategia.id} processoId={processoId} teses={tesesDb ?? []} />
-      <DocumentosProvasPanel estrategiaId={estrategia.id} processoId={processoId} itens={documentosDb ?? []} />
+      <DocumentosProvasPanel estrategiaId={estrategia.id} processoId={processoId} itens={documentosDb ?? []} anexosPorItem={anexosPorItem} />
       <PlanoAcaoPanel estrategiaId={estrategia.id} processoId={processoId} acoes={planoAcaoDb ?? []} nomesResponsaveis={nomesResponsaveis} />
       <GerarDocumentoPanel gerar={gerarEstrategiaPericialPdf.bind(null, processoId, estrategia.id)} versoes={versoes} />
     </main>
