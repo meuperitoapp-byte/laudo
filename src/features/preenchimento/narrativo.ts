@@ -176,8 +176,19 @@ export function gerarNarrativoSecao(
   const partes: string[] = [];
   for (const campo of camposDaSecao) {
     if (campo.parent_campo_id) continue;
-    const texto = gerarNarrativoCampo(campo, respostasPorCampoId.get(campo.id), contexto);
-    if (texto) partes.push(texto);
+    const resposta = respostasPorCampoId.get(campo.id);
+    const texto = gerarNarrativoCampo(campo, resposta, contexto);
+    if (texto) {
+      partes.push(texto);
+      continue;
+    }
+    // Campo respondido mas sem modelo de texto (ex.: Seção "Identificação do
+    // Perito" — só campos de texto livre/seleção, sem template): entra como
+    // "Rótulo: valor." pra seção não ficar com o narrativo vazio (lote
+    // 23/10/2026, relato dela). Campo com confirmação pendente nunca entra.
+    if (campo.requer_confirmacao_perito && !resposta?.confirmado_pelo_perito) continue;
+    const valor = valorExibivelCampo(campo, resposta?.valor_selecionado ?? null, resposta?.texto_livre ?? null);
+    if (valor) partes.push(`${campo.rotulo}: ${valor.replace(/[.\s]+$/, "")}.`);
   }
   return partes.length > 0 ? partes.join(" ") : null;
 }

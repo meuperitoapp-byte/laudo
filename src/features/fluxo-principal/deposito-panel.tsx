@@ -14,6 +14,7 @@ import {
   FORMA_DISPONIBILIZACAO_ORDENADA,
   FORMA_DISPONIBILIZACAO_ROTULOS,
 } from "./rotulos";
+import { InputMoeda } from "@/components/ui/input-moeda";
 import type { ProcessosRow } from "@/types/database";
 
 const inputClass =
@@ -136,14 +137,7 @@ export function DepositoPanel({
             <label htmlFor="deposito_valor" className={labelClass}>
               Valor já depositado (R$)
             </label>
-            <input
-              id="deposito_valor"
-              type="number"
-              step="0.01"
-              value={f.valor}
-              onChange={(e) => set("valor", e.target.value)}
-              className={inputClass}
-            />
+            <InputMoeda id="deposito_valor" value={f.valor} onChange={(v) => set("valor", v)} className={inputClass} />
           </div>
           <div>
             <label htmlFor="deposito_data" className={labelClass}>

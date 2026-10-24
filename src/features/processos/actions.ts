@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { BUCKET_DOCUMENTOS } from "@/features/documentos/constants";
 import { BUCKET_LAUDOS_GERADOS } from "@/features/geracao-laudo/constants";
-import type { ProcessosInsert, ProcessosUpdate } from "@/types/database";
+import type { ProcessosInsert, ProcessosUpdate, ReuniaoEstrategiaSituacao } from "@/types/database";
 import type {
   AceitouNomeacao,
   EtapaContratada,
@@ -335,6 +335,47 @@ export async function salvarReuniaoEstrategiaPericial(
       estrategia_pericial_reuniao_hora: horaValida,
       ...(responsavel !== undefined ? { estrategia_pericial_responsavel: responsavel } : {}),
     })
+    .eq("id", processoId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/processos/${processoId}`);
+  revalidatePath("/hoje");
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
+/**
+ * Encerra a reunião marcada (lote 20/10/2026): registra no histórico como
+ * realizada/cancelada e limpa a reunião atual — ela sai da Central de Prazos
+ * e do card, e o card volta a aceitar uma nova data. Os dados gravados no
+ * histórico são lidos do banco (não da tela) pra refletir o que estava marcado.
+ */
+export async function encerrarReuniaoEstrategiaPericial(
+  processoId: string,
+  situacao: ReuniaoEstrategiaSituacao,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createClient();
+
+  const { data: processo, error: erroBusca } = await supabase
+    .from("processos")
+    .select("estrategia_pericial_reuniao_em, estrategia_pericial_reuniao_hora, estrategia_pericial_responsavel")
+    .eq("id", processoId)
+    .maybeSingle();
+  if (erroBusca) return { error: erroBusca.message };
+  if (!processo?.estrategia_pericial_reuniao_em) return { error: "Não há reunião marcada para encerrar." };
+
+  const { error: erroHistorico } = await supabase.from("reunioes_estrategia_historico").insert({
+    processo_id: processoId,
+    data: processo.estrategia_pericial_reuniao_em,
+    hora: processo.estrategia_pericial_reuniao_hora,
+    responsavel: processo.estrategia_pericial_responsavel,
+    situacao,
+  });
+  if (erroHistorico) return { error: erroHistorico.message };
+
+  const { error } = await supabase
+    .from("processos")
+    .update({ estrategia_pericial_reuniao_em: null, estrategia_pericial_reuniao_hora: null, estrategia_pericial_responsavel: null })
     .eq("id", processoId);
   if (error) return { error: error.message };
 

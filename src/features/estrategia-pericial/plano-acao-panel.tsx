@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Paperclip } from "lucide-react";
 import { criarAcaoPlano, salvarAcaoPlano, excluirAcaoPlano } from "./actions";
+import { uploadDocumento, excluirDocumento } from "@/features/documentos/actions";
+import { BUCKET_DOCUMENTOS, TAMANHO_MAXIMO_BYTES } from "@/features/documentos/constants";
+import { anexarMetadadosArquivo, enviarArquivoDireto } from "@/lib/supabase/upload-direto";
+import type { AnexoDocumentoProva } from "./documentos-provas-panel";
 import { Botao } from "@/components/ui/button";
 import { SelectResponsavel } from "@/components/ui/select-responsavel";
 import type { EstrategiaPlanoAcaoRow } from "@/types/database";
@@ -12,17 +17,23 @@ const inputClass =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500";
 const labelClass = "block text-xs font-medium text-nevoa-500 dark:text-nevoa-400 mb-1";
 
-/** §13 do modelo — plano de ação pericial. */
+/**
+ * §13 do modelo — plano de ação pericial. Lote 20/10/2026 (pedido dela): cada
+ * ação aceita anexo de arquivo, OPCIONAL — mesmo pipeline dos documentos/provas
+ * complementares (o arquivo também aparece na tela de Documentos).
+ */
 export function PlanoAcaoPanel({
   estrategiaId,
   processoId,
   acoes,
   nomesResponsaveis,
+  anexosPorAcao,
 }: {
   estrategiaId: string;
   processoId: string;
   acoes: EstrategiaPlanoAcaoRow[];
   nomesResponsaveis: string[];
+  anexosPorAcao: Record<string, AnexoDocumentoProva[]>;
 }) {
   const ordenados = [...acoes].sort((a, b) => a.ordem - b.ordem);
   return (
@@ -33,7 +44,7 @@ export function PlanoAcaoPanel({
       ) : (
         <ul className="space-y-3">
           {ordenados.map((item, i) => (
-            <AcaoItem key={item.id} item={item} numero={i + 1} processoId={processoId} nomesResponsaveis={nomesResponsaveis} />
+            <AcaoItem key={item.id} item={item} numero={i + 1} processoId={processoId} nomesResponsaveis={nomesResponsaveis} anexos={anexosPorAcao[item.id] ?? []} />
           ))}
         </ul>
       )}
@@ -47,26 +58,87 @@ function AcaoItem({
   numero,
   processoId,
   nomesResponsaveis,
+  anexos,
 }: {
   item: EstrategiaPlanoAcaoRow;
   numero: number;
   processoId: string;
   nomesResponsaveis: string[];
+  anexos: AnexoDocumentoProva[];
 }) {
   const router = useRouter();
+  const arquivoRef = useRef<HTMLInputElement>(null);
   const [editando, setEditando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  /** Sobe o arquivo (se escolhido) ANTES de salvar a ação — anexo é opcional. */
+  async function enviarAnexo(arquivo: File): Promise<string | null> {
+    if (arquivo.size > TAMANHO_MAXIMO_BYTES) return "Arquivo maior que 50MB — não é possível enviar.";
+    const envio = await enviarArquivoDireto(BUCKET_DOCUMENTOS, processoId, arquivo);
+    if ("error" in envio) return envio.error;
+    const fd = new FormData();
+    fd.set("tipo", "documento_processual");
+    fd.set("etapa_at", "estrategia_pericial");
+    fd.set("estrategia_plano_acao_id", item.id);
+    anexarMetadadosArquivo(fd, envio.arquivo);
+    const r = await uploadDocumento(processoId, fd).catch(() => ({ error: "Erro ao registrar o arquivo — tente de novo." }));
+    return "error" in r ? r.error : null;
+  }
+
   function salvar(formData: FormData) {
     setErro(null);
+    const arquivo = formData.get("arquivo");
+    formData.delete("arquivo"); // nunca vai no corpo da Server Action (teto de 4,5MB na Vercel)
     startTransition(async () => {
+      if (arquivo instanceof File && arquivo.size > 0) {
+        const erroAnexo = await enviarAnexo(arquivo);
+        if (erroAnexo) return setErro(erroAnexo);
+      }
       const r = await salvarAcaoPlano(formData);
       if ("error" in r) return setErro(r.error);
+      if (arquivoRef.current) arquivoRef.current.value = "";
       setEditando(false);
       router.refresh();
     });
   }
+
+  function removerAnexo(anexo: AnexoDocumentoProva) {
+    if (!window.confirm(`Remover o anexo "${anexo.nomeArquivo}"? O arquivo também sai da lista de Documentos do processo.`)) return;
+    setErro(null);
+    startTransition(async () => {
+      const r = await excluirDocumento(anexo.id, processoId);
+      if ("error" in r) return setErro(r.error);
+      router.refresh();
+    });
+  }
+
+  const listaAnexos =
+    anexos.length > 0 ? (
+      <ul className="space-y-1">
+        {anexos.map((a) => (
+          <li key={a.id} className="flex items-center gap-2 text-xs">
+            <Paperclip className="h-3.5 w-3.5 shrink-0 text-nevoa-400" />
+            {a.signedUrl ? (
+              <a href={a.signedUrl} target="_blank" rel="noreferrer" className="text-petroleo-600 hover:underline dark:text-petroleo-400 break-all">
+                {a.nomeArquivo}
+              </a>
+            ) : (
+              <span className="text-nevoa-700 dark:text-nevoa-300 break-all">{a.nomeArquivo}</span>
+            )}
+            <button
+              type="button"
+              onClick={() => removerAnexo(a)}
+              disabled={isPending}
+              className="text-vinho-600 hover:underline dark:text-vinho-400 disabled:opacity-30"
+            >
+              remover
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : null;
+
   function excluir() {
     if (!window.confirm("Excluir esta ação? Não tem como desfazer.")) return;
     setErro(null);
@@ -93,6 +165,7 @@ function AcaoItem({
           {item.prazo ? ` · Prazo: ${item.prazo.split("-").reverse().join("/")}` : ""}
           {item.status ? ` · ${item.status}` : ""}
         </p>
+        {listaAnexos}
         {erro && <p className="text-xs text-vinho-600 dark:text-vinho-400">{erro}</p>}
       </li>
     );
@@ -124,6 +197,11 @@ function AcaoItem({
         <div>
           <label className={labelClass}>Status</label>
           <input name="status" defaultValue={item.status ?? ""} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Anexar arquivo (opcional)</label>
+          {listaAnexos}
+          <input ref={arquivoRef} type="file" name="arquivo" className="mt-1 text-sm text-nevoa-700 dark:text-nevoa-300" />
         </div>
         <div className="flex items-center gap-3">
           <Botao type="submit" carregando={isPending} textoCarregando="Salvando…">Salvar</Botao>

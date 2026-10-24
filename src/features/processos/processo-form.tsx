@@ -138,7 +138,19 @@ function OpcaoCheckbox({
   );
 }
 
-/** Campo monetário — input numérico com prefixo "R$". Guarda o número puro. */
+/** Centavos (inteiro) → "1.234,56". Vazio quando não há valor. */
+function formatarCentavos(centavos: number | null): string {
+  if (centavos === null) return "";
+  return (centavos / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Campo monetário — prefixo "R$", digitação direta com máscara (cada dígito
+ * entra pela direita, como em maquininha: 123456 → 1.234,56) em vez de
+ * `type="number"`, que só andava pelas setas (lote 23/10/2026, relato dela).
+ * O valor submetido é o número puro ("1234.56") num input oculto — o parser
+ * do servidor (optionalNumber) continua o mesmo.
+ */
 function CampoMoeda({
   id,
   name,
@@ -150,6 +162,9 @@ function CampoMoeda({
   rotulo: string;
   defaultValue?: number | null;
 }) {
+  const [centavos, setCentavos] = useState<number | null>(
+    defaultValue === null || defaultValue === undefined ? null : Math.round(defaultValue * 100),
+  );
   return (
     <div>
       <label htmlFor={id} className={labelClass}>
@@ -157,14 +172,17 @@ function CampoMoeda({
       </label>
       <div className="flex items-center rounded-md border border-nevoa-300 dark:border-nevoa-700 focus-within:outline focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-petroleo-500">
         <span className="pl-3 pr-1 text-sm text-nevoa-500 dark:text-nevoa-400">R$</span>
+        <input type="hidden" name={name} value={centavos === null ? "" : (centavos / 100).toFixed(2)} />
         <input
           id={id}
-          name={name}
-          type="number"
-          step="0.01"
-          min="0"
-          inputMode="decimal"
-          defaultValue={defaultValue ?? ""}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          value={formatarCentavos(centavos)}
+          onChange={(e) => {
+            const digitos = e.target.value.replace(/\D/g, "").slice(0, 12);
+            setCentavos(digitos ? Number(digitos) : null);
+          }}
           placeholder="0,00"
           className="w-full rounded-md bg-transparent px-2 py-2 text-sm text-nevoa-900 dark:text-nevoa-100 placeholder:text-nevoa-400 focus-visible:outline-none"
         />

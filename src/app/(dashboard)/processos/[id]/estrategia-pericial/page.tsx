@@ -122,7 +122,8 @@ export default async function EstrategiaPericialPage({ params }: { params: Promi
 
   // Anexos dos documentos/provas complementares (lote 15/10/2026) — saem da
   // mesma lista de documentos do processo já buscada acima.
-  const docsComItem = (documentosAnexadosDb ?? []).filter((d) => d.estrategia_documento_prova_id);
+  // Idem para as ações do Plano de ação (lote 20/10/2026).
+  const docsComItem = (documentosAnexadosDb ?? []).filter((d) => d.estrategia_documento_prova_id || d.estrategia_plano_acao_id);
   let urlAnexoPorCaminho = new Map<string, string | null>();
   if (docsComItem.length > 0) {
     const { data: assinadasAnexos, error: erroAssinadasAnexos } = await supabase.storage
@@ -135,9 +136,11 @@ export default async function EstrategiaPericialPage({ params }: { params: Promi
     if (assinadasAnexos) urlAnexoPorCaminho = new Map(assinadasAnexos.map((a) => [a.path ?? "", a.signedUrl]));
   }
   const anexosPorItem: Record<string, AnexoDocumentoProva[]> = {};
+  const anexosPorAcao: Record<string, AnexoDocumentoProva[]> = {};
   for (const d of docsComItem) {
-    const itemId = d.estrategia_documento_prova_id!;
-    (anexosPorItem[itemId] ??= []).push({ id: d.id, nomeArquivo: d.nome_arquivo, signedUrl: urlAnexoPorCaminho.get(d.storage_path) ?? null });
+    const anexo = { id: d.id, nomeArquivo: d.nome_arquivo, signedUrl: urlAnexoPorCaminho.get(d.storage_path) ?? null };
+    if (d.estrategia_documento_prova_id) (anexosPorItem[d.estrategia_documento_prova_id] ??= []).push(anexo);
+    if (d.estrategia_plano_acao_id) (anexosPorAcao[d.estrategia_plano_acao_id] ??= []).push(anexo);
   }
 
   const nomeCaso = processo.periciando_nome || "Processo sem identificação";
@@ -166,7 +169,7 @@ export default async function EstrategiaPericialPage({ params }: { params: Promi
       <FragilidadesPanel estrategiaId={estrategia.id} processoId={processoId} fragilidades={fragilidadesDb ?? []} />
       <TesesAdversasPanel estrategiaId={estrategia.id} processoId={processoId} teses={tesesDb ?? []} />
       <DocumentosProvasPanel estrategiaId={estrategia.id} processoId={processoId} itens={documentosDb ?? []} anexosPorItem={anexosPorItem} />
-      <PlanoAcaoPanel estrategiaId={estrategia.id} processoId={processoId} acoes={planoAcaoDb ?? []} nomesResponsaveis={nomesResponsaveis} />
+      <PlanoAcaoPanel estrategiaId={estrategia.id} processoId={processoId} acoes={planoAcaoDb ?? []} nomesResponsaveis={nomesResponsaveis} anexosPorAcao={anexosPorAcao} />
       <GerarDocumentoPanel gerar={gerarEstrategiaPericialPdf.bind(null, processoId, estrategia.id)} versoes={versoes} />
     </main>
   );

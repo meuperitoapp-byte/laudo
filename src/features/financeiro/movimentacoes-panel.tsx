@@ -7,6 +7,7 @@ import { TIPO_MOVIMENTACAO_ROTULOS } from "./catalogos";
 import { Botao } from "@/components/ui/button";
 import { ComboboxCatalogo } from "@/components/ui/combobox-catalogo";
 import type { MovimentacoesFinanceirasRow } from "@/types/database";
+import { InputMoeda } from "@/components/ui/input-moeda";
 import type { TipoMovimentacaoFinanceira } from "@/types/enums";
 
 const inputClass =
@@ -212,7 +213,7 @@ function ItemMovimentacao({
           </div>
           <div>
             <label className={labelClass}>Valor</label>
-            <input type="number" step="0.01" min="0" name="valor" defaultValue={movimentacao.valor} className={inputClass} required />
+            <InputMoeda name="valor" defaultValue={movimentacao.valor} className={inputClass} required />
           </div>
         </div>
         <div>
@@ -312,7 +313,7 @@ function NovaMovimentacaoForm({
           <label htmlFor="mov_valor_form" className={labelClass}>
             Valor
           </label>
-          <input id="mov_valor_form" type="number" step="0.01" min="0" name="valor" className={inputClass} required />
+          <InputMoeda id="mov_valor_form" name="valor" className={inputClass} required />
         </div>
       </div>
       <div>

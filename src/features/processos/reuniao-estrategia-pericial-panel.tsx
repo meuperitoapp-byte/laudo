@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { salvarReuniaoEstrategiaPericial } from "./actions";
+import { encerrarReuniaoEstrategiaPericial, salvarReuniaoEstrategiaPericial } from "./actions";
 import { Botao } from "@/components/ui/button";
 import { Selo } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
+import type { ReunioesEstrategiaHistoricoRow, ReuniaoEstrategiaSituacao } from "@/types/database";
 
 const inputClass =
   "w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-3 py-2 text-sm text-nevoa-900 dark:text-nevoa-100 " +
@@ -39,6 +40,7 @@ export function ReuniaoEstrategiaPericialPanel({
   reuniaoHora,
   responsavel,
   nomesResponsaveis,
+  historico,
 }: {
   processoId: string;
   reuniaoEm: string | null;
@@ -46,15 +48,16 @@ export function ReuniaoEstrategiaPericialPanel({
   reuniaoHora: string | null;
   responsavel: string | null;
   nomesResponsaveis: string[];
+  /** Reuniões já encerradas (realizada/cancelada), mais recentes primeiro. */
+  historico: ReunioesEstrategiaHistoricoRow[];
 }) {
   const router = useRouter();
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [data, setData] = useState("");
   const [hora, setHora] = useState("");
-  // Reunião já marcada: dá pra incluir/trocar só o horário sem remover a
-  // data (caso das reuniões marcadas antes de existir o campo).
-  const [editandoHora, setEditandoHora] = useState(false);
+  // Reunião já marcada: "Editar data" abre data/horário/responsável preenchidos.
+  const [editando, setEditando] = useState(false);
   const [resp, setResp] = useState(responsavel ?? "");
 
   async function marcarReuniao() {
@@ -73,29 +76,45 @@ export function ReuniaoEstrategiaPericialPanel({
     router.refresh();
   }
 
-  async function salvarSoHorario() {
-    if (!reuniaoEm) return;
+  function abrirEdicao() {
+    setData(reuniaoEm ?? "");
+    setHora(reuniaoHora ? reuniaoHora.slice(0, 5) : "");
+    setResp(responsavel ?? "");
+    setEditando(true);
+  }
+
+  async function salvarEdicao() {
+    if (!data) {
+      setMensagem({ tipo: "erro", texto: "Informe a data da reunião." });
+      return;
+    }
     setIsPending(true);
-    const r = await salvarReuniaoEstrategiaPericial(processoId, reuniaoEm, undefined, hora || null);
+    const r = await salvarReuniaoEstrategiaPericial(processoId, data, resp.trim() || null, hora || null);
     setIsPending(false);
     if ("error" in r) {
       setMensagem({ tipo: "erro", texto: r.error });
       return;
     }
-    setEditandoHora(false);
-    setMensagem({ tipo: "ok", texto: hora ? "Horário salvo." : "Horário removido." });
+    setEditando(false);
+    setMensagem({ tipo: "ok", texto: "Reunião atualizada." });
     router.refresh();
   }
 
-  async function limparReuniao() {
+  async function encerrar(situacao: ReuniaoEstrategiaSituacao) {
+    const rotulo = situacao === "realizada" ? "realizada" : "cancelada";
+    if (!window.confirm(`Marcar a reunião como ${rotulo}? Ela sai de "O que cumprir" e fica no histórico.`)) return;
     setIsPending(true);
-    const r = await salvarReuniaoEstrategiaPericial(processoId, null, null);
+    const r = await encerrarReuniaoEstrategiaPericial(processoId, situacao);
     setIsPending(false);
     if ("error" in r) {
       setMensagem({ tipo: "erro", texto: r.error });
       return;
     }
-    setMensagem({ tipo: "ok", texto: "Reunião removida." });
+    // O formulário de nova reunião não herda a data da anterior.
+    setData("");
+    setHora("");
+    setResp("");
+    setMensagem({ tipo: "ok", texto: `Reunião registrada como ${rotulo}.` });
     router.refresh();
   }
 
@@ -117,51 +136,75 @@ export function ReuniaoEstrategiaPericialPanel({
             </Selo>
             {responsavel && <span>Responsável: {responsavel}</span>}
           </p>
-          {editandoHora ? (
-            <div className="flex flex-wrap items-end gap-3">
-              <div>
-                <label htmlFor="reuniao_estrategia_hora_edicao" className={labelClass}>
-                  Horário
-                </label>
-                <input
-                  id="reuniao_estrategia_hora_edicao"
-                  type="time"
-                  value={hora}
-                  onChange={(e) => setHora(e.target.value)}
-                  className={inputClass}
-                />
+          {editando ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="reuniao_estrategia_data_edicao" className={labelClass}>
+                    Data da reunião
+                  </label>
+                  <input
+                    id="reuniao_estrategia_data_edicao"
+                    type="date"
+                    value={data}
+                    onChange={(e) => setData(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="reuniao_estrategia_hora_edicao" className={labelClass}>
+                    Horário
+                  </label>
+                  <input
+                    id="reuniao_estrategia_hora_edicao"
+                    type="time"
+                    value={hora}
+                    onChange={(e) => setHora(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="reuniao_estrategia_responsavel_edicao" className={labelClass}>
+                    Responsável
+                  </label>
+                  <select
+                    id="reuniao_estrategia_responsavel_edicao"
+                    value={resp}
+                    onChange={(e) => setResp(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">Selecione…</option>
+                    {nomesResponsaveis.map((nome) => (
+                      <option key={nome} value={nome}>
+                        {nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <Botao onClick={() => salvarSoHorario()} disabled={isPending} carregando={isPending} textoCarregando="Salvando…">
-                Salvar horário
-              </Botao>
-              <button
-                type="button"
-                onClick={() => setEditandoHora(false)}
-                className="text-sm text-nevoa-500 hover:text-nevoa-800 dark:text-nevoa-400 dark:hover:text-nevoa-100 pb-2"
-              >
-                Cancelar
-              </button>
-            </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Botao onClick={() => salvarEdicao()} disabled={isPending} carregando={isPending} textoCarregando="Salvando…">
+                  Salvar
+                </Botao>
+                <button
+                  type="button"
+                  onClick={() => setEditando(false)}
+                  className="text-sm text-nevoa-500 hover:text-nevoa-800 dark:text-nevoa-400 dark:hover:text-nevoa-100"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </>
           ) : (
             <div className="flex flex-wrap gap-3">
-              <Botao
-                variante="secundaria"
-                onClick={() => {
-                  setHora(reuniaoHora ? reuniaoHora.slice(0, 5) : "");
-                  setEditandoHora(true);
-                }}
-                disabled={isPending}
-              >
-                {reuniaoHora ? "Alterar horário" : "Incluir horário"}
+              <Botao variante="secundaria" onClick={abrirEdicao} disabled={isPending}>
+                Editar data
               </Botao>
-              <Botao
-                variante="secundaria"
-                onClick={() => limparReuniao()}
-                disabled={isPending}
-                carregando={isPending}
-                textoCarregando="Salvando…"
-              >
-                Remover data
+              <Botao variante="secundaria" onClick={() => encerrar("realizada")} disabled={isPending}>
+                Realizada
+              </Botao>
+              <Botao variante="secundaria" onClick={() => encerrar("cancelada")} disabled={isPending}>
+                Cancelada
               </Botao>
             </div>
           )}
@@ -222,6 +265,26 @@ export function ReuniaoEstrategiaPericialPanel({
             Marcar reunião
           </Botao>
         </>
+      )}
+
+      {historico.length > 0 && (
+        <div className="space-y-1.5 border-t border-nevoa-200 dark:border-nevoa-800 pt-3">
+          <p className="text-xs font-medium text-nevoa-500 dark:text-nevoa-400">Histórico</p>
+          <ul className="space-y-1">
+            {historico.map((h) => (
+              <li key={h.id} className="flex flex-wrap items-center gap-2 text-xs text-nevoa-600 dark:text-nevoa-400">
+                <Selo variante={h.situacao === "realizada" ? "sucesso" : "neutro"}>
+                  {h.situacao === "realizada" ? "Realizada" : "Cancelada"}
+                </Selo>
+                <span>
+                  {dataCurta(h.data)}
+                  {h.hora ? ` às ${h.hora.slice(0, 5)}` : ""}
+                  {h.responsavel ? ` · ${h.responsavel}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {mensagem && <Toast tipo={mensagem.tipo} texto={mensagem.texto} onClose={() => setMensagem(null)} />}

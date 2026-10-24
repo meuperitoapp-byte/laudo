@@ -82,6 +82,8 @@ export async function uploadDocumento(processoId: string, formData: FormData): P
     // Anexo de um documento/prova complementar da Estratégia Pericial
     // (lote 15/10/2026) — mesmo pipeline, só marca a qual item pertence.
     estrategia_documento_prova_id: textoOuNull(formData.get("estrategia_documento_prova_id")),
+    // Anexo de uma ação do Plano de ação pericial (lote 20/10/2026).
+    estrategia_plano_acao_id: textoOuNull(formData.get("estrategia_plano_acao_id")),
   };
 
   const { error: erroInsert } = await supabase.from("documentos").insert(insert);
@@ -94,7 +96,7 @@ export async function uploadDocumento(processoId: string, formData: FormData): P
   // Documento pode aparecer também no painel de etapa da tela do processo
   // (AnexoEtapaAtPanel) quando `etapa_at` está preenchido.
   revalidatePath(`/processos/${processoId}`);
-  if (insert.estrategia_documento_prova_id) revalidatePath(`/processos/${processoId}/estrategia-pericial`);
+  if (insert.estrategia_documento_prova_id || insert.estrategia_plano_acao_id) revalidatePath(`/processos/${processoId}/estrategia-pericial`);
   return { success: true };
 }
 

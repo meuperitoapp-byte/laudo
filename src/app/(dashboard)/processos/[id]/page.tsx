@@ -155,6 +155,7 @@ export default async function ProcessoDetalhePage({
     nomesResponsaveis,
     { data: quesitosDocDb, error: erroQuesitosDoc },
     { data: replicaDb, error: erroReplica },
+    { data: historicoReunioesDb, error: erroHistoricoReunioes },
   ] = await Promise.all([
     supabase.from("processo_partes").select("*").eq("processo_id", id).order("ordem", { ascending: true }),
     // Gate do Módulo Pós-Laudo: a aba só abre quando existe um laudo (tipo =
@@ -203,7 +204,15 @@ export default async function ProcessoDetalhePage({
     temReplica
       ? supabase.from("replicas").select("prazo_entrega, entregue_em, entregue_via").eq("processo_id", id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    // Histórico das reuniões de Estratégia pericial encerradas (lote 20/10/2026).
+    temEstrategiaPericial
+      ? supabase.from("reunioes_estrategia_historico").select("*").eq("processo_id", id).order("registrado_em", { ascending: false })
+      : Promise.resolve({ data: null, error: null }),
   ]);
+  if (erroHistoricoReunioes) {
+    console.error(`Processo ${id}: falha ao buscar histórico de reuniões:`, erroHistoricoReunioes.message);
+    erros.push("o histórico de reuniões");
+  }
   const { data: tipoLaudo, error: erroTipoLaudo } = tipoLaudoResultado;
   if (erroQuesitosDoc) {
     console.error(`Processo ${id}: falha ao buscar entrega dos quesitos:`, erroQuesitosDoc.message);
@@ -486,6 +495,7 @@ export default async function ProcessoDetalhePage({
           reuniaoHora={processo.estrategia_pericial_reuniao_hora}
           responsavel={processo.estrategia_pericial_responsavel}
           nomesResponsaveis={nomesResponsaveis}
+          historico={historicoReunioesDb ?? []}
         />
       )}
 
@@ -581,9 +591,12 @@ export default async function ProcessoDetalhePage({
             Quesitos
           </Link>
         )}
-        <Link href={`/processos/${processo.id}/documentos`} className={classesBotao("secundaria")}>
-          Documentos
-        </Link>
+        {/* AT sem Parecer técnico: os próximos passos são os cards da sequência acima (pedido dela, 20/10/2026) — fica só "Editar dados do processo". */}
+        {!(ehAssistenciaTecnica && !mostrarLaudoTradicional) && (
+          <Link href={`/processos/${processo.id}/documentos`} className={classesBotao("secundaria")}>
+            Documentos
+          </Link>
+        )}
         {processo.tipo_trabalho === "pericia_judicial" && (
           <Link href={`/processos/${processo.id}/fluxo-principal`} className={classesBotao("secundaria")}>
             Fluxo Principal

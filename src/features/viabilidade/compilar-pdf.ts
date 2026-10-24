@@ -351,6 +351,40 @@ function montarSecaoXI(analise: CamposExternosAnalise): SecaoCompilada {
   return { secaoId: "av-xi", codigo: "av_conclusao", titulo: "XI — CONCLUSÃO DA VIABILIDADE TÉCNICO-PERICIAL", ordem: 11, blocos };
 }
 
+const ALGARISMOS_ROMANOS: [number, string][] = [
+  [10, "X"],
+  [9, "IX"],
+  [5, "V"],
+  [4, "IV"],
+  [1, "I"],
+];
+
+function emRomano(n: number): string {
+  let resto = n;
+  let romano = "";
+  for (const [valor, simbolo] of ALGARISMOS_ROMANOS) {
+    while (resto >= valor) {
+      romano += simbolo;
+      resto -= valor;
+    }
+  }
+  return romano;
+}
+
+/**
+ * Seções sem conteúdo são omitidas do documento, então a numeração fixa do
+ * modelo (I a XI) deixava buracos (I, II, III, IX, XI). Renumera em sequência
+ * só entre as que de fato aparecem (lote 20/10/2026). `ordem` vem de `indice`
+ * pra seguir a posição real no documento.
+ */
+function renumerarSecoesVisiveis(secoes: SecaoCompilada[]): SecaoCompilada[] {
+  return secoes.map((secao, indice) => ({
+    ...secao,
+    ordem: indice + 1,
+    titulo: secao.titulo.replace(/^[IVX]+\s+—\s+/, `${emRomano(indice + 1)} — `),
+  }));
+}
+
 export async function compilarAnaliseViabilidade(processoId: string): Promise<ResultadoCompilacaoViabilidade> {
   const supabase = await createClient();
 
@@ -427,6 +461,7 @@ export async function compilarAnaliseViabilidade(processoId: string): Promise<Re
     montarSecaoX(analise, oportunidadesDb ?? []),
     montarSecaoXI(analise),
   ].filter((s): s is SecaoCompilada => s !== null);
+  const secoesNumeradas = renumerarSecoesVisiveis(secoes);
 
   const modelo: ModeloLaudo = {
     processoId,
@@ -437,7 +472,7 @@ export async function compilarAnaliseViabilidade(processoId: string): Promise<Re
     geradoEm: new Date().toISOString(),
     cabecalho,
     apresentacao: "",
-    secoes,
+    secoes: secoesNumeradas,
     imagensPericia: [],
   };
 

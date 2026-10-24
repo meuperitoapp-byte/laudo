@@ -480,6 +480,8 @@ export type DocumentosRow = {
   necessidade_especialista_id: string | null
   /** Vínculo opcional com um item de estrategia_documentos_provas (migration 20261015120000). */
   estrategia_documento_prova_id: string | null
+  /** Vínculo opcional com uma ação de estrategia_plano_acao (migration 20261020120000). */
+  estrategia_plano_acao_id: string | null
   created_at: string
   updated_at: string
 }
@@ -500,6 +502,7 @@ export type DocumentosInsert = ComDefaults<
   | 'etapa_at'
   | 'necessidade_especialista_id'
   | 'estrategia_documento_prova_id'
+  | 'estrategia_plano_acao_id'
   | 'created_at'
   | 'updated_at'
 >
@@ -2663,6 +2666,20 @@ export type ChatLeiturasRow = {
 export type ChatLeiturasInsert = ComDefaults<ChatLeiturasRow, 'lido_em'>
 export type ChatLeiturasUpdate = Partial<ChatLeiturasRow>
 
+/** Reuniões de Estratégia pericial encerradas (migration 20261020120000). */
+export type ReuniaoEstrategiaSituacao = 'realizada' | 'cancelada'
+export type ReunioesEstrategiaHistoricoRow = {
+  id: string
+  processo_id: string
+  data: string
+  hora: string | null
+  responsavel: string | null
+  situacao: ReuniaoEstrategiaSituacao
+  registrado_em: string
+}
+export type ReunioesEstrategiaHistoricoInsert = ComDefaults<ReunioesEstrategiaHistoricoRow, 'id' | 'hora' | 'responsavel' | 'registrado_em'>
+export type ReunioesEstrategiaHistoricoUpdate = Partial<ReunioesEstrategiaHistoricoRow>
+
 // ============================================================================
 // Database — shape esperado por createClient<Database>()
 // ============================================================================
@@ -2955,6 +2972,12 @@ export interface Database {
         Row: ChatLeiturasRow
         Insert: ChatLeiturasInsert
         Update: ChatLeiturasUpdate
+        Relationships: []
+      }
+      reunioes_estrategia_historico: {
+        Row: ReunioesEstrategiaHistoricoRow
+        Insert: ReunioesEstrategiaHistoricoInsert
+        Update: ReunioesEstrategiaHistoricoUpdate
         Relationships: []
       }
       central_itens_concluidos: {

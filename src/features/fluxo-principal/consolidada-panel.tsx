@@ -9,6 +9,7 @@ import { Selo } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
 import { GerarDocumentoPanel, type VersaoDocumento } from "./gerar-documento-panel";
 import { HONORARIOS_SITUACAO_ORDENADA, HONORARIOS_SITUACAO_ROTULOS, HONORARIOS_COMPLEXIDADE_ORDENADA, HONORARIOS_COMPLEXIDADE_ROTULOS } from "./rotulos";
+import { InputMoeda } from "@/components/ui/input-moeda";
 import type { ProcessosRow } from "@/types/database";
 
 const inputClass =
@@ -259,14 +260,7 @@ export function ConsolidadaPanel({
             <label htmlFor="honorarios_valor_hora" className={labelClass}>
               Valor da hora técnica (R$)
             </label>
-            <input
-              id="honorarios_valor_hora"
-              type="number"
-              step="0.01"
-              value={fh.valorHora}
-              onChange={(e) => setH("valorHora", e.target.value)}
-              className={inputClass}
-            />
+            <InputMoeda id="honorarios_valor_hora" value={fh.valorHora} onChange={(v) => setH("valorHora", v)} className={inputClass} />
           </div>
         </div>
         <Botao

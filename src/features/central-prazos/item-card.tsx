@@ -3,6 +3,7 @@ import { Selo } from "@/components/ui/badge";
 import { CATEGORIAS_CONCLUIVEIS, NIVEL_ROTULOS, NIVEL_SELO_VARIANTE, URGENTE_BADGE_CLASSE } from "@/features/central-prazos/rotulos";
 import { assinaturaItem } from "@/features/central-prazos/regras";
 import { ConcluirItemBotao } from "@/features/central-prazos/concluir-item-botao";
+import { ReuniaoAcoesBotoes } from "@/features/central-prazos/reuniao-acoes-botoes";
 import type { ItemPainel } from "@/features/central-prazos/tipos";
 
 /** "YYYY-MM-DD" -> "DD/MM/AAAA", sem passar por `Date` (evita fuso horário). */
@@ -57,6 +58,11 @@ export function ItemCard({ item }: { item: ItemPainel }) {
           )}
         </div>
       </Link>
+      {item.categoria === "reuniao_estrategia_pericial" && (
+        <div className="px-4 pb-3 -mt-1.5">
+          <ReuniaoAcoesBotoes processoId={item.id.slice("reuniao_estrategia_pericial-".length)} />
+        </div>
+      )}
       {concluivel && (
         <div className="flex justify-end px-4 pb-3 -mt-1.5">
           <ConcluirItemBotao

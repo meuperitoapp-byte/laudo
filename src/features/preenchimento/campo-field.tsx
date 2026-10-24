@@ -201,8 +201,8 @@ export function CampoField({
             <textarea
               value={resposta.textoLivre ?? ""}
               onChange={(e) => patch({ textoLivre: e.target.value || null })}
-              rows={2}
-              className="w-full rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-2 py-1.5 text-sm text-nevoa-900 dark:text-nevoa-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
+              rows={4}
+              className="w-full min-h-24 resize-y rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-2 py-1.5 text-sm text-nevoa-900 dark:text-nevoa-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
             />
             <ReutilizavelControles
               campoId={campo.id}
@@ -231,9 +231,9 @@ export function CampoField({
           <textarea
             value={resposta.textoLivre ?? ""}
             onChange={(e) => patch({ textoLivre: e.target.value || null })}
-            rows={1}
+            rows={4}
             placeholder="Individualize/detalhe a resposta acima, se necessário"
-            className="w-full rounded-md border border-nevoa-200 dark:border-nevoa-800 bg-transparent px-2 py-1 text-sm text-nevoa-700 dark:text-nevoa-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
+            className="w-full min-h-24 resize-y rounded-md border border-nevoa-200 dark:border-nevoa-800 bg-transparent px-2 py-1 text-sm text-nevoa-700 dark:text-nevoa-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-petroleo-500"
           />
           <ReutilizavelControles
             campoId={campo.id}
