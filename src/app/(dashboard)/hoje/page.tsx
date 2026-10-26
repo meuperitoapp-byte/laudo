@@ -5,6 +5,8 @@ import { classesBotao } from "@/components/ui/button";
 import { montarPainel } from "@/features/central-prazos/agregador";
 import { filtrarPorAcesso } from "@/features/central-prazos/regras";
 import { ItemCard } from "@/features/central-prazos/item-card";
+import { ServicoFiltro } from "@/features/central-prazos/servico-filtro";
+import { itemDoServico, servicoValido } from "@/features/central-prazos/servico";
 import type { ItemPainel } from "@/features/central-prazos/tipos";
 import { obterContextoAcesso } from "@/features/acessos/contexto";
 
@@ -29,10 +31,11 @@ const ABAS = [
 export default async function HojePage({
   searchParams,
 }: {
-  searchParams: Promise<{ aba?: string }>;
+  searchParams: Promise<{ aba?: string; servico?: string }>;
 }) {
-  const { aba } = await searchParams;
+  const { aba, servico } = await searchParams;
   const abaAtiva = aba === "proximos" ? "proximos" : "hoje";
+  const servicoAtivo = servicoValido(servico);
 
   const supabase = await createClient();
   // getSession() (não getUser()) — o middleware já validou o token pra esta
@@ -47,7 +50,16 @@ export default async function HojePage({
     montarPainel(supabase),
     session?.user.email ? obterContextoAcesso(supabase, session.user.email) : Promise.resolve({ tipo: "admin" as const }),
   ]);
-  const itens = filtrarPorAcesso(todosItens, contexto);
+  const itensDoAcesso = filtrarPorAcesso(todosItens, contexto);
+  const itens = servicoAtivo ? itensDoAcesso.filter((i) => itemDoServico(i, servicoAtivo)) : itensDoAcesso;
+  // Abas preservam o serviço escolhido.
+  const hrefAba = (valor: string) => {
+    const params = new URLSearchParams();
+    if (valor === "proximos") params.set("aba", "proximos");
+    if (servicoAtivo) params.set("servico", servicoAtivo);
+    const qs = params.toString();
+    return qs ? `/hoje?${qs}` : "/hoje";
+  };
 
   const hoje = itens.filter((i) => i.nivel === "critica" || i.nivel === "urgente");
   const dentroDoPrazo = itens.filter((i) => i.nivel === "alta" || i.nivel === "atencao" || i.nivel === "programada");
@@ -79,14 +91,15 @@ export default async function HojePage({
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-nevoa-200 dark:border-nevoa-800">
+      <div className="flex items-end justify-between gap-3 border-b border-nevoa-200 dark:border-nevoa-800">
+        <div className="flex gap-2">
         {ABAS.map((a) => {
           const contagem = a.valor === "hoje" ? hoje.length : dentroDoPrazo.length + semPrazo.length;
           const ativa = a.valor === abaAtiva;
           return (
             <Link
               key={a.valor}
-              href={a.valor === "hoje" ? "/hoje" : "/hoje?aba=proximos"}
+              href={hrefAba(a.valor)}
               className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 ativa
                   ? "border-petroleo-600 text-petroleo-700 dark:border-petroleo-400 dark:text-petroleo-400"
@@ -97,14 +110,19 @@ export default async function HojePage({
             </Link>
           );
         })}
+        </div>
+        <div className="pb-1.5">
+          <ServicoFiltro />
+        </div>
       </div>
 
       {itens.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-nevoa-300 dark:border-nevoa-700 bg-white dark:bg-nevoa-900/40 px-6 py-14 text-center">
           <CheckCircle2 className="h-8 w-8 text-musgo-600 dark:text-musgo-400" />
           <p className="text-sm text-nevoa-600 dark:text-nevoa-400 max-w-sm">
-            Nada pendente no momento — nenhum ciclo aberto, laudo sem protocolar ou item
-            esperando providência.
+            {servicoAtivo
+              ? "Nenhum item pendente para este serviço."
+              : "Nada pendente no momento — nenhum ciclo aberto, laudo sem protocolar ou item esperando providência."}
           </p>
         </div>
       ) : abaAtiva === "hoje" ? (

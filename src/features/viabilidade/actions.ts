@@ -115,7 +115,9 @@ export async function garantirAnaliseViabilidade(
     .single();
   if (erroInsert) return { error: erroInsert.message };
 
-  revalidatePath(`/processos/${processoId}/viabilidade`);
+  // Sem revalidatePath aqui: esta função roda durante a renderização da
+  // página (viabilidade/page.tsx) e o Next proíbe revalidar nesse momento —
+  // dava erro de servidor na 1ª abertura da análise (relato dela, 26/10/2026).
   return { data: criada };
 }
 
