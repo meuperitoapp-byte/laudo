@@ -3,7 +3,8 @@ import { Plus, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { classesBotao } from "@/components/ui/button";
 import { montarPainel } from "@/features/central-prazos/agregador";
-import { filtrarPorAcesso } from "@/features/central-prazos/regras";
+import { filtrarPorAcesso, normalizarNome } from "@/features/central-prazos/regras";
+import { NOME_ADMIN_ORIGINAL } from "@/lib/supabase/responsaveis";
 import { ItemCard } from "@/features/central-prazos/item-card";
 import { ServicoFiltro } from "@/features/central-prazos/servico-filtro";
 import { itemDoServico, servicoValido } from "@/features/central-prazos/servico";
@@ -31,11 +32,12 @@ const ABAS = [
 export default async function HojePage({
   searchParams,
 }: {
-  searchParams: Promise<{ aba?: string; servico?: string }>;
+  searchParams: Promise<{ aba?: string; servico?: string; visao?: string }>;
 }) {
-  const { aba, servico } = await searchParams;
+  const { aba, servico, visao } = await searchParams;
   const abaAtiva = aba === "proximos" ? "proximos" : "hoje";
   const servicoAtivo = servicoValido(servico);
+  const verTudo = visao === "tudo";
 
   const supabase = await createClient();
   // getSession() (não getUser()) — o middleware já validou o token pra esta
@@ -51,15 +53,25 @@ export default async function HojePage({
     session?.user.email ? obterContextoAcesso(supabase, session.user.email) : Promise.resolve({ tipo: "admin" as const }),
   ]);
   const itensDoAcesso = filtrarPorAcesso(todosItens, contexto);
-  const itens = servicoAtivo ? itensDoAcesso.filter((i) => itemDoServico(i, servicoAtivo)) : itensDoAcesso;
-  // Abas preservam o serviço escolhido.
-  const hrefAba = (valor: string) => {
+  // "Minhas atividades" (27/10/2026, pedido dela): quem é admin entra vendo só
+  // o que é seu e troca pra "Ver tudo" quando quiser analisar o conjunto.
+  // Perfil restrito já vem filtrado por `filtrarPorAcesso`.
+  const ehAdmin = contexto.tipo === "admin";
+  const itensDaVisao =
+    ehAdmin && !verTudo
+      ? itensDoAcesso.filter((i) => i.responsavel !== null && normalizarNome(i.responsavel) === normalizarNome(NOME_ADMIN_ORIGINAL))
+      : itensDoAcesso;
+  const itens = servicoAtivo ? itensDaVisao.filter((i) => itemDoServico(i, servicoAtivo)) : itensDaVisao;
+  // Abas e visão preservam o serviço escolhido.
+  const montarHref = (opcoes: { aba: string; tudo: boolean }) => {
     const params = new URLSearchParams();
-    if (valor === "proximos") params.set("aba", "proximos");
+    if (opcoes.aba === "proximos") params.set("aba", "proximos");
     if (servicoAtivo) params.set("servico", servicoAtivo);
+    if (opcoes.tudo) params.set("visao", "tudo");
     const qs = params.toString();
     return qs ? `/hoje?${qs}` : "/hoje";
   };
+  const hrefAba = (valor: string) => montarHref({ aba: valor, tudo: verTudo });
 
   const hoje = itens.filter((i) => i.nivel === "critica" || i.nivel === "urgente");
   const dentroDoPrazo = itens.filter((i) => i.nivel === "alta" || i.nivel === "atencao" || i.nivel === "programada");
@@ -111,7 +123,15 @@ export default async function HojePage({
           );
         })}
         </div>
-        <div className="pb-1.5">
+        <div className="flex items-center gap-2 pb-1.5">
+          {ehAdmin && (
+            <Link
+              href={montarHref({ aba: abaAtiva, tudo: !verTudo })}
+              className={classesBotao(verTudo ? "primaria" : "secundaria")}
+            >
+              {verTudo ? "Ver só as minhas" : "Ver tudo"}
+            </Link>
+          )}
           <ServicoFiltro />
         </div>
       </div>

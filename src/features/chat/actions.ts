@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { obterContextoAcesso } from "@/features/acessos/contexto";
 import { nomeExibicaoDoEmail } from "@/lib/supabase/responsaveis";
@@ -41,6 +42,9 @@ async function nomeDoAutor(supabase: SupabaseClient<Database>, email: string): P
 export async function enviarMensagem(formData: FormData): Promise<ActionResult> {
   const texto = (formData.get("texto") as string | null)?.trim() || null;
   const mencionado_nome = (formData.get("mencionado_nome") as string | null)?.trim() || null;
+  // Caso ao qual a conversa pertence (opcional, 27/10/2026) — a mensagem
+  // também aparece na tela do processo.
+  const processo_id = (formData.get("processo_id") as string | null)?.trim() || null;
   // Anexo já subiu direto do navegador (src/lib/supabase/upload-direto.ts) —
   // aqui só chegam os metadados.
   const arquivo = lerMetadadosArquivo(formData);
@@ -64,6 +68,7 @@ export async function enviarMensagem(formData: FormData): Promise<ActionResult> 
     autor_nome,
     texto,
     mencionado_nome,
+    processo_id,
     arquivo_path,
     arquivo_nome,
     arquivo_tipo,
@@ -74,8 +79,36 @@ export async function enviarMensagem(formData: FormData): Promise<ActionResult> 
     if (arquivo_path) await supabase.storage.from(BUCKET_CHAT_ARQUIVOS).remove([arquivo_path]);
     return { error: error.message };
   }
+  if (processo_id) revalidatePath(`/processos/${processo_id}`);
 
   return { success: true, mensagem: data };
+}
+
+/**
+ * "Marcar como respondida" (27/10/2026) — limpa o "falta responder" de uma
+ * mensagem direcionada a quem está logado (ex.: respondeu por telefone, fora
+ * do chat). Só quem foi direcionado pode marcar.
+ */
+export async function marcarMensagemRespondida(id: string): Promise<{ error: string } | { success: true; respondidaEm: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return { error: "Sessão inválida — recarregue a página e faça login de novo." };
+
+  const meuNome = await nomeDoAutor(supabase, user.email);
+  const respondidaEm = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("chat_mensagens")
+    .update({ respondida_em: respondidaEm })
+    .eq("id", id)
+    .eq("mencionado_nome", meuNome)
+    .select("id, processo_id")
+    .maybeSingle();
+  if (error) return { error: error.message };
+  if (!data) return { error: "Só quem recebeu a mensagem pode marcá-la como respondida." };
+  if (data.processo_id) revalidatePath(`/processos/${data.processo_id}`);
+  return { success: true, respondidaEm };
 }
 
 /** Recontagem pedida pelo menu (fallback do Realtime: a cada minuto e quando a aba volta ao foco). `null` = não deu pra contar agora. */

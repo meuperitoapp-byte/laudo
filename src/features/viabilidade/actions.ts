@@ -1631,9 +1631,18 @@ export async function salvarPosEntrega(formData: FormData): Promise<ActionResult
 
   const orcamentoEnviado = (formData.get("pos_entrega_orcamento_enviado") as ViabilidadeOrcamentoEnviado | "") || null;
 
+  const reuniao = (formData.get("pos_entrega_reuniao") as ViabilidadePosEntregaReuniao | "") || null;
+  // Data/horário só fazem sentido enquanto a reunião está "a agendar" — mudou
+  // a resposta (houve/não houve), a data some junto, igual ao orçamento abaixo.
+  const reuniaoEm = reuniao === "agendar" ? textoOuNull(formData.get("pos_entrega_reuniao_em")) : null;
+  const reuniaoHoraBruta = textoOuNull(formData.get("pos_entrega_reuniao_hora"));
+  const reuniaoHora = reuniaoEm && reuniaoHoraBruta && /^\d{2}:\d{2}$/.test(reuniaoHoraBruta) ? reuniaoHoraBruta : null;
+
   const supabase = await createClient();
   const update: AnalisesViabilidadeUpdate = {
-    pos_entrega_reuniao: (formData.get("pos_entrega_reuniao") as ViabilidadePosEntregaReuniao | "") || null,
+    pos_entrega_reuniao: reuniao,
+    pos_entrega_reuniao_em: reuniaoEm,
+    pos_entrega_reuniao_hora: reuniaoHora,
     pos_entrega_retorno_d7_em: textoOuNull(formData.get("pos_entrega_retorno_d7_em")),
     pos_entrega_satisfacao: (formData.get("pos_entrega_satisfacao") as ViabilidadeSatisfacao | "") || null,
     pos_entrega_orcamento_enviado: orcamentoEnviado,

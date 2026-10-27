@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
  * aqui, não uma linha de `perfil_usuarios` (evita ela cair sob um perfil
  * restrito por engano se alguém editar essa tabela depois).
  */
-const NOME_ADMIN_ORIGINAL = "Dra. Fernanda";
+export const NOME_ADMIN_ORIGINAL = "Dra. Fernanda";
 
 /**
  * Lista os nomes de exibição dos logins já criados (perfil_usuarios) — usado

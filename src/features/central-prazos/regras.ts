@@ -108,7 +108,13 @@ export function nivelPorPrazo(prazoIso: string | null, hojeIso: string): NivelUr
  */
 export function filtrarPorAcesso(itens: ItemPainel[], contexto: ContextoAcesso): ItemPainel[] {
   if (contexto.tipo === "admin") return itens;
-  return itens.filter((i) => i.responsavel === contexto.nomeExibicao);
+  const meuNome = normalizarNome(contexto.nomeExibicao);
+  return itens.filter((i) => i.responsavel !== null && normalizarNome(i.responsavel) === meuNome);
+}
+
+/** Compara nomes sem depender de acento, caixa ou espaço sobrando ("Patrícia" = "patricia "). */
+export function normalizarNome(nome: string): string {
+  return nome.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
 }
 
 /**

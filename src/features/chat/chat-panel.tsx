@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Paperclip, Download, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { enviarMensagem } from "./actions";
+import Link from "next/link";
+import { enviarMensagem, marcarMensagemRespondida } from "./actions";
 import { anexarMetadadosArquivo, enviarArquivoDireto } from "@/lib/supabase/upload-direto";
 import { BUCKET_CHAT_ARQUIVOS, TAMANHO_MAXIMO_ARQUIVO_BYTES } from "./constants";
 import { AvatarCirculo } from "@/features/perfil/avatar-form";
@@ -67,6 +68,7 @@ export function ChatPanel({
   nomesResponsaveis,
   avatares,
   nomesPorEmail,
+  casos,
 }: {
   mensagensIniciais: ChatMensagensRow[];
   meuEmail: string;
@@ -76,12 +78,16 @@ export function ChatPanel({
   avatares: Record<string, string>;
   /** email -> nome de exibição ATUAL (não o gravado na mensagem no momento do envio) — ver comentário em mapaNomesPorEmail. */
   nomesPorEmail: Record<string, string>;
+  /** Casos em andamento pra ligar a conversa (opcional) — a mensagem fica salva também no caso. */
+  casos: { id: string; rotulo: string }[];
 }) {
   const [mensagens, setMensagens] = useState(mensagensIniciais);
   const [texto, setTexto] = useState("");
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [mencionadoNome, setMencionadoNome] = useState("");
   const [soMinhasMencoes, setSoMinhasMencoes] = useState(false);
+  const [soPendentes, setSoPendentes] = useState(false);
+  const [processoId, setProcessoId] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [urlsAnexos, setUrlsAnexos] = useState<Record<string, string>>({});
   const [isPending, startTransition] = useTransition();
@@ -98,6 +104,14 @@ export function ChatPanel({
         (payload) => {
           const nova = payload.new as ChatMensagensRow;
           setMensagens((atual) => (atual.some((m) => m.id === nova.id) ? atual : [...atual, nova]));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chat_mensagens" },
+        (payload) => {
+          const atualizada = payload.new as ChatMensagensRow;
+          setMensagens((atual) => atual.map((m) => (m.id === atualizada.id ? { ...m, ...atualizada } : m)));
         },
       )
       .subscribe();
@@ -123,10 +137,49 @@ export function ChatPanel({
     })();
   }, [mensagens, urlsAnexos]);
 
-  const mensagensVisiveis = useMemo(
-    () => (soMinhasMencoes ? mensagens.filter((m) => m.mencionado_nome === meuNome) : mensagens),
-    [mensagens, soMinhasMencoes, meuNome],
+  const casoPorId = useMemo(() => new Map(casos.map((c) => [c.id, c.rotulo])), [casos]);
+
+  /**
+   * "Falta responder" (27/10/2026): mensagem direcionada fica pendente pra
+   * pessoa até ela mandar outra mensagem depois dela ou marcar como respondida.
+   * Calculado na leitura (sem coluna de estado), então nunca fica
+   * dessincronizado com o histórico.
+   */
+  const pendentes = useMemo(() => {
+    const nomeDe = (m: ChatMensagensRow) => nomesPorEmail[m.autor_email] ?? m.autor_nome;
+    const ids = new Set<string>();
+    mensagens.forEach((m, i) => {
+      if (!m.mencionado_nome || m.respondida_em || nomeDe(m) === m.mencionado_nome) return;
+      const respondeu = mensagens.slice(i + 1).some((depois) => nomeDe(depois) === m.mencionado_nome);
+      if (!respondeu) ids.add(m.id);
+    });
+    return ids;
+  }, [mensagens, nomesPorEmail]);
+  const totalPendentesParaMim = useMemo(
+    () => mensagens.filter((m) => pendentes.has(m.id) && m.mencionado_nome === meuNome).length,
+    [mensagens, pendentes, meuNome],
   );
+
+  const mensagensVisiveis = useMemo(
+    () =>
+      mensagens.filter((m) => {
+        if (soMinhasMencoes && m.mencionado_nome !== meuNome) return false;
+        if (soPendentes && !(pendentes.has(m.id) && m.mencionado_nome === meuNome)) return false;
+        return true;
+      }),
+    [mensagens, soMinhasMencoes, soPendentes, pendentes, meuNome],
+  );
+
+  function marcarRespondida(id: string) {
+    startTransition(async () => {
+      const r = await marcarMensagemRespondida(id).catch(() => ({ error: "Erro ao marcar — tente de novo." }));
+      if ("error" in r) {
+        setErro(r.error);
+        return;
+      }
+      setMensagens((atual) => atual.map((m) => (m.id === id ? { ...m, respondida_em: r.respondidaEm } : m)));
+    });
+  }
 
   useEffect(() => {
     fimDaListaRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -149,10 +202,12 @@ export function ChatPanel({
     const textoEnviado = texto;
     const arquivoEnviado = arquivo;
     const mencionadoEnviado = mencionadoNome;
+    const processoEnviado = processoId;
     formData.delete("arquivo");
     setTexto("");
     setArquivo(null);
     setMencionadoNome("");
+    setProcessoId("");
     if (inputArquivoRef.current) inputArquivoRef.current.value = "";
     startTransition(async () => {
       if (arquivoEnviado) {
@@ -162,6 +217,7 @@ export function ChatPanel({
           setTexto(textoEnviado);
           setArquivo(arquivoEnviado);
           setMencionadoNome(mencionadoEnviado);
+          setProcessoId(processoEnviado);
           return;
         }
         anexarMetadadosArquivo(formData, envio.arquivo);
@@ -172,6 +228,7 @@ export function ChatPanel({
         setTexto(textoEnviado);
         setArquivo(arquivoEnviado);
         setMencionadoNome(mencionadoEnviado);
+        setProcessoId(processoEnviado);
         return;
       }
       setMensagens((atual) => (atual.some((m) => m.id === resultado.mensagem.id) ? atual : [...atual, resultado.mensagem]));
@@ -182,7 +239,16 @@ export function ChatPanel({
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-nevoa-900/40">
-      <div className="flex items-center justify-end gap-2 px-4 py-1">
+      <div className="flex items-center justify-end gap-4 px-4 py-1">
+        {totalPendentesParaMim > 0 && (
+          <span className="rounded-full bg-ambar-400 px-2.5 py-0.5 text-xs font-medium text-nevoa-900 dark:bg-ambar-600 dark:text-nevoa-50">
+            {totalPendentesParaMim} falta{totalPendentesParaMim > 1 ? "m" : ""} responder
+          </span>
+        )}
+        <label className="flex items-center gap-1.5 text-xs text-nevoa-500 dark:text-nevoa-400">
+          <input type="checkbox" checked={soPendentes} onChange={(e) => setSoPendentes(e.target.checked)} />
+          Só o que falta responder
+        </label>
         <label className="flex items-center gap-1.5 text-xs text-nevoa-500 dark:text-nevoa-400">
           <input type="checkbox" checked={soMinhasMencoes} onChange={(e) => setSoMinhasMencoes(e.target.checked)} />
           Só minhas menções
@@ -192,7 +258,11 @@ export function ChatPanel({
       <ul className="flex-1 overflow-y-auto px-4 md:px-8 py-2 space-y-3">
         {grupos.length === 0 && (
           <p className="text-sm text-nevoa-500 dark:text-nevoa-400 text-center py-8">
-            {soMinhasMencoes ? "Nenhuma mensagem te mencionou ainda." : "Nenhuma mensagem ainda — escreva a primeira."}
+            {soPendentes
+              ? "Nada faltando responder."
+              : soMinhasMencoes
+                ? "Nenhuma mensagem te mencionou ainda."
+                : "Nenhuma mensagem ainda — escreva a primeira."}
           </p>
         )}
         {grupos.map((grupo) => {
@@ -233,6 +303,14 @@ export function ChatPanel({
                         borderColor: cor,
                       }}
                     >
+                      {m.processo_id && (
+                        <Link
+                          href={`/processos/${m.processo_id}`}
+                          className="mb-0.5 block text-[11px] font-medium underline text-petroleo-700 dark:text-petroleo-400"
+                        >
+                          Caso: {casoPorId.get(m.processo_id) ?? "ver processo"}
+                        </Link>
+                      )}
                       {m.mencionado_nome && (
                         <p className="text-[11px] font-medium mb-0.5" style={{ color: cor }}>
                           @{m.mencionado_nome}
@@ -260,6 +338,23 @@ export function ChatPanel({
                           )}
                         </div>
                       )}
+                      {pendentes.has(m.id) && (
+                        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                          <span className="rounded-full bg-ambar-400 px-2 py-0.5 text-[11px] font-medium text-nevoa-900 dark:bg-ambar-600 dark:text-nevoa-50">
+                            {m.mencionado_nome === meuNome ? "Falta você responder" : `Aguardando ${m.mencionado_nome} responder`}
+                          </span>
+                          {m.mencionado_nome === meuNome && (
+                            <button
+                              type="button"
+                              onClick={() => marcarRespondida(m.id)}
+                              disabled={isPending}
+                              className="text-[11px] underline text-petroleo-700 dark:text-petroleo-400 disabled:opacity-40"
+                            >
+                              Marcar como respondida
+                            </button>
+                          )}
+                        </div>
+                      )}
                       <p className="text-[11px] mt-1 text-right opacity-60">{dataHoraCurta(m.created_at)}</p>
                     </div>
                   );
@@ -283,6 +378,18 @@ export function ChatPanel({
             <option value="">Ninguém (mensagem geral)</option>
             {nomesResponsaveis.map((nome) => (
               <option key={nome} value={nome}>{nome}</option>
+            ))}
+          </select>
+          <label className="text-xs text-nevoa-500 dark:text-nevoa-400 shrink-0 ml-2">Caso:</label>
+          <select
+            name="processo_id"
+            value={processoId}
+            onChange={(e) => setProcessoId(e.target.value)}
+            className="min-w-0 max-w-[220px] rounded-md border border-nevoa-300 dark:border-nevoa-700 bg-transparent px-2 py-1 text-xs text-nevoa-900 dark:text-nevoa-100"
+          >
+            <option value="">Sem caso (conversa geral)</option>
+            {casos.map((c) => (
+              <option key={c.id} value={c.id}>{c.rotulo}</option>
             ))}
           </select>
         </div>

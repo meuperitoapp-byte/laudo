@@ -38,6 +38,7 @@ export interface ItemPainel {
     | "viabilidade_necessidade_especialista"
     | "viabilidade_proxima_acao"
     | "viabilidade_pos_entrega_reuniao"
+    | "viabilidade_reuniao_apresentacao"
     | "viabilidade_orcamento_sem_retorno"
     | "contestacao_solicitar_documento"
     | "contestacao_proxima_acao"

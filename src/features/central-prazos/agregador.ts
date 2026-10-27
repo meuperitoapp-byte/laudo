@@ -63,6 +63,7 @@
  */
 
 import type { createClient } from "@/lib/supabase/server";
+import { NOME_ADMIN_ORIGINAL } from "@/lib/supabase/responsaveis";
 import { assinaturaItem, hojeIsoBrasil, nivelPorPrazo, ordenarPainel, paraDiasUtc, somarDiasIso } from "./regras";
 import { PROVIDENCIA_POR_CATEGORIA } from "./rotulos";
 import { PROXIMA_ACAO_ROTULOS as CONTESTACAO_PROXIMA_ACAO_ROTULOS } from "@/features/contestacao/catalogos";
@@ -193,7 +194,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
     // agendar. Campo único do hub, sem prazo real.
     supabase
       .from("analises_viabilidade")
-      .select("id, processo_id, updated_at")
+      .select("id, processo_id, updated_at, pos_entrega_reuniao_em, pos_entrega_reuniao_hora")
       .eq("pos_entrega_reuniao", "agendar"),
     // Fonte 17 — orçamento enviado na Pós-entrega, aguardando retorno em D+7.
     // Prazo REAL calculado (data de envio + 7 dias) — o item some sozinho
@@ -706,6 +707,27 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   for (const p of posEntregaViabilidadeDb ?? []) {
     const processo = processoPorId.get(p.processo_id);
     if (!processo) continue; // processo não ativo — fora da Central
+    // Esteira (27/10/2026): a Patrícia agenda; quando ela informa a data, a
+    // reunião passa pra Agenda da Dra. Fernanda (responsável dela) até ela
+    // marcar "Sim, houve reunião" na Pós-entrega.
+    if (p.pos_entrega_reuniao_em) {
+      const hora = p.pos_entrega_reuniao_hora ? p.pos_entrega_reuniao_hora.slice(0, 5) : null;
+      itens.push({
+        id: `viabilidade_reuniao_apresentacao-${p.id}`,
+        categoria: "viabilidade_reuniao_apresentacao",
+        titulo: `Reunião de apresentação — ${identificarProcesso(processo)}`,
+        subtitulo: hora ? `Às ${hora}` : null,
+        providencia: PROVIDENCIA_POR_CATEGORIA.viabilidade_reuniao_apresentacao,
+        hora,
+        nivel: nivelPorPrazo(p.pos_entrega_reuniao_em, hoje),
+        prazo: p.pos_entrega_reuniao_em,
+        dataContexto: null,
+        ordenacao: p.pos_entrega_reuniao_em,
+        responsavel: NOME_ADMIN_ORIGINAL,
+        href: `/processos/${processo.id}/viabilidade/pos-entrega`,
+      });
+      continue;
+    }
     itens.push({
       id: `viabilidade_pos_entrega_reuniao-${p.id}`,
       categoria: "viabilidade_pos_entrega_reuniao",
@@ -716,8 +738,8 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: null,
       dataContexto: null,
       ordenacao: p.updated_at,
-      responsavel: null,
-      href: `/processos/${processo.id}/viabilidade`,
+      responsavel: "Patrícia",
+      href: `/processos/${processo.id}/viabilidade/pos-entrega`,
     });
   }
 
@@ -857,7 +879,7 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
       prazo: o.data_limite,
       dataContexto: null,
       ordenacao: o.data_limite,
-      responsavel: null,
+      responsavel: "Patrícia", // follow-up de continuidade é dela (retorno dos clientes)
       href: `/processos/${processo.id}/continuidade`,
     });
   }
@@ -964,7 +986,12 @@ export async function montarPainel(supabase: SupabaseServer): Promise<ItemPainel
   // só somem enquanto a assinatura bater: se a origem mudou depois (nova
   // próxima ação, novo prazo), o item volta, porque já é outra demanda.
   const assinaturaConcluida = new Map((itensConcluidosDb ?? []).map((c) => [c.item_id, c.assinatura]));
-  const pendentes = itens.filter((i) => assinaturaConcluida.get(i.id) !== assinaturaItem(i));
+  // "Sempre tem que ter um responsável" (Dra. Fernanda, 27/10/2026): item de
+  // fonte sem responsável natural fica com ela — senão sumia da visão de
+  // quem usa perfil restrito e da própria "Minhas atividades".
+  const pendentes = itens
+    .filter((i) => assinaturaConcluida.get(i.id) !== assinaturaItem(i))
+    .map((i) => (i.responsavel ? i : { ...i, responsavel: NOME_ADMIN_ORIGINAL }));
 
   return ordenarPainel(pendentes);
 }

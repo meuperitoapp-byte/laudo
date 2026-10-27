@@ -54,7 +54,7 @@ export function PosEntregaPanel({ analise }: { analise: AnalisesViabilidadeRow }
       // não são controlados, e o React 19 os resetava pro valor de quando a
       // tela abriu (não pro recém-salvo) depois de uma Server Action bem-
       // sucedida (bug real, 30/09/2026, print dela).
-      key={`${analise.pos_entrega_orcamento_enviado_em ?? ""}|${analise.pos_entrega_retorno_d7_em ?? ""}`}
+      key={`${analise.pos_entrega_orcamento_enviado_em ?? ""}|${analise.pos_entrega_retorno_d7_em ?? ""}|${analise.pos_entrega_reuniao_em ?? ""}|${analise.pos_entrega_reuniao_hora ?? ""}`}
       action={salvar}
       className="rounded-xl border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/60 p-6 space-y-4"
     >
@@ -85,6 +85,39 @@ export function PosEntregaPanel({ analise }: { analise: AnalisesViabilidadeRow }
           ))}
         </select>
       </div>
+
+      {reuniao === "agendar" && (
+        <div className="grid grid-cols-2 gap-4 rounded-lg border border-nevoa-200 dark:border-nevoa-800 p-4">
+          <div>
+            <label htmlFor="pos_entrega_reuniao_em" className={labelClass}>
+              Data da reunião agendada
+            </label>
+            <input
+              id="pos_entrega_reuniao_em"
+              type="date"
+              name="pos_entrega_reuniao_em"
+              defaultValue={analise.pos_entrega_reuniao_em ?? ""}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="pos_entrega_reuniao_hora" className={labelClass}>
+              Horário (opcional)
+            </label>
+            <input
+              id="pos_entrega_reuniao_hora"
+              type="time"
+              name="pos_entrega_reuniao_hora"
+              defaultValue={analise.pos_entrega_reuniao_hora ? analise.pos_entrega_reuniao_hora.slice(0, 5) : ""}
+              className={inputClass}
+            />
+          </div>
+          <p className="col-span-2 text-xs text-nevoa-500 dark:text-nevoa-400">
+            Ao informar a data, a reunião aparece na Agenda da Dra. Fernanda. Depois que acontecer, troque a resposta
+            acima para &ldquo;Sim&rdquo;.
+          </p>
+        </div>
+      )}
 
       {mostrarOrcamento && (
         <div className="grid grid-cols-2 gap-4 rounded-lg border border-nevoa-200 dark:border-nevoa-800 p-4">

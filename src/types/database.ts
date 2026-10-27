@@ -1914,6 +1914,9 @@ export type AnalisesViabilidadeRow = {
   pos_entrega_satisfacao: ViabilidadeSatisfacao | null
   pos_entrega_orcamento_enviado: ViabilidadeOrcamentoEnviado | null
   pos_entrega_orcamento_enviado_em: string | null
+  /** Data/horário da reunião de apresentação do resultado, informados ao agendar (migration 20261027120000). */
+  pos_entrega_reuniao_em: string | null
+  pos_entrega_reuniao_hora: string | null
   origem_modulo: ModuloOrigemCaso
   atualizado_por_modulo: ModuloOrigemCaso
   criado_por: string | null
@@ -1982,6 +1985,8 @@ export type AnalisesViabilidadeInsert = ComDefaults<
   | 'pos_entrega_satisfacao'
   | 'pos_entrega_orcamento_enviado'
   | 'pos_entrega_orcamento_enviado_em'
+  | 'pos_entrega_reuniao_em'
+  | 'pos_entrega_reuniao_hora'
   | 'origem_modulo'
   | 'atualizado_por_modulo'
   | 'criado_por'
@@ -2465,11 +2470,24 @@ export type ChatMensagensRow = {
   arquivo_nome: string | null
   arquivo_tipo: string | null
   arquivo_tamanho_bytes: number | null
+  /** Caso ao qual a conversa pertence (opcional) — migration 20261027120000. */
+  processo_id: string | null
+  /** Quando a pessoa direcionada marcou como respondida (limpa o "falta responder") — migration 20261027120000. */
+  respondida_em: string | null
   created_at: string
 }
 export type ChatMensagensInsert = ComDefaults<
   ChatMensagensRow,
-  'id' | 'texto' | 'mencionado_nome' | 'arquivo_path' | 'arquivo_nome' | 'arquivo_tipo' | 'arquivo_tamanho_bytes' | 'created_at'
+  | 'id'
+  | 'texto'
+  | 'mencionado_nome'
+  | 'arquivo_path'
+  | 'arquivo_nome'
+  | 'arquivo_tipo'
+  | 'arquivo_tamanho_bytes'
+  | 'processo_id'
+  | 'respondida_em'
+  | 'created_at'
 >
 export type ChatMensagensUpdate = Partial<ChatMensagensRow>
 

@@ -156,6 +156,7 @@ export default async function ProcessoDetalhePage({
     { data: quesitosDocDb, error: erroQuesitosDoc },
     { data: replicaDb, error: erroReplica },
     { data: historicoReunioesDb, error: erroHistoricoReunioes },
+    { data: conversaCasoDb },
   ] = await Promise.all([
     supabase.from("processo_partes").select("*").eq("processo_id", id).order("ordem", { ascending: true }),
     // Gate do Módulo Pós-Laudo: a aba só abre quando existe um laudo (tipo =
@@ -194,7 +195,7 @@ export default async function ProcessoDetalhePage({
           .order("created_at", { ascending: true })
       : Promise.resolve({ data: null, error: null }),
     temAnaliseViabilidade
-      ? supabase.from("analises_viabilidade").select("status").eq("processo_id", id).maybeSingle()
+      ? supabase.from("analises_viabilidade").select("status, conclusao").eq("processo_id", id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     listarNomesResponsaveis(),
     // Selo de prazo/entrega nas etapas Quesitos e Réplica (lote 15/10/2026).
@@ -208,7 +209,15 @@ export default async function ProcessoDetalhePage({
     temEstrategiaPericial
       ? supabase.from("reunioes_estrategia_historico").select("*").eq("processo_id", id).order("registrado_em", { ascending: false })
       : Promise.resolve({ data: null, error: null }),
+    // Conversa do caso (chat ligado ao processo, 27/10/2026) — últimas 30.
+    supabase
+      .from("chat_mensagens")
+      .select("id, autor_nome, texto, arquivo_nome, mencionado_nome, created_at")
+      .eq("processo_id", id)
+      .order("created_at", { ascending: false })
+      .limit(30),
   ]);
+  const conversaCaso = (conversaCasoDb ?? []).slice().reverse();
   if (erroHistoricoReunioes) {
     console.error(`Processo ${id}: falha ao buscar histórico de reuniões:`, erroHistoricoReunioes.message);
     erros.push("o histórico de reuniões");
@@ -224,6 +233,12 @@ export default async function ProcessoDetalhePage({
   }
   const seloQuesitos = seloEntrega(quesitosDocDb);
   const seloReplica = seloEntrega(replicaDb);
+  // Mesmas conclusões que a Pós-entrega trata como "viável" (pos-entrega-panel.tsx).
+  const conclusaoViavel =
+    viabilidadeStatusDb?.conclusao !== null &&
+    viabilidadeStatusDb?.conclusao !== undefined &&
+    ["viavel", "viavel_com_ressalvas", "viabilidade_condicionada"].includes(viabilidadeStatusDb.conclusao);
+  const continuidadeLiberada = !temAnaliseViabilidade || conclusaoViavel;
   const horaReuniao = processo.estrategia_pericial_reuniao_hora ? ` às ${processo.estrategia_pericial_reuniao_hora.slice(0, 5)}` : "";
   const { data: primeiraSecao, error: erroPrimeiraSecao } = primeiraSecaoResultado;
 
@@ -533,16 +548,30 @@ export default async function ProcessoDetalhePage({
         <CardEtapa href={`/processos/${processo.id}/declaracao`} titulo="Declaração Médico-Pericial" descricao="Preencher e gerar a declaração (PDF/Word)" />
       )}
 
-      <Link
-        href={`/processos/${processo.id}/continuidade`}
-        className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
-      >
-        <div>
-          <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Continuidade de Serviços</h3>
-          <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Registrar oportunidade de continuidade e acompanhar o follow-up</p>
+      {/*
+        Esteira (27/10/2026, pedido dela): quando há Análise de Viabilidade, a
+        Continuidade só entra depois que a análise foi concluída como viável —
+        se não for viável, a esteira termina ali.
+      */}
+      {continuidadeLiberada ? (
+        <Link
+          href={`/processos/${processo.id}/continuidade`}
+          className="flex items-center justify-between gap-3 rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 hover:border-petroleo-400 dark:hover:border-petroleo-600 transition-colors"
+        >
+          <div>
+            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Continuidade de Serviços</h3>
+            <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">Registrar oportunidade de continuidade e acompanhar o follow-up</p>
+          </div>
+          <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
+        </Link>
+      ) : (
+        <div className="rounded-lg border border-dashed border-nevoa-300 dark:border-nevoa-700 p-5">
+          <h3 className="font-title text-sm font-semibold text-nevoa-500 dark:text-nevoa-400">Continuidade de Serviços</h3>
+          <p className="text-xs text-nevoa-500 dark:text-nevoa-400 mt-0.5">
+            Libera depois que a Análise de Viabilidade for concluída como viável.
+          </p>
         </div>
-        <span className="text-petroleo-600 dark:text-petroleo-400 text-sm shrink-0">Abrir →</span>
-      </Link>
+      )}
 
       {processo.numero_processo && (
         <Link
@@ -559,6 +588,28 @@ export default async function ProcessoDetalhePage({
 
       {processo.tipo_trabalho === "pericia_judicial" && (
         <PoloPartesPanel processoId={processo.id} partes={partes} />
+      )}
+
+      {conversaCaso.length > 0 && (
+        <div className="rounded-lg border border-nevoa-200 dark:border-nevoa-800 bg-white dark:bg-nevoa-900/40 p-5 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-title text-sm font-semibold text-nevoa-900 dark:text-nevoa-100">Conversa do caso</h3>
+            <Link href="/chat" className="text-xs text-petroleo-600 hover:underline dark:text-petroleo-400">
+              Abrir o Chat →
+            </Link>
+          </div>
+          <ul className="space-y-2">
+            {conversaCaso.map((m) => (
+              <li key={m.id} className="text-sm text-nevoa-800 dark:text-nevoa-200">
+                <span className="font-medium">{m.autor_nome}</span>
+                {m.mencionado_nome && <span className="text-nevoa-500 dark:text-nevoa-400"> → {m.mencionado_nome}</span>}
+                <span className="text-xs text-nevoa-500 dark:text-nevoa-400"> · {new Date(m.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>
+                {m.texto && <p className="whitespace-pre-wrap break-words">{m.texto}</p>}
+                {m.arquivo_nome && <p className="text-xs text-nevoa-500 dark:text-nevoa-400">Anexo: {m.arquivo_nome}</p>}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="flex flex-wrap gap-3">

@@ -62,6 +62,7 @@ export const PROVIDENCIA_POR_CATEGORIA: Record<ItemPainel["categoria"], string> 
   viabilidade_necessidade_especialista: "Acionar/aguardar o especialista necessário.",
   viabilidade_proxima_acao: "Executar a próxima ação registrada na análise.",
   viabilidade_pos_entrega_reuniao: "Agendar a reunião de apresentação do resultado.",
+  viabilidade_reuniao_apresentacao: "Apresentar o resultado da análise ao cliente e registrar se a reunião aconteceu.",
   viabilidade_orcamento_sem_retorno: "Contatar o cliente pra saber o motivo e manter a comunicação.",
   contestacao_solicitar_documento: "Solicitar o documento complementar identificado na Análise da Contestação.",
   contestacao_proxima_acao: "Executar a próxima ação registrada na Análise da Contestação.",
@@ -112,6 +113,7 @@ export type GrupoAgenda = keyof typeof GRUPO_AGENDA_ROTULOS;
 export const GRUPO_AGENDA_POR_CATEGORIA: Record<ItemPainel["categoria"], GrupoAgenda> = {
   agendamento_marcado: "pericias",
   reuniao_estrategia_pericial: "reunioes",
+  viabilidade_reuniao_apresentacao: "reunioes",
   tarefa_manual: "tarefas",
   ciclo_aberto: "prazos",
   laudo_sem_protocolar: "prazos",

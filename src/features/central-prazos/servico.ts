@@ -19,6 +19,7 @@ const SERVICO_POR_CATEGORIA: Partial<Record<ItemPainel["categoria"], EtapaContra
   viabilidade_necessidade_especialista: "analise_viabilidade",
   viabilidade_proxima_acao: "analise_viabilidade",
   viabilidade_pos_entrega_reuniao: "analise_viabilidade",
+  viabilidade_reuniao_apresentacao: "analise_viabilidade",
   viabilidade_orcamento_sem_retorno: "analise_viabilidade",
   contestacao_solicitar_documento: "analise_contestacao",
   contestacao_proxima_acao: "analise_contestacao",
